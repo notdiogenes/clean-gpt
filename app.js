@@ -333,10 +333,61 @@
     return Object.assign({}, PRESETS[name] || PRESETS.gmailSafe);
   }
 
+  function normalizeToLf(text) {
+    return String(text == null ? "" : text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  }
+
+  function toWindowsClipboardLineEndings(text) {
+    return normalizeToLf(text).replace(/\n/g, "\r\n");
+  }
+
+  function copyPlainText(text) {
+    return navigator.clipboard.writeText(text);
+  }
+
+  function fallbackCopyPlainText(text, statusElement, successMessage) {
+    const hidden = document.createElement("textarea");
+    hidden.value = text;
+    hidden.setAttribute("readonly", "");
+    hidden.setAttribute("aria-hidden", "true");
+    hidden.style.position = "fixed";
+    hidden.style.left = "-9999px";
+    hidden.style.top = "0";
+    document.body.appendChild(hidden);
+    hidden.focus();
+    hidden.select();
+
+    let copied = false;
+    function onCopy(event) {
+      if (!event.clipboardData) return;
+      event.clipboardData.setData("text/plain", text);
+      event.preventDefault();
+      copied = true;
+    }
+
+    document.addEventListener("copy", onCopy);
+    try {
+      document.execCommand("copy");
+    } finally {
+      document.removeEventListener("copy", onCopy);
+      document.body.removeChild(hidden);
+    }
+
+    if (statusElement) {
+      statusElement.textContent = copied ? successMessage : "Select the output and copy manually.";
+    }
+    return copied;
+  }
+
   function bindDom() {
     const input = document.getElementById("inputText");
     const output = document.getElementById("outputText");
     const copyButton = document.getElementById("copyButton");
+    const gmailCopyButton = document.getElementById("gmailCopyButton");
+    const debugLfButton = document.getElementById("debugLfButton");
+    const debugCrlfButton = document.getElementById("debugCrlfButton");
+    const debugSingleLfButton = document.getElementById("debugSingleLfButton");
+    const debugSingleCrlfButton = document.getElementById("debugSingleCrlfButton");
     const clearButton = document.getElementById("clearButton");
     const presetSelect = document.getElementById("presetSelect");
     const status = document.getElementById("status");
@@ -464,20 +515,46 @@
       presetSelect.addEventListener("change", () => applyPreset(presetSelect.value));
     }
 
+    async function copyTextWithFallback(text, successMessage) {
+      try {
+        await copyPlainText(text);
+        if (status) status.textContent = successMessage;
+      } catch (error) {
+        fallbackCopyPlainText(text, status, successMessage);
+      }
+    }
+
     if (copyButton) {
       copyButton.addEventListener("click", async () => {
         const result = sanitize(input.value, optionsFromUi());
         output.value = result.cleanText;
-        try {
-          await navigator.clipboard.writeText(result.cleanText);
-          if (status) status.textContent = "Copied clean plain text.";
-        } catch (error) {
-          output.focus();
-          output.select();
-          document.execCommand("copy");
-          if (status) status.textContent = "Copied clean plain text.";
-        }
+        await copyTextWithFallback(result.cleanText, "Copied clean plain text with LF line endings.");
       });
+    }
+
+    if (gmailCopyButton) {
+      gmailCopyButton.addEventListener("click", async () => {
+        const result = sanitize(input.value, optionsFromUi());
+        output.value = result.cleanText;
+        const gmailPlainText = toWindowsClipboardLineEndings(result.cleanText);
+        await copyTextWithFallback(gmailPlainText, "Copied Gmail plain text with Windows CRLF line endings.");
+      });
+    }
+
+    if (debugLfButton) {
+      debugLfButton.addEventListener("click", () => copyTextWithFallback("Paragraph one.\n\nParagraph two.", "Copied LF paragraph test."));
+    }
+
+    if (debugCrlfButton) {
+      debugCrlfButton.addEventListener("click", () => copyTextWithFallback("Paragraph one.\r\n\r\nParagraph two.", "Copied CRLF paragraph test."));
+    }
+
+    if (debugSingleLfButton) {
+      debugSingleLfButton.addEventListener("click", () => copyTextWithFallback("Line one.\nLine two.", "Copied LF line-break test."));
+    }
+
+    if (debugSingleCrlfButton) {
+      debugSingleCrlfButton.addEventListener("click", () => copyTextWithFallback("Line one.\r\nLine two.", "Copied CRLF line-break test."));
     }
 
     if (clearButton) {
@@ -495,7 +572,9 @@
     sanitize,
     DEFAULT_OPTIONS,
     PRESETS,
-    getPresetOptions
+    getPresetOptions,
+    normalizeToLf,
+    toWindowsClipboardLineEndings
   };
 
   if (typeof module !== "undefined" && module.exports) {

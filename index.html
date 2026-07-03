@@ -28,11 +28,25 @@
     <section class="panel editor-panel" aria-labelledby="outputLabel">
       <div class="panel-header">
         <h2 id="outputLabel">Clean text</h2>
-        <button id="copyButton" type="button" class="primary-button">Copy clean text</button>
+        <div class="button-row">
+          <button id="copyButton" type="button" class="ghost-button">Copy plain text</button>
+          <button id="gmailCopyButton" type="button" class="primary-button">Copy for Gmail</button>
+        </div>
       </div>
       <textarea id="outputText" class="gmail-compose" readonly placeholder="Sanitized output appears here..."></textarea>
-      <p class="preview-note">Preview font: Verdana, 10pt. Copy output is still plain text only.</p>
+      <p class="preview-note">Preview font: Verdana, 10pt. “Copy for Gmail” still copies only text/plain, but converts line endings to Windows CRLF before writing to the clipboard.</p>
       <p id="status" class="status" aria-live="polite"></p>
+
+      <details class="debug-panel">
+        <summary>Gmail paste tests</summary>
+        <p>Use these buttons to identify whether Gmail preserves Verdana better with LF or CRLF paragraph separators on your machine.</p>
+        <div class="debug-grid">
+          <button id="debugLfButton" type="button" class="ghost-button">Copy LF paragraphs</button>
+          <button id="debugCrlfButton" type="button" class="ghost-button">Copy CRLF paragraphs</button>
+          <button id="debugSingleLfButton" type="button" class="ghost-button">Copy LF line break</button>
+          <button id="debugSingleCrlfButton" type="button" class="ghost-button">Copy CRLF line break</button>
+        </div>
+      </details>
     </section>
 
     <aside class="panel controls-panel" aria-labelledby="controlsLabel">

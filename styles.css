@@ -321,3 +321,48 @@ input[type="checkbox"] {
     min-height: 38vh;
   }
 }
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.debug-panel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--soft);
+  color: var(--muted);
+}
+
+.debug-panel summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.debug-panel p {
+  margin: 8px 0 10px;
+  font-size: 0.88rem;
+}
+
+.debug-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.debug-grid button {
+  width: 100%;
+}
+
+@media (max-width: 680px) {
+  .button-row {
+    justify-content: flex-start;
+  }
+
+  .debug-grid {
+    grid-template-columns: 1fr;
+  }
+}

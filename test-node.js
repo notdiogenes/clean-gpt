@@ -80,20 +80,35 @@ const tests = [
     name: "combined Gmail Safe preset",
     input: "\u201cLet\u2019s review this\u2014carefully\u2026\u201d\n\u2022 First point\n\u2022 Second point",
     expected: "\"Let's review this -- carefully...\"\n- First point\n- Second point"
+  },
+  {
+    name: "Gmail copy mode converts LF paragraphs to CRLF paragraphs",
+    input: "One\n\nTwo",
+    expected: "One\r\n\r\nTwo",
+    transform: "gmailLineEndings"
+  },
+  {
+    name: "Gmail copy mode normalizes mixed line endings before CRLF output",
+    input: "One\r\nTwo\rThree\nFour",
+    expected: "One\r\nTwo\r\nThree\r\nFour",
+    transform: "gmailLineEndings"
   }
 ];
 
 let passed = 0;
 for (const test of tests) {
-  const result = TextSanitizer.sanitize(test.input, TextSanitizer.getPresetOptions("gmailSafe"));
-  const ok = result.cleanText === test.expected;
+  const sanitized = TextSanitizer.sanitize(test.input, TextSanitizer.getPresetOptions("gmailSafe"));
+  const actual = test.transform === "gmailLineEndings"
+    ? TextSanitizer.toWindowsClipboardLineEndings(sanitized.cleanText)
+    : sanitized.cleanText;
+  const ok = actual === test.expected;
   if (ok) {
     passed += 1;
     console.log(`PASS: ${test.name}`);
   } else {
     console.error(`FAIL: ${test.name}`);
     console.error(`  Expected: ${JSON.stringify(test.expected)}`);
-    console.error(`  Actual:   ${JSON.stringify(result.cleanText)}`);
+    console.error(`  Actual:   ${JSON.stringify(actual)}`);
   }
 }
 
