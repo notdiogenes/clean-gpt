@@ -352,19 +352,15 @@
     const normalized = normalizeToLf(text);
     const lines = normalized.length ? normalized.split("\n") : [""];
     const gmailDefaultStyle = "font-family: verdana, sans-serif;";
-    const gmailCaretSpacer = "\u200B";
     const lastNonEmptyIndex = lines.reduce((last, line, index) => line === "" ? last : index, -1);
-    let insertedCaretSpacer = false;
 
     const body = lines.map((line, index) => {
       if (line === "") {
         return `<div class="gmail_default" style="${gmailDefaultStyle}"><br></div>`;
       }
 
-      const prefix = insertedCaretSpacer ? "" : gmailCaretSpacer;
-      insertedCaretSpacer = true;
       const suffix = index === lastNonEmptyIndex ? "<br>" : "";
-      return `<div class="gmail_default" style="${gmailDefaultStyle}">${prefix}${escapeHtml(line)}${suffix}</div>`;
+      return `<div class="gmail_default" style="${gmailDefaultStyle}">${escapeHtml(line)}${suffix}</div>`;
     }).join("");
 
     return `<div>${body}<br clear="all"></div>`;
@@ -413,28 +409,29 @@
     return copied;
   }
 
-  function fallbackCopyGmailHtml(plainText, htmlText) {
+  function fallbackCopyGmailHtml(htmlText) {
     if (typeof document === "undefined") {
       throw new Error("Fallback Gmail HTML copy is not available.");
     }
 
-    const trigger = document.createElement("textarea");
-    trigger.value = plainText;
-    trigger.setAttribute("readonly", "");
+    const trigger = document.createElement("button");
+    trigger.type = "button";
     trigger.setAttribute("aria-hidden", "true");
     trigger.style.position = "fixed";
     trigger.style.left = "-9999px";
     trigger.style.top = "0";
+    trigger.style.width = "1px";
+    trigger.style.height = "1px";
+    trigger.style.opacity = "0";
     document.body.appendChild(trigger);
     trigger.focus();
-    trigger.select();
 
     let copied = false;
 
     function onCopy(event) {
       if (!event.clipboardData) return;
+      event.clipboardData.clearData();
       event.clipboardData.setData("text/html", htmlText);
-      event.clipboardData.setData("text/plain", plainText);
       event.preventDefault();
       copied = true;
     }
@@ -450,14 +447,13 @@
     return copied;
   }
 
-  async function copyGmailHtmlWithClipboardApi(plainText, htmlText) {
+  async function copyGmailHtmlWithClipboardApi(htmlText) {
     if (!navigator.clipboard || !navigator.clipboard.write || typeof ClipboardItem === "undefined") {
       throw new Error("HTML clipboard write is not available in this browser context.");
     }
 
     const item = new ClipboardItem({
-      "text/html": new Blob([htmlText], { type: "text/html" }),
-      "text/plain": new Blob([plainText], { type: "text/plain" })
+      "text/html": new Blob([htmlText], { type: "text/html" })
     });
 
     return navigator.clipboard.write([item]);
@@ -595,15 +591,14 @@
     }
 
     async function copyGmailHtml(text) {
-      const plainText = normalizeToLf(text);
-      const htmlText = textToGmailHtml(plainText);
+      const htmlText = textToGmailHtml(text);
 
       try {
-        await copyGmailHtmlWithClipboardApi(plainText, htmlText);
+        await copyGmailHtmlWithClipboardApi(htmlText);
         if (status) status.textContent = "Copied Gmail-compatible Verdana HTML.";
       } catch (apiError) {
         try {
-          const copied = fallbackCopyGmailHtml(plainText, htmlText);
+          const copied = fallbackCopyGmailHtml(htmlText);
           if (!copied) throw new Error("Fallback Gmail HTML copy failed.");
           if (status) status.textContent = "Copied Gmail-compatible Verdana HTML.";
         } catch (fallbackError) {
