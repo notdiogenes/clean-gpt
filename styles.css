@@ -80,19 +80,6 @@ h3 {
   max-width: 720px;
 }
 
-.secondary-link {
-  color: var(--ink);
-  text-decoration: none;
-  border: 1px solid var(--border);
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: var(--panel);
-  white-space: nowrap;
-}
-
-.secondary-link:hover {
-  border-color: var(--ink);
-}
 
 .app-shell {
   max-width: 1320px;
@@ -137,17 +124,45 @@ h3 {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
-#outputText.gmail-compose {
+#outputText.gmail-compose-output {
+  display: block;
+  width: 100%;
+  min-height: 62vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fffefb;
+  color: var(--ink);
   font-family: Verdana, Geneva, sans-serif;
   font-size: 10pt;
   line-height: normal;
   letter-spacing: normal;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+#outputText.gmail-compose-output:empty::before {
+  content: attr(data-placeholder);
+  color: color-mix(in srgb, var(--muted), transparent 30%);
+}
+
+.gmail-copy-host {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 640px;
+  min-height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 textarea:focus,
 button:focus,
 select:focus,
-a:focus {
+a:focus,
+.gmail-compose-output:focus {
   outline: 3px solid color-mix(in srgb, var(--focus), transparent 70%);
   outline-offset: 2px;
 }
@@ -269,28 +284,6 @@ input[type="checkbox"] {
   font-size: 0.9rem;
 }
 
-.test-shell {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 32px 20px;
-}
-
-.test-result {
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  white-space: pre-wrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-}
-
-.pass {
-  color: #126122;
-}
-
-.fail {
-  color: #9a1c1c;
-}
 
 @media (max-width: 1050px) {
   .app-shell {
@@ -308,16 +301,13 @@ input[type="checkbox"] {
     display: block;
   }
 
-  .secondary-link {
-    display: inline-block;
-    margin-top: 18px;
-  }
 
   .app-shell {
     grid-template-columns: 1fr;
   }
 
-  .editor-panel textarea {
+  .editor-panel textarea,
+  #outputText.gmail-compose-output {
     min-height: 38vh;
   }
 }
@@ -329,40 +319,8 @@ input[type="checkbox"] {
   justify-content: flex-end;
 }
 
-.debug-panel {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--soft);
-  color: var(--muted);
-}
-
-.debug-panel summary {
-  cursor: pointer;
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.debug-panel p {
-  margin: 8px 0 10px;
-  font-size: 0.88rem;
-}
-
-.debug-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.debug-grid button {
-  width: 100%;
-}
-
 @media (max-width: 680px) {
   .button-row {
     justify-content: flex-start;
-  }
-
-  .debug-grid {
-    grid-template-columns: 1fr;
   }
 }
