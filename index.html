@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plain Text Sanitizer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">Static plain text cleanup tool</p>
+      <h1>Plain Text Sanitizer</h1>
+      <p class="lede">Paste text, normalize hidden characters and typographic punctuation, then copy clean plain text.</p>
+    </div>
+    <a class="secondary-link" href="tests.html">Run browser tests</a>
+  </header>
+
+  <main class="app-shell">
+    <section class="panel editor-panel" aria-labelledby="inputLabel">
+      <div class="panel-header">
+        <h2 id="inputLabel">Original text</h2>
+        <button id="clearButton" type="button" class="ghost-button">Clear</button>
+      </div>
+      <textarea id="inputText" spellcheck="true" placeholder="Paste text here..."></textarea>
+    </section>
+
+    <section class="panel editor-panel" aria-labelledby="outputLabel">
+      <div class="panel-header">
+        <h2 id="outputLabel">Clean text</h2>
+        <button id="copyButton" type="button" class="primary-button">Copy clean text</button>
+      </div>
+      <textarea id="outputText" readonly placeholder="Sanitized output appears here..."></textarea>
+      <p id="status" class="status" aria-live="polite"></p>
+    </section>
+
+    <aside class="panel controls-panel" aria-labelledby="controlsLabel">
+      <h2 id="controlsLabel">Controls</h2>
+
+      <label class="field-label" for="presetSelect">Preset</label>
+      <select id="presetSelect">
+        <option value="gmailSafe">Gmail Safe</option>
+        <option value="strictPlainText">Strict Plain Text</option>
+        <option value="lightCleanup">Light Cleanup</option>
+      </select>
+
+      <fieldset>
+        <legend>Cleanup rules</legend>
+        <label><input type="checkbox" data-option="removeHidden"> Remove hidden characters</label>
+        <label><input type="checkbox" data-option="normalizeLineEndings"> Normalize line endings</label>
+        <label><input type="checkbox" data-option="normalizeSpaces"> Normalize unusual spaces</label>
+        <label><input type="checkbox" data-option="trimTrailingSpaces"> Trim trailing spaces</label>
+        <label><input type="checkbox" data-option="limitBlankLines"> Limit extra blank lines</label>
+        <label><input type="checkbox" data-option="normalizeQuotes"> Normalize quotes and apostrophes</label>
+        <label><input type="checkbox" data-option="normalizeDashes"> Normalize dashes</label>
+        <label><input type="checkbox" data-option="normalizeEllipsis"> Normalize ellipses</label>
+        <label><input type="checkbox" data-option="convertBullets"> Convert line bullets to hyphens</label>
+        <label><input type="checkbox" data-option="collapseRepeatedSpaces"> Collapse repeated spaces</label>
+        <label><input type="checkbox" data-option="convertTabs"> Convert tabs to spaces</label>
+        <label><input type="checkbox" data-option="removeEmoji"> Remove emoji and pictographic symbols</label>
+        <label><input type="checkbox" data-option="strictAscii"> Strict ASCII only</label>
+      </fieldset>
+    </aside>
+
+    <section class="panel inspector-panel" aria-labelledby="statsLabel">
+      <h2 id="statsLabel">Inspector</h2>
+      <ul id="statsList" class="stats-list"></ul>
+
+      <h3>Warnings</h3>
+      <ul id="warningsList" class="plain-list"></ul>
+
+      <h3>Remaining non-ASCII characters</h3>
+      <ul id="nonAsciiList" class="plain-list compact"></ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>This app runs in the browser and has no build step.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
