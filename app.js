@@ -341,6 +341,43 @@
     return normalizeToLf(text).replace(/\n/g, "\r\n");
   }
 
+  function escapeHtml(text) {
+    return String(text == null ? "" : text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function textToGmailHtml(text) {
+    const normalized = normalizeToLf(text);
+    const paragraphs = normalized.split(/\n{2,}/);
+    const blockStyle = "font-family: Verdana, sans-serif; font-size: 10pt; font-weight: normal; font-style: normal; color: #000000; line-height: normal;";
+
+    if (paragraphs.length === 0 || (paragraphs.length === 1 && paragraphs[0] === "")) {
+      return `<div style="${blockStyle}"><br></div>`;
+    }
+
+    return paragraphs.map((paragraph) => {
+      const escapedLines = paragraph.split("\n").map((line) => escapeHtml(line));
+      const content = escapedLines.join("<br>") || "<br>";
+      return `<div style="${blockStyle}">${content}</div>`;
+    }).join(`<div style="${blockStyle}"><br></div>`);
+  }
+
+  async function copyHtmlWithPlainText(plainText, htmlText) {
+    if (!navigator.clipboard || !navigator.clipboard.write || typeof ClipboardItem === "undefined") {
+      throw new Error("HTML clipboard write is not available in this browser context.");
+    }
+
+    const item = new ClipboardItem({
+      "text/plain": new Blob([plainText], { type: "text/plain" }),
+      "text/html": new Blob([htmlText], { type: "text/html" })
+    });
+
+    return navigator.clipboard.write([item]);
+  }
+
   function copyPlainText(text) {
     return navigator.clipboard.writeText(text);
   }
@@ -375,6 +412,42 @@
 
     if (statusElement) {
       statusElement.textContent = copied ? successMessage : "Select the output and copy manually.";
+    }
+    return copied;
+  }
+
+  function fallbackCopyHtmlWithPlainText(plainText, htmlText, statusElement, successMessage) {
+    const hidden = document.createElement("textarea");
+    hidden.value = plainText;
+    hidden.setAttribute("readonly", "");
+    hidden.setAttribute("aria-hidden", "true");
+    hidden.style.position = "fixed";
+    hidden.style.left = "-9999px";
+    hidden.style.top = "0";
+    document.body.appendChild(hidden);
+    hidden.focus();
+    hidden.select();
+
+    let copied = false;
+
+    function onCopy(event) {
+      if (!event.clipboardData) return;
+      event.clipboardData.setData("text/plain", plainText);
+      event.clipboardData.setData("text/html", htmlText);
+      event.preventDefault();
+      copied = true;
+    }
+
+    document.addEventListener("copy", onCopy);
+    try {
+      document.execCommand("copy");
+    } finally {
+      document.removeEventListener("copy", onCopy);
+      document.body.removeChild(hidden);
+    }
+
+    if (statusElement) {
+      statusElement.textContent = copied ? successMessage : "HTML clipboard copy was not available. Try the plain text button.";
     }
     return copied;
   }
@@ -524,6 +597,15 @@
       }
     }
 
+    async function copyGmailHtmlWithFallback(plainText, htmlText, successMessage) {
+      try {
+        await copyHtmlWithPlainText(plainText, htmlText);
+        if (status) status.textContent = successMessage;
+      } catch (error) {
+        fallbackCopyHtmlWithPlainText(plainText, htmlText, status, successMessage);
+      }
+    }
+
     if (copyButton) {
       copyButton.addEventListener("click", async () => {
         const result = sanitize(input.value, optionsFromUi());
@@ -536,8 +618,9 @@
       gmailCopyButton.addEventListener("click", async () => {
         const result = sanitize(input.value, optionsFromUi());
         output.value = result.cleanText;
-        const gmailPlainText = toWindowsClipboardLineEndings(result.cleanText);
-        await copyTextWithFallback(gmailPlainText, "Copied Gmail plain text with Windows CRLF line endings.");
+        const gmailPlainText = result.cleanText;
+        const gmailHtml = textToGmailHtml(result.cleanText);
+        await copyGmailHtmlWithFallback(gmailPlainText, gmailHtml, "Copied Gmail-formatted Verdana text with a plain text fallback.");
       });
     }
 
@@ -574,7 +657,9 @@
     PRESETS,
     getPresetOptions,
     normalizeToLf,
-    toWindowsClipboardLineEndings
+    toWindowsClipboardLineEndings,
+    escapeHtml,
+    textToGmailHtml
   };
 
   if (typeof module !== "undefined" && module.exports) {

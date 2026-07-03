@@ -44,8 +44,8 @@ The first version focuses on sanitization, not generation.
 2. User pastes text into the input box.
 3. The app immediately shows sanitized output.
 4. User reviews the output.
-5. User clicks **Copy for Gmail** for Windows/Chrome/Gmail testing, or **Copy plain text** for ordinary LF plain text.
-6. The app writes plain text to the clipboard.
+5. User clicks **Copy for Gmail** to copy sanitized text with minimal Verdana HTML, or **Copy plain text** for strict plain text.
+6. The app writes the requested clipboard format.
 7. User pastes the result into Gmail.
 
 ### 5. Main Screen
@@ -58,7 +58,7 @@ The app uses one page with:
 - Cleanup rule checkboxes
 - Copy plain text button
 - Copy for Gmail button
-- Gmail paste test buttons
+- Gmail paste diagnostic buttons
 - Clear button
 - Inspector panel
 - Browser test link
@@ -165,9 +165,14 @@ Disabled by default in Gmail Safe mode:
 
 The **Copy plain text** button writes the sanitized string using plain-text clipboard output with the sanitizer's internal `U+000A` line endings.
 
-The **Copy for Gmail** button also writes only `text/plain`, but converts internal `U+000A` line endings to Windows-style `U+000D U+000A` before writing to the clipboard.
+The **Copy for Gmail** button writes both:
 
-The app does not write HTML to the clipboard.
+- `text/plain`: the sanitized string with no markup.
+- `text/html`: a minimal HTML representation of the same sanitized string.
+
+The Gmail HTML output uses only paragraph blocks, `<br>` line breaks, escaped text content, and a small inline style for Verdana, 10pt, normal weight, normal style, black text, and normal line height.
+
+The HTML output is generated from the sanitized string, not from the original pasted source.
 
 The sanitized output uses the selected cleanup rules.
 
@@ -236,15 +241,15 @@ The app has two production copy buttons.
 
 **Copy plain text** writes the sanitized output as `text/plain` with internal `U+000A` line endings.
 
-**Copy for Gmail** writes the sanitized output as `text/plain` after converting line endings to Windows-style `U+000D U+000A`. This mode is intended to test whether Gmail on Windows/Chrome preserves the active compose font across multiple pasted paragraphs when the clipboard contains CRLF paragraph separators.
+**Copy for Gmail** writes `text/plain` and `text/html`. The plain-text payload remains clean sanitized text. The HTML payload is generated from that same clean text and exists only to keep Gmail from reverting multi-paragraph pastes to Sans Serif.
 
-The app also includes a collapsible Gmail paste test panel with four diagnostic buttons: LF paragraphs, CRLF paragraphs, LF line break, and CRLF line break.
+The app also includes a collapsible Gmail paste diagnostic panel with four plain-text buttons: LF paragraphs, CRLF paragraphs, LF line break, and CRLF line break. These are retained for comparison.
 
-Fallback behavior uses a temporary textarea and a copy-event handler that writes `text/plain` explicitly.
+Fallback behavior uses a temporary textarea and a copy-event handler. Plain text copy writes `text/plain`; Gmail copy writes both `text/plain` and `text/html`.
 
 Manual copy from the output textarea is intercepted so the clipboard receives `text/plain` only.
 
-The output preview area uses Verdana at 10pt. This is display-only; the clipboard still receives plain text and no font markup.
+The output preview area uses Verdana at 10pt.
 
 ### 13. Privacy Requirements
 
@@ -328,6 +333,8 @@ Tests cover:
 - Combined Gmail Safe behavior
 - Gmail copy-mode CRLF conversion
 - Mixed-line-ending conversion for Gmail copy mode
+- HTML escaping for Gmail output
+- Minimal Verdana paragraph HTML for Gmail output
 
 ### 17. Example Transformations
 

@@ -34,12 +34,12 @@
         </div>
       </div>
       <textarea id="outputText" class="gmail-compose" readonly placeholder="Sanitized output appears here..."></textarea>
-      <p class="preview-note">Preview font: Verdana, 10pt. “Copy for Gmail” still copies only text/plain, but converts line endings to Windows CRLF before writing to the clipboard.</p>
+      <p class="preview-note">Preview font: Verdana, 10pt. “Copy for Gmail” writes sanitized text plus minimal Verdana HTML so Gmail keeps the same font across multiple paragraphs.</p>
       <p id="status" class="status" aria-live="polite"></p>
 
       <details class="debug-panel">
-        <summary>Gmail paste tests</summary>
-        <p>Use these buttons to identify whether Gmail preserves Verdana better with LF or CRLF paragraph separators on your machine.</p>
+        <summary>Gmail paste diagnostics</summary>
+        <p>The plain-text line-ending tests are retained for comparison. The main Gmail button now uses minimal HTML because plain text did not preserve Verdana across multiple pasted paragraphs.</p>
         <div class="debug-grid">
           <button id="debugLfButton" type="button" class="ghost-button">Copy LF paragraphs</button>
           <button id="debugCrlfButton" type="button" class="ghost-button">Copy CRLF paragraphs</button>

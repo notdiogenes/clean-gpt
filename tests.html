@@ -108,6 +108,18 @@
         input: "One\r\nTwo\rThree\nFour",
         expected: "One\r\nTwo\r\nThree\r\nFour",
         transform: "gmailLineEndings"
+      },
+      {
+        name: "HTML escaping for Gmail output",
+        input: "5 > 3 & \"quoted\" <tag>",
+        expected: "5 &gt; 3 &amp; &quot;quoted&quot; &lt;tag&gt;",
+        transform: "escapeHtml"
+      },
+      {
+        name: "Gmail HTML creates Verdana paragraph blocks",
+        input: "One\n\nTwo",
+        expected: "<div style=\"font-family: Verdana, sans-serif; font-size: 10pt; font-weight: normal; font-style: normal; color: #000000; line-height: normal;\">One</div><div style=\"font-family: Verdana, sans-serif; font-size: 10pt; font-weight: normal; font-style: normal; color: #000000; line-height: normal;\"><br></div><div style=\"font-family: Verdana, sans-serif; font-size: 10pt; font-weight: normal; font-style: normal; color: #000000; line-height: normal;\">Two</div>",
+        transform: "gmailHtml"
       }
     ];
 
@@ -117,9 +129,16 @@
 
     tests.forEach((test) => {
       const sanitized = TextSanitizer.sanitize(test.input, TextSanitizer.getPresetOptions("gmailSafe"));
-      const actual = test.transform === "gmailLineEndings"
-        ? TextSanitizer.toWindowsClipboardLineEndings(sanitized.cleanText)
-        : sanitized.cleanText;
+      let actual;
+      if (test.transform === "gmailLineEndings") {
+        actual = TextSanitizer.toWindowsClipboardLineEndings(sanitized.cleanText);
+      } else if (test.transform === "escapeHtml") {
+        actual = TextSanitizer.escapeHtml(test.input);
+      } else if (test.transform === "gmailHtml") {
+        actual = TextSanitizer.textToGmailHtml(sanitized.cleanText);
+      } else {
+        actual = sanitized.cleanText;
+      }
       const ok = actual === test.expected;
       if (ok) passed += 1;
       lines.push(`${ok ? "PASS" : "FAIL"}: ${test.name}`);
