@@ -12,6 +12,16 @@ const tests = [
     expected: "text -- text"
   },
   {
+    name: "quote-like double marks become keyboard double quotes",
+    input: "\u201c\u201d\u2033\uff02\u275d\u275e\u301d\u301e\u301f",
+    expected: "\"\"\"\"\"\"\"\"\""
+  },
+  {
+    name: "quote-like single marks become keyboard apostrophes",
+    input: "\u2018\u2019\u2032\u02bc\uff07\u275b\u275c",
+    expected: "'''''''"
+  },
+  {
     name: "spaced em dash normalizes to one spaced double hyphen",
     input: "text \u2014 text",
     expected: "text -- text"

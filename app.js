@@ -68,8 +68,10 @@
   const RULES = Object.freeze({
     hiddenChars: /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFE00-\uFE0F\uFEFF\uFFF9-\uFFFB]|[\u{E0000}-\u{E007F}]/gu,
     unusualSpaces: /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g,
-    curlySingleQuotes: /[\u2018\u2019\u201A\u201B\u2032\u2035\u02BC\uFF07]/g,
-    curlyDoubleQuotes: /[\u201C\u201D\u201E\u201F\u2033\u2036\u00AB\u00BB\uFF02]/g,
+    // Quote targets intentionally match plain keyboard characters:
+    // double quote U+0022 and apostrophe U+0027.
+    quoteLikeSingle: /[\u2018\u2019\u201A\u201B\u2032\u2035\u02BC\u02BB\u02BD\u055A\u275B\u275C\uFF07]/g,
+    quoteLikeDouble: /[\u201C\u201D\u201E\u201F\u2033\u2036\u275D\u275E\u301D\u301E\u301F\u00AB\u00BB\uFF02]/g,
     emDashLikeWithSurroundingSpaces: /[ \t]*[\u2014\u2015][ \t]*/g,
     enDashLike: /[\u2010\u2011\u2012\u2013\u2212]/g,
     ellipsis: /\u2026/g,
@@ -214,12 +216,12 @@
     }
 
     if (options.normalizeQuotes) {
-      const singleQuoteCount = countMatches(text, RULES.curlySingleQuotes);
-      const doubleQuoteCount = countMatches(text, RULES.curlyDoubleQuotes);
+      const singleQuoteCount = countMatches(text, RULES.quoteLikeSingle);
+      const doubleQuoteCount = countMatches(text, RULES.quoteLikeDouble);
       if (singleQuoteCount + doubleQuoteCount > 0) {
         stats.quoteReplacements += singleQuoteCount + doubleQuoteCount;
-        changes.push({ type: "Typographic quote marks normalized", count: singleQuoteCount + doubleQuoteCount });
-        text = text.replace(RULES.curlySingleQuotes, "'").replace(RULES.curlyDoubleQuotes, '"');
+        changes.push({ type: "Quote-like characters normalized to keyboard quotes", count: singleQuoteCount + doubleQuoteCount });
+        text = text.replace(RULES.quoteLikeSingle, "'").replace(RULES.quoteLikeDouble, '"');
       }
     }
 
@@ -445,6 +447,17 @@
     });
 
     input.addEventListener("input", update);
+
+    output.addEventListener("copy", (event) => {
+      if (!event.clipboardData) return;
+      const start = output.selectionStart == null ? 0 : output.selectionStart;
+      const end = output.selectionEnd == null ? output.value.length : output.selectionEnd;
+      const selected = start === end ? output.value : output.value.slice(start, end);
+      event.clipboardData.setData("text/plain", selected);
+      event.preventDefault();
+      if (status) status.textContent = "Copied clean plain text.";
+    });
+
     optionInputs.forEach((el) => el.addEventListener("change", update));
 
     if (presetSelect) {

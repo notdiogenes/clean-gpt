@@ -113,8 +113,8 @@ The sanitizer converts typographic punctuation into common keyboard punctuation.
 
 Default replacements:
 
-- Curly single quotes become `'`.
-- Curly double quotes become `"`.
+- Quote-like single marks become `'` (`U+0027 APOSTROPHE`).
+- Quote-like double marks become `"` (`U+0022 QUOTATION MARK`).
 - En dash-like characters become `-`.
 - Em dash-like characters become ` -- `.
 - Ellipsis becomes `...`.
@@ -228,9 +228,13 @@ Behavior:
 
 ### 12. Clipboard Behavior
 
-The app uses the browser clipboard API with `writeText`.
+The app uses the browser clipboard API with `writeText` for the main copy button.
 
 Fallback behavior selects the output textarea and runs the browser copy command.
+
+Manual copy from the output textarea is intercepted so the clipboard receives `text/plain` only.
+
+The output preview area uses Verdana at 10pt. This is display-only; the clipboard still receives plain text and no font markup.
 
 ### 13. Privacy Requirements
 
@@ -298,6 +302,7 @@ Tests cover:
 
 - Smart quotes
 - Curly apostrophes
+- Quote-like Unicode ornament and CJK quote marks
 - Em dashes
 - Spaced em dashes
 - En dashes
@@ -770,5 +775,7 @@ Possible later features:
 - Replaced visually ambiguous examples with code-point-explicit examples.
 - Changed em dash behavior from `text-text` to `text -- text`.
 - Added normalization for already spaced em dashes so `text—text`, `text — text`, `text— text`, and `text —text` become `text -- text`.
+- Expanded quote normalization so more quote-like Unicode characters become `U+0022` or `U+0027`.
+- Set the output preview textarea to Verdana 10pt and added a manual-copy handler that writes plain text only.
 - Kept Strict ASCII mode off by default to avoid altering names, foreign-language text, emoji, and symbols unless the user explicitly selects it.
 - Made the app static so it can run on GitHub Pages without a build process.

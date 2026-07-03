@@ -129,9 +129,19 @@ h3 {
   padding: 14px;
   background: #fffefb;
   color: var(--ink);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.95rem;
   line-height: 1.55;
+}
+
+#inputText {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+#outputText.gmail-compose {
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 10pt;
+  line-height: normal;
+  letter-spacing: normal;
 }
 
 textarea:focus,
@@ -166,10 +176,15 @@ a:focus {
   filter: brightness(0.96);
 }
 
+.preview-note,
 .status {
   min-height: 1.2em;
   margin: 10px 0 0;
   color: var(--muted);
+}
+
+.preview-note {
+  font-size: 0.85rem;
 }
 
 .controls-panel,
