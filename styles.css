@@ -134,7 +134,7 @@ h3 {
   padding: 14px;
   background: #fffefb;
   color: var(--ink);
-  font-family: Verdana, Geneva, sans-serif;
+  font-family: verdana, sans-serif;
   font-size: 10pt;
   line-height: normal;
   letter-spacing: normal;
@@ -145,17 +145,6 @@ h3 {
 #outputText.gmail-compose-output:empty::before {
   content: attr(data-placeholder);
   color: color-mix(in srgb, var(--muted), transparent 30%);
-}
-
-.gmail-copy-host {
-  position: fixed;
-  left: -10000px;
-  top: 0;
-  width: 640px;
-  min-height: 1px;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
 }
 
 textarea:focus,

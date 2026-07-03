@@ -161,19 +161,24 @@ Disabled by default in Gmail Safe mode:
 
 The **Copy plain text** button writes the sanitized string using plain-text clipboard output.
 
-The **Copy for Gmail** button builds Gmail-oriented HTML from the sanitized string, loads it into a hidden contenteditable HTML source, selects that HTML source, and copies it as `text/html` with a plain-text fallback.
+The **Copy for Gmail** button builds Gmail-compatible HTML from the sanitized string and writes that exact HTML string to the clipboard as `text/html`, with `text/plain` included only as a fallback for destinations that do not accept HTML.
 
-The Gmail HTML output uses:
+The Gmail HTML output is modeled on Gmail's own default Verdana compose markup:
 
-- `div dir="ltr"`
-- one styled `div` per line
-- `font-family: Verdana, Geneva, sans-serif`
-- Gmail-normal `font-size: small`
-- normal weight
-- normal style
-- black text
+- one outer wrapper `div`
+- one `div.gmail_default` per text line
+- `style="font-family: verdana, sans-serif;"` on every Gmail paragraph div
+- one Gmail-style leading `U+200B ZERO WIDTH SPACE` at the beginning of the first non-empty paragraph div
 - escaped text content
-- `<br>` for blank lines
+- `<div class="gmail_default" style="font-family: verdana, sans-serif;"><br></div>` for blank lines
+- `<br>` at the end of the final non-empty paragraph div
+- final `<br clear="all">` inside the outer wrapper
+
+The target shape is:
+
+```html
+<div><div class="gmail_default" style="font-family: verdana, sans-serif;">​Paragraph one</div><div class="gmail_default" style="font-family: verdana, sans-serif;"><br></div><div class="gmail_default" style="font-family: verdana, sans-serif;">Paragraph two<br></div><br clear="all"></div>
+```
 
 The HTML output is generated from the sanitized string, not from the original pasted source.
 
@@ -242,9 +247,9 @@ The app has two copy buttons.
 
 **Copy plain text** writes the sanitized output as `text/plain`.
 
-**Copy for Gmail** writes Gmail-oriented HTML by copying from a hidden contenteditable HTML source. The clipboard contains `text/html` for Gmail and `text/plain` as a fallback for destinations that do not accept HTML.
+**Copy for Gmail** writes a Gmail-compatible HTML string directly to the clipboard. The clipboard contains `text/html` for Gmail and `text/plain` only as a fallback for destinations that do not accept HTML.
 
-The clean output preview is a rendered `div`, not a textarea. It is displayed in Verdana at Gmail normal size.
+The clean output preview is a rendered `div`, not a textarea. It is displayed as `verdana, sans-serif` at Gmail normal size.
 
 ### 13. Privacy Requirements
 
@@ -732,7 +737,7 @@ Current scope includes:
 - Paste input
 - Live sanitized output preview
 - Copy plain text button
-- Copy for Gmail button using hidden contenteditable HTML source
+- Copy for Gmail button using directly generated Gmail-compatible HTML
 - Gmail Safe preset
 - Strict Plain Text preset
 - Light Cleanup preset
@@ -765,7 +770,8 @@ Possible later features:
 - Added normalization for already spaced em dashes so `text—text`, `text — text`, `text— text`, and `text —text` become `text -- text`.
 - Expanded quote normalization so more quote-like Unicode characters become `U+0022` or `U+0027`.
 - Changed the clean output preview from a textarea to a rendered Verdana div.
-- Replaced the Gmail plain-text line-ending experiment with Gmail-oriented HTML copied from a hidden contenteditable source.
+- Replaced the Gmail plain-text line-ending experiment with directly generated Gmail-compatible HTML.
+- Updated Gmail HTML to match Gmail default Verdana compose markup, including the outer wrapper, `div.gmail_default` paragraph blocks, lowercase `verdana, sans-serif`, blank-line divs, final paragraph `<br>`, and trailing `<br clear="all">`.
 - Removed Gmail diagnostic buttons.
 - Removed browser and Node test files from the shipped project.
 - Kept Strict ASCII mode off by default to avoid altering names, foreign-language text, emoji, and symbols unless the user explicitly selects it.
