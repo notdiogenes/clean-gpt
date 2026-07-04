@@ -1724,8 +1724,6 @@
     const warningsList = document.getElementById("warningsList");
     const nonAsciiList = document.getElementById("nonAsciiList");
     const diffViewToggle = document.getElementById("diffViewToggle");
-    const previewTab = document.getElementById("previewTab");
-    const diffTab = document.getElementById("diffTab");
     const advancedSettingsSearch = document.getElementById("advancedSettingsSearch");
     const advancedSettingsSearchStatus = document.getElementById("advancedSettingsSearchStatus");
     const advancedSettingsClear = document.getElementById("advancedSettingsClear");
@@ -2257,8 +2255,6 @@
       outputEditor.style.setProperty("--gmail-font-size", destinationStyle.fontSize);
       lastResult = sanitizeDoc(inputDoc, options);
       const showDiff = diffViewToggle ? diffViewToggle.checked : true;
-      if (previewTab) previewTab.setAttribute("aria-selected", String(!showDiff));
-      if (diffTab) diffTab.setAttribute("aria-selected", String(showDiff));
       if (showDiff) {
         outputEditor.classList.add("diff-output", "compact-diff-output");
         renderCompactDiff(inputDoc, lastResult.doc, lastResult.changes, DESTINATIONS[destinationSelect.value], options);
@@ -2446,8 +2442,6 @@
       update();
     });
     if (diffViewToggle) diffViewToggle.addEventListener("change", update);
-    if (previewTab && diffViewToggle) previewTab.addEventListener("click", () => { diffViewToggle.checked = false; update(); });
-    if (diffTab && diffViewToggle) diffTab.addEventListener("click", () => { diffViewToggle.checked = true; update(); });
     function clearAdvancedSettingsSearch() {
       if (!advancedSettingsSearch) return;
       advancedSettingsSearch.value = "";
