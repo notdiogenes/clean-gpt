@@ -227,6 +227,10 @@ h3 {
   font-size: 0.88rem;
 }
 
+.status-spacer {
+  visibility: hidden;
+}
+
 textarea:focus,
 button:focus,
 select:focus,

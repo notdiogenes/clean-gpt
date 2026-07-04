@@ -161,3 +161,7 @@ Upload the files to the repository root and enable GitHub Pages from GitHub Acti
 ## Privacy
 
 The app runs locally in the browser. It does not send text to a server.
+
+## UI model
+
+- The editor cards reserve matching status/footer space so the input and output panels keep the same visual height.
