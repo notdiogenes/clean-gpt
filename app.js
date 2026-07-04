@@ -194,6 +194,59 @@
     showInvisibles: false
   });
 
+  const GMAIL_FONT_OPTIONS = Object.freeze([
+    { label: "Sans Serif", value: "Arial, Helvetica, sans-serif" },
+    { label: "Serif", value: "Georgia, 'Times New Roman', serif" },
+    { label: "Fixed Width", value: "'Courier New', Courier, monospace" },
+    { label: "Wide", value: "Verdana, Geneva, sans-serif" },
+    { label: "Narrow", value: "'Arial Narrow', Arial, sans-serif" },
+    { label: "Comic Sans MS", value: "'Comic Sans MS', cursive" },
+    { label: "Garamond", value: "Garamond, serif" },
+    { label: "Georgia", value: "Georgia, serif" },
+    { label: "Tahoma", value: "Tahoma, Geneva, sans-serif" },
+    { label: "Trebuchet MS", value: "'Trebuchet MS', sans-serif" },
+    { label: "Verdana", value: "Verdana, Geneva, sans-serif" }
+  ]);
+
+  const GMAIL_SIZE_OPTIONS = Object.freeze([
+    { label: "Small", value: "10px" },
+    { label: "Normal", value: "13px" },
+    { label: "Large", value: "18px" },
+    { label: "Huge", value: "24px" }
+  ]);
+
+  const DOCUMENT_FONT_OPTIONS = Object.freeze([
+    { label: "Arial", value: "Arial, sans-serif" },
+    { label: "Times New Roman", value: "'Times New Roman', serif" },
+    { label: "Georgia", value: "Georgia, serif" },
+    { label: "Verdana", value: "Verdana, Geneva, sans-serif" },
+    { label: "Courier New", value: "'Courier New', Courier, monospace" }
+  ]);
+
+  const DOCUMENT_SIZE_OPTIONS = Object.freeze([
+    { label: "Normal text (11 pt)", value: "11pt" },
+    { label: "Title (26 pt)", value: "26pt" },
+    { label: "Subtitle (15 pt)", value: "15pt" },
+    { label: "Heading 1 (20 pt)", value: "20pt" },
+    { label: "Heading 2 (16 pt)", value: "16pt" },
+    { label: "Heading 3 (14 pt)", value: "14pt" },
+    { label: "Heading 4 (12 pt)", value: "12pt" },
+    { label: "Heading 5 (11 pt)", value: "11pt" },
+    { label: "Heading 6 (11 pt)", value: "11pt" }
+  ]);
+
+  const PLAIN_FONT_OPTIONS = Object.freeze([
+    { label: "Monospace", value: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace" },
+    { label: "Sans Serif", value: "Arial, Helvetica, sans-serif" },
+    { label: "Serif", value: "Georgia, 'Times New Roman', serif" }
+  ]);
+
+  const PLAIN_SIZE_OPTIONS = Object.freeze([
+    { label: "Small", value: "0.86rem" },
+    { label: "Normal", value: "0.92rem" },
+    { label: "Large", value: "1rem" }
+  ]);
+
   const DESTINATIONS = Object.freeze({
     gmail: {
       label: "Gmail",
@@ -932,6 +985,36 @@
     return String(text).replace(REGEX.htmlSensitive, (char) => MAPS.html.get(char));
   }
 
+  function gmailStyleFromOptions(options) {
+    const mergedOptions = options || {};
+    const fontFamily = mergedOptions.gmailFontFamily || mergedOptions.textFontFamily || "Arial, Helvetica, sans-serif";
+    const fontSize = mergedOptions.gmailFontSize || mergedOptions.textFontSize || "";
+    const declarations = [`font-family: ${fontFamily};`];
+    if (fontSize) declarations.push(`font-size: ${fontSize};`);
+    return {
+      fontFamily,
+      fontSize: fontSize || "13px",
+      inline: declarations.join(" ")
+    };
+  }
+
+  function destinationStyleFromOptions(options) {
+    const mergedOptions = options || {};
+    const destination = mergedOptions.destination || "gmail";
+    if (destination === "gmail") return gmailStyleFromOptions(mergedOptions);
+    return {
+      fontFamily: mergedOptions.textFontFamily || (destination === "plain" || destination === "strictAscii" || destination === "markdown" || destination === "slack" || destination === "cms" || destination === "code"
+        ? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace"
+        : "Arial, sans-serif"),
+      fontSize: mergedOptions.textFontSize || (destination === "plain" || destination === "strictAscii" || destination === "markdown" || destination === "slack" || destination === "cms" || destination === "code" ? "0.92rem" : "11pt")
+    };
+  }
+
+  function styleAttributeFromOptions(options) {
+    const style = destinationStyleFromOptions(options);
+    return `font-family: ${style.fontFamily}; font-size: ${style.fontSize};`;
+  }
+
   function buildGmailHtml(text) {
     const lines = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
     const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
@@ -1286,7 +1369,7 @@
     const items = block.items || [];
     items.forEach((item, index) => {
       const isFinalItem = isFinalContent && index === items.length - 1;
-      const nested = (item.children || []).map((child) => buildGmailListHtml(child, false)).join("");
+      const nested = (item.children || []).map((child) => buildGmailListHtml(child, false, options)).join("");
       parts.push(`<li class="gmail_default" style="font-family: verdana, sans-serif;">${htmlEscapeWithBreaks(item.text || "")}${nested}${isFinalItem ? "<br>" : ""}</li>`);
     });
     parts.push(`</${tag}>`);
@@ -1324,18 +1407,19 @@
     return parts.join("");
   }
 
-  function buildDocumentHtmlFromDoc(doc) {
-    const parts = ["<div>"];
+  function buildDocumentHtmlFromDoc(doc, options) {
+    const style = styleAttributeFromOptions(Object.assign({ destination: "googleDocs" }, options || {}));
+    const parts = [`<div style="${style}">`];
     (doc.blocks || []).forEach((block) => {
       if (block.type === "blank") {
         parts.push("<p><br></p>");
       } else if (block.type === "paragraph") {
-        parts.push(`<p>${htmlEscapeWithBreaks(block.text || "")}</p>`);
+        parts.push(`<p style="${style}">${htmlEscapeWithBreaks(block.text || "")}</p>`);
       } else if (block.type === "ul" || block.type === "ol") {
         const tag = block.type;
         parts.push(`<${tag}>`);
         (block.items || []).forEach((item) => {
-          const nested = (item.children || []).map((child) => buildDocumentHtmlFromDoc({ blocks: [child] }).replace(/^<div>|<\/div>$/g, "")).join("");
+          const nested = (item.children || []).map((child) => buildDocumentHtmlFromDoc({ blocks: [child] }, options).replace(/^<div[^>]*>|<\/div>$/g, "")).join("");
           parts.push(`<li>${htmlEscapeWithBreaks(item.text || "")}${nested}</li>`);
         });
         parts.push(`</${tag}>`);
@@ -1535,9 +1619,9 @@
     const copyVisibleButton = document.getElementById("copyVisibleButton");
     const destinationSelect = document.getElementById("destinationSelect");
     const destinationNote = document.getElementById("destinationNote");
-    const gmailStyleControls = document.getElementById("gmailStyleControls");
-    const gmailFontSelect = document.getElementById("gmailFontSelect");
-    const gmailSizeSelect = document.getElementById("gmailSizeSelect");
+    const destinationFontSelect = document.getElementById("destinationFontSelect");
+    const destinationSizeSelect = document.getElementById("destinationSizeSelect");
+    const destinationStyleNote = document.getElementById("destinationStyleNote");
     const presetSelect = document.getElementById("presetSelect");
     const status = document.getElementById("status");
     const pasteStatus = document.getElementById("pasteStatus");
@@ -1569,6 +1653,79 @@
       });
     }
 
+    function styleConfigForDestination(destination) {
+      if (destination === "gmail") {
+        return {
+          fonts: GMAIL_FONT_OPTIONS,
+          sizes: GMAIL_SIZE_OPTIONS,
+          defaultFont: "Arial, Helvetica, sans-serif",
+          defaultSize: "13px",
+          note: "Matches Gmail's named compose choices: font family plus Small, Normal, Large, or Huge size."
+        };
+      }
+      if (destination === "googleDocs" || destination === "word" || destination === "outlook") {
+        return {
+          fonts: DOCUMENT_FONT_OPTIONS,
+          sizes: DOCUMENT_SIZE_OPTIONS,
+          defaultFont: "Arial, sans-serif",
+          defaultSize: "11pt",
+          note: "Uses document-style fonts and Google Docs-style text size presets for the preview and rich-copy HTML."
+        };
+      }
+      return {
+        fonts: PLAIN_FONT_OPTIONS,
+        sizes: PLAIN_SIZE_OPTIONS,
+        defaultFont: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
+        defaultSize: "0.92rem",
+        note: "Applies to the preview. Plain-text copy keeps text unstyled because the clipboard format does not carry fonts or sizes."
+      };
+    }
+
+    function populateSelect(select, options, selectedValue) {
+      if (!select) return;
+      select.innerHTML = "";
+      options.forEach((option) => {
+        const element = document.createElement("option");
+        element.value = option.value;
+        element.textContent = option.label;
+        select.appendChild(element);
+      });
+      if (selectedValue && options.some((option) => option.value === selectedValue)) select.value = selectedValue;
+    }
+
+    function getStylePreferenceKey(destination) {
+      return `copySanitizer.destinationStyle.${destination}`;
+    }
+
+    function loadDestinationStylePreference(destination) {
+      try {
+        return JSON.parse(global.localStorage?.getItem(getStylePreferenceKey(destination)) || "{}");
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function saveDestinationStylePreference() {
+      const destination = destinationSelect.value;
+      try {
+        global.localStorage?.setItem(getStylePreferenceKey(destination), JSON.stringify({
+          fontFamily: destinationFontSelect ? destinationFontSelect.value : "",
+          fontSize: destinationSizeSelect ? destinationSizeSelect.value : ""
+        }));
+      } catch (error) {
+        // Local storage may be unavailable in private or locked-down contexts.
+      }
+    }
+
+    function refreshStyleControls() {
+      const destination = destinationSelect.value;
+      const config = styleConfigForDestination(destination);
+      const saved = loadDestinationStylePreference(destination);
+      populateSelect(destinationFontSelect, config.fonts, saved.fontFamily || config.defaultFont);
+      populateSelect(destinationSizeSelect, config.sizes, saved.fontSize || config.defaultSize);
+      if (destinationStyleNote) destinationStyleNote.textContent = config.note;
+    }
+
     function refreshProfileUi() {
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
       if (destinationNote) destinationNote.textContent = profile.note;
@@ -1580,8 +1737,12 @@
     function getOptions() {
       const options = currentOptionsFromUi(destinationSelect.value, presetSelect, optionInputs);
       options.destination = destinationSelect.value;
-      if (gmailFontSelect) options.gmailFontFamily = gmailFontSelect.value;
-      if (gmailSizeSelect) options.gmailFontSize = gmailSizeSelect.value;
+      if (destinationFontSelect) options.textFontFamily = destinationFontSelect.value;
+      if (destinationSizeSelect) options.textFontSize = destinationSizeSelect.value;
+      if (options.destination === "gmail") {
+        options.gmailFontFamily = options.textFontFamily;
+        options.gmailFontSize = options.textFontSize;
+      }
       return options;
     }
 
@@ -1714,9 +1875,11 @@
       if (!suppressInputEvent) inputDoc = parseEditorToDoc(inputEditor);
       refreshProfileUi();
       const options = getOptions();
-      const gmailStyle = gmailStyleFromOptions(options);
-      outputEditor.style.setProperty("--gmail-font-family", gmailStyle.fontFamily);
-      outputEditor.style.setProperty("--gmail-font-size", gmailStyle.fontSize);
+      const destinationStyle = destinationStyleFromOptions(options);
+      outputEditor.style.setProperty("--destination-font-family", destinationStyle.fontFamily);
+      outputEditor.style.setProperty("--destination-font-size", destinationStyle.fontSize);
+      outputEditor.style.setProperty("--gmail-font-family", destinationStyle.fontFamily);
+      outputEditor.style.setProperty("--gmail-font-size", destinationStyle.fontSize);
       lastResult = sanitizeDoc(inputDoc, options);
       renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, options);
       renderStats(lastResult);
@@ -1731,6 +1894,7 @@
       const preset = PRESETS[presetSelect.value] || PRESETS.standard;
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
       applyOptionsToUi(Object.assign({}, OPTION_DEFAULTS, preset, profile.overrides));
+      refreshStyleControls();
       update();
     }
 
@@ -1773,34 +1937,13 @@
       update();
     });
 
-    function loadGmailStylePreference() {
-      try {
-        const saved = JSON.parse(global.localStorage?.getItem("copySanitizer.gmailStyle") || "{}");
-        if (gmailFontSelect && saved.fontFamily) gmailFontSelect.value = saved.fontFamily;
-        if (gmailSizeSelect && saved.fontSize) gmailSizeSelect.value = saved.fontSize;
-      } catch (error) {
-        // Ignore malformed local preferences.
-      }
-    }
-
-    function saveGmailStylePreference() {
-      try {
-        global.localStorage?.setItem("copySanitizer.gmailStyle", JSON.stringify({
-          fontFamily: gmailFontSelect ? gmailFontSelect.value : OPTION_DEFAULTS.gmailFontFamily,
-          fontSize: gmailSizeSelect ? gmailSizeSelect.value : OPTION_DEFAULTS.gmailFontSize
-        }));
-      } catch (error) {
-        // Local storage may be unavailable in private or locked-down contexts.
-      }
-    }
-
     optionInputs.forEach((input) => input.addEventListener("change", update));
     presetSelect.addEventListener("change", applyPresetAndProfile);
     destinationSelect.addEventListener("change", applyPresetAndProfile);
-    [gmailFontSelect, gmailSizeSelect].forEach((select) => {
+    [destinationFontSelect, destinationSizeSelect].forEach((select) => {
       if (!select) return;
       select.addEventListener("change", () => {
-        saveGmailStylePreference();
+        saveDestinationStylePreference();
         update();
       });
     });
@@ -1857,7 +2000,7 @@
         }
 
         if ((destination === "googleDocs" || destination === "word" || destination === "outlook") && options.structuredListsForDocs) {
-          const html = buildDocumentHtmlFromDoc(result.doc);
+          const html = buildDocumentHtmlFromDoc(result.doc, options);
           try {
             if (!navigator.clipboard || !global.ClipboardItem) throw new Error("HTML clipboard unavailable");
             await navigator.clipboard.write([
@@ -1887,7 +2030,7 @@
       });
     }
 
-    loadGmailStylePreference();
+    refreshStyleControls();
     applyPresetAndProfile();
   }
 

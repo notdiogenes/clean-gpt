@@ -24,8 +24,12 @@ test('markdown profile serializes nested lists with indentation', () => {
 
 test('Gmail HTML preserves nested semantic lists', () => {
   const doc = sanitizer.parsePlainTextToDoc('- parent\n  - child', true);
-  const html = sanitizer.buildGmailHtmlFromDoc(doc, { gmailListsAsHyphenLines: false });
-  assert.match(html, /<ul style="font-family: verdana, sans-serif;">/);
+  const html = sanitizer.buildGmailHtmlFromDoc(doc, {
+    gmailListsAsHyphenLines: false,
+    gmailFontFamily: 'Arial, Helvetica, sans-serif',
+    gmailFontSize: '13px'
+  });
+  assert.match(html, /<ul style="font-family: Arial, Helvetica, sans-serif; font-size: 13px;">/);
   assert.match(html, /parent/);
   assert.match(html, /child/);
 });
