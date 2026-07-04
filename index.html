@@ -19,13 +19,13 @@
     <section class="panel editor-panel" aria-labelledby="inputLabel">
       <div class="panel-heading editor-heading">
         <h2 id="inputLabel">Original clipboard content</h2>
-        <p class="panel-subtitle">Paste here. The app reads clipboard HTML first, then plain text, so paragraphs and lists can be shown before cleanup.</p>
+        <p id="inputHelp" class="panel-subtitle">Paste here. The app reads clipboard HTML first, then plain text, so paragraphs and lists can be shown before cleanup.</p>
       </div>
       <div class="editor-actions input-actions" aria-label="Input actions">
         <button id="clearButton" type="button" class="ghost-button">Clear</button>
-        <span id="pasteStatus" class="inline-status">Ready for paste.</span>
+        <span id="pasteStatus" class="inline-status" aria-live="polite">Ready for paste.</span>
       </div>
-      <div id="inputEditor" class="rich-editor source-editor" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Original clipboard content" data-placeholder="Paste text or rich content here..."></div>
+      <div id="inputEditor" class="rich-editor source-editor" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Original clipboard content" aria-describedby="inputHelp pasteStatus" data-placeholder="Paste text or rich content here..."></div>
       <p id="inputStatus" class="status status-spacer" aria-hidden="true"></p>
     </section>
 
@@ -35,10 +35,10 @@
         <p class="panel-subtitle">This preview shows the selected destination rendering. The primary copy button may include HTML for paragraph and list structure.</p>
       </div>
       <div class="editor-actions output-actions" aria-label="Copy actions">
-        <button id="destinationCopyButton" type="button" class="primary-button">Copy for Gmail</button>
+        <button id="destinationCopyButton" type="button" class="primary-button">Copy output</button>
         <button id="copyVisibleButton" type="button" class="ghost-button">Copy visible text</button>
       </div>
-      <div id="outputEditor" class="rich-editor destination-output gmail-compose" aria-label="Destination-ready output" data-placeholder="Sanitized output appears here..."></div>
+      <div id="outputEditor" class="rich-editor destination-output gmail-compose" role="region" aria-live="polite" aria-label="Destination-ready output" data-placeholder="Sanitized output appears here..."></div>
       <p id="status" class="status" aria-live="polite"></p>
     </section>
 
@@ -52,10 +52,42 @@
             <option value="gmail">Gmail</option>
             <option value="googleDocs">Google Docs</option>
             <option value="word">Microsoft Word</option>
+            <option value="markdown">Markdown</option>
+            <option value="outlook">Outlook</option>
+            <option value="slack">Slack / Teams</option>
+            <option value="cms">CMS / web forms</option>
+            <option value="code">Code comments</option>
             <option value="plain">Plain text / forms</option>
             <option value="strictAscii">Strict ASCII</option>
           </select>
           <p id="destinationNote" class="destination-note"></p>
+          <fieldset id="gmailStyleControls" class="gmail-style-controls" aria-labelledby="gmailStyleLabel">
+            <legend id="gmailStyleLabel">Gmail style</legend>
+            <div class="control-grid two-up">
+              <label>
+                <span>Font</span>
+                <select id="gmailFontSelect">
+                  <option value="verdana, sans-serif">Verdana</option>
+                  <option value="arial, sans-serif">Arial</option>
+                  <option value="tahoma, sans-serif">Tahoma</option>
+                  <option value="georgia, serif">Georgia</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
+                  <option value="system-ui, sans-serif">System UI</option>
+                </select>
+              </label>
+              <label>
+                <span>Size</span>
+                <select id="gmailSizeSelect">
+                  <option value="10pt">10 pt</option>
+                  <option value="11pt">11 pt</option>
+                  <option value="12pt">12 pt</option>
+                  <option value="14px">14 px</option>
+                  <option value="16px">16 px</option>
+                </select>
+              </label>
+            </div>
+            <p class="destination-note compact-note">Saved locally and applied to Gmail preview and rich-copy HTML.</p>
+          </fieldset>
         </div>
 
         <label class="field-label" for="presetSelect">Cleanup preset</label>
@@ -125,6 +157,7 @@
           <div class="control-stack">
             <label><input type="checkbox" data-option="structuredListsForDocs"> Copy semantic HTML lists for Google Docs and Word</label>
             <label><input type="checkbox" data-option="gmailListsAsHyphenLines"> Flatten Gmail lists to plain hyphen lines</label>
+            <label><input type="checkbox" data-option="showInvisibles"> Show invisible characters in previews</label>
           </div>
         </details>
 
@@ -144,6 +177,9 @@
 
         <h3>Clipboard and lists</h3>
         <ul id="structureList" class="plain-list compact"></ul>
+
+        <h3>Browser compatibility</h3>
+        <ul id="compatibilityList" class="plain-list compact"></ul>
 
         <h3>Changes made</h3>
         <ul id="changesList" class="plain-list compact changes-list"></ul>
