@@ -998,6 +998,25 @@
     };
   }
 
+
+  function destinationStyleFromOptions(options) {
+    const mergedOptions = options || {};
+    const destination = mergedOptions.destination || "plain";
+    const isGmail = destination === "gmail";
+    const isDocument = destination === "googleDocs" || destination === "word" || destination === "outlook";
+    const defaultFont = isGmail ? "Arial, Helvetica, sans-serif" : (isDocument ? "Arial, sans-serif" : "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace");
+    const defaultSize = isGmail ? "13px" : (isDocument ? "11pt" : "0.92rem");
+    return {
+      fontFamily: mergedOptions.textFontFamily || mergedOptions.gmailFontFamily || defaultFont,
+      fontSize: mergedOptions.textFontSize || mergedOptions.gmailFontSize || defaultSize
+    };
+  }
+
+  function styleAttributeFromOptions(options) {
+    const style = destinationStyleFromOptions(options);
+    return `font-family: ${style.fontFamily}; font-size: ${style.fontSize};`;
+  }
+
   function buildGmailHtml(text) {
     const lines = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
     const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
