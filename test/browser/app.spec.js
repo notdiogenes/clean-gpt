@@ -5,7 +5,7 @@ test('loads and switches destination profiles', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Copy Sanitizer' })).toBeVisible();
   await page.locator('#inputEditor').fill('Hello — world');
   await page.locator('#destinationSelect').selectOption('markdown');
-  await expect(page.locator('#destinationCopyButton')).toHaveText('Copy output');
+  await expect(page.locator('#destinationCopyButton')).toHaveText('Copy Markdown');
   await expect(page.locator('#outputEditor')).toContainText('Hello -- world');
 });
 

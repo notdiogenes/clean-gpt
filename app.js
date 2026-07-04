@@ -191,9 +191,7 @@
     preferHtmlPaste: true,
     structuredListsForDocs: true,
     gmailListsAsHyphenLines: false,
-    showInvisibles: false,
-    gmailFontFamily: "verdana, sans-serif",
-    gmailFontSize: "10pt"
+    showInvisibles: false
   });
 
   const DESTINATIONS = Object.freeze({
@@ -245,7 +243,7 @@
 
     markdown: {
       label: "Markdown",
-      copyLabel: "Copy output",
+      copyLabel: "Copy Markdown",
       note: "Plain Markdown for GitHub, issues, and technical notes. Lists serialize as Markdown markers.",
       outputClass: "markdown-output",
       copyMode: "markdown",
@@ -261,7 +259,7 @@
     },
     outlook: {
       label: "Outlook",
-      copyLabel: "Copy output",
+      copyLabel: "Copy for Outlook",
       note: "Conservative rich HTML for Outlook. Preserves semantic paragraphs and lists with a plain-text fallback.",
       outputClass: "document-output",
       copyMode: "documentHtml",
@@ -277,7 +275,7 @@
     },
     slack: {
       label: "Slack / Teams",
-      copyLabel: "Copy output",
+      copyLabel: "Copy for Slack / Teams",
       note: "Markdown-like plain text for chat tools. Avoids rich clipboard HTML.",
       outputClass: "markdown-output",
       copyMode: "markdown",
@@ -293,7 +291,7 @@
     },
     cms: {
       label: "CMS / web forms",
-      copyLabel: "Copy output",
+      copyLabel: "Copy for CMS",
       note: "Plain text for CMS fields and web forms, with conservative character cleanup and preserved paragraph spacing.",
       outputClass: "plain-output",
       copyMode: "plain",
@@ -309,7 +307,7 @@
     },
     code: {
       label: "Code comments",
-      copyLabel: "Copy output",
+      copyLabel: "Copy for code",
       note: "Code-safe plain text. Normalizes punctuation to keyboard-safe characters and removes hidden Unicode.",
       outputClass: "strict-output",
       copyMode: "plain",
@@ -1237,19 +1235,6 @@
     return htmlEscape(text).replace(/\n/g, "<br>");
   }
 
-  function sanitizeCssValue(value, fallback, allowed) {
-    const text = String(value || "").trim();
-    return allowed.includes(text) ? text : fallback;
-  }
-
-  function gmailStyleFromOptions(options) {
-    const fonts = ["verdana, sans-serif", "arial, sans-serif", "tahoma, sans-serif", "georgia, serif", "'Times New Roman', serif", "system-ui, sans-serif"];
-    const sizes = ["10pt", "11pt", "12pt", "14px", "16px"];
-    const fontFamily = sanitizeCssValue(options && options.gmailFontFamily, OPTION_DEFAULTS.gmailFontFamily, fonts);
-    const fontSize = sanitizeCssValue(options && options.gmailFontSize, OPTION_DEFAULTS.gmailFontSize, sizes);
-    return { fontFamily, fontSize, inline: `font-family: ${fontFamily}; font-size: ${fontSize};` };
-  }
-
   function visualizeInvisibles(text) {
     return String(text || "").replace(/[\u0009\u00a0\u00ad\u034f\u061c\u180e\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff]/gu, (char) => {
       if (char === "\t") return "→";
@@ -1301,8 +1286,8 @@
     const items = block.items || [];
     items.forEach((item, index) => {
       const isFinalItem = isFinalContent && index === items.length - 1;
-      const nested = (item.children || []).map((child) => buildGmailListHtml(child, false, options)).join("");
-      parts.push(`<li class="gmail_default" style="${style.inline}">${htmlEscapeWithBreaks(item.text || "")}${nested}${isFinalItem ? "<br>" : ""}</li>`);
+      const nested = (item.children || []).map((child) => buildGmailListHtml(child, false)).join("");
+      parts.push(`<li class="gmail_default" style="font-family: verdana, sans-serif;">${htmlEscapeWithBreaks(item.text || "")}${nested}${isFinalItem ? "<br>" : ""}</li>`);
     });
     parts.push(`</${tag}>`);
     return parts.join("");
@@ -1376,8 +1361,7 @@
     function gmailDiv(text, isFinalText) {
       const div = document.createElement("div");
       div.className = "gmail_default editor-paragraph gmail-line";
-      const style = gmailStyleFromOptions(options);
-      div.setAttribute("style", style.inline);
+      div.setAttribute("style", "font-family: verdana, sans-serif;");
       div.textContent = options && options.showInvisibles ? visualizeInvisibles(text || "") : (text || "");
       if (!text || isFinalText) div.appendChild(document.createElement("br"));
       return div;
@@ -1419,7 +1403,7 @@
       items.forEach((item, index) => {
         const li = document.createElement("li");
         li.className = "gmail_default";
-        li.setAttribute("style", style.inline);
+        li.setAttribute("style", "font-family: verdana, sans-serif;");
         li.textContent = options && options.showInvisibles ? visualizeInvisibles(item.text || "") : (item.text || "");
         (item.children || []).forEach((child) => li.appendChild(createSemanticList(child)));
         if (isFinalContent && index === items.length - 1) li.appendChild(document.createElement("br"));
@@ -1588,8 +1572,7 @@
     function refreshProfileUi() {
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
       if (destinationNote) destinationNote.textContent = profile.note;
-      if (destinationCopyButton) destinationCopyButton.textContent = "Copy output";
-      if (gmailStyleControls) gmailStyleControls.hidden = destinationSelect.value !== "gmail";
+      if (destinationCopyButton) destinationCopyButton.textContent = profile.copyLabel;
       outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output", "markdown-output");
       outputEditor.classList.add(profile.outputClass);
     }
