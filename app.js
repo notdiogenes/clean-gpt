@@ -412,6 +412,70 @@
     }
   });
 
+
+  const PRESET_DESCRIPTIONS = Object.freeze({
+    standard: "Best default. Normalizes common punctuation, spacing, lists, and compatibility characters.",
+    lightCleanup: "Minimal cleanup. Preserves more original punctuation and formatting.",
+    strictPlainText: "Removes rich formatting and aggressively normalizes output for safe plain text."
+  });
+
+  const OPTION_EXAMPLES = Object.freeze({
+    detectLists: "Finds list markers like - item or 1. item and keeps list structure.",
+    preferHtmlPaste: "Uses clipboard HTML first so pasted paragraphs and lists survive.",
+    removeHidden: "Removes zero-width/directional marks such as U+200B.",
+    normalizeLineEndings: "CRLF/CR line breaks → LF line breaks.",
+    normalizeSeparators: "Unicode line separator → normal line break.",
+    normalizeSpaces: "No-break/thin spaces → regular spaces.",
+    trimTrailingSpaces: "Text followed by spaces at line end → text.",
+    limitBlankLines: "Three or more blank lines → one blank line.",
+    collapseRepeatedSpaces: "Multiple spaces between words → one space.",
+    convertTabs: "Tab → two spaces.",
+    normalizeQuotes: "Curly quotes like “text” → keyboard quotes before destination styling.",
+    preservePrimeMarks: "Keeps existing feet/inches marks like 5′10″ when normalizing quotes.",
+    normalizeDashes: "Dash variants like – or — → - or destination-specific dash.",
+    normalizeEllipsis: "Ellipsis/dot leaders like … → ... before destination styling.",
+    normalizeFullwidth: "Fullwidth ＡＢＣ or １２３ → ABC or 123.",
+    expandLigatures: "Ligatures like ﬁ or ﬂ → fi or fl.",
+    normalizeFractions: "Single-character fractions like ½ → 1/2.",
+    normalizeSuperscriptsSubscripts: "Superscripts/subscripts like x² or H₂O → x2 or H2O.",
+    removeEmoji: "Removes pictographic symbols such as 😀.",
+    smartQuotes: "Keyboard quotes → smart quotes for document destinations.",
+    smartDashes: " --  → — for document destinations.",
+    numericRangesToEnDash: "Numeric ranges like 1-5 → 1–5.",
+    smartEllipsis: "Three dots ... → ellipsis character ….",
+    smartFractions: "Typed fractions like 1/2 → ½.",
+    measurementPrimes: `Feet/inches like 5'10" → 5′10″.`,
+    structuredListsForDocs: "Copies <ul>/<ol> list HTML for Docs, Word, and Outlook.",
+    gmailListsAsHyphenLines: "Gmail lists become plain hyphen lines instead of HTML lists.",
+    strictAscii: "Non-ASCII characters are removed or replaced.",
+    foldAccents: "Accented letters like é → e in strict mode.",
+    replaceSymbolsAscii: "Symbols like ©, ™, → → (C), TM, -> in strict mode.",
+    showInvisibles: "Displays spaces, tabs, and hidden characters in the input preview."
+  });
+
+  const SAMPLE_TEXTS = Object.freeze({
+    smart: `Here's a “sample” -- with curly quotes, dashes — and ellipsis... and numbers: 1-5 and 6-8.\n\nFeet/inches: 5'10".`,
+    hidden: `Zero\u200Bwidth text with a left-to-right mark\u200E and no-break spaces: A\u00A0B.`,
+    richList: `- First item\n  - Nested item\n- Second item\n\n1. Ordered item\n2. Another`,
+    markdownList: `- Markdown bullet\n- Another bullet\n  1. Nested ordered\n  2. Another nested`,
+    ascii: `Café naïve résumé — costs €5 ™ 😀 中文 math: ± × ÷ √ ½ ²`,
+    form: `Name:\tJane   Doe\nAddress: 123\u00A0Main St.\n\n\nNotes: copy/paste safe.`,
+    code: `TODO — normalize “quotes”, remove zero-width\u200B marks, keep tabs\twhere needed.`
+  });
+
+  const DESTINATION_DETAILS = Object.freeze({
+    gmail: { format: "rich HTML", list: "semantic lists unless Gmail flattening is enabled", typography: "keyboard punctuation by default", font: "font and size apply to rich HTML", fallback: "HTML only; falls back to visible text if HTML write fails" },
+    googleDocs: { format: "rich HTML", list: "semantic ordered/unordered lists", typography: "document smart typography", font: "font and size apply to rich HTML", fallback: "plain-text fallback included" },
+    word: { format: "rich HTML", list: "semantic ordered/unordered lists", typography: "document smart typography", font: "font and size apply to rich HTML", fallback: "plain-text fallback included" },
+    outlook: { format: "rich HTML", list: "semantic ordered/unordered lists", typography: "conservative typography", font: "font and size apply to rich HTML", fallback: "plain-text fallback included" },
+    markdown: { format: "Markdown plain text", list: "Markdown list markers", typography: "plain punctuation", font: "preview-only", fallback: "plain text only" },
+    slack: { format: "plain text", list: "Markdown-like list markers", typography: "plain punctuation", font: "preview-only", fallback: "plain text only" },
+    cms: { format: "plain text", list: "visible lines/paragraphs", typography: "conservative plain punctuation", font: "preview-only", fallback: "plain text only" },
+    code: { format: "plain text", list: "visible lines", typography: "code-safe keyboard punctuation", font: "preview-only", fallback: "plain text only" },
+    plain: { format: "plain text", list: "visible lines/paragraphs", typography: "keyboard-safe punctuation", font: "preview-only", fallback: "plain text only" },
+    strictAscii: { format: "strict ASCII plain text", list: "visible ASCII lines", typography: "ASCII replacements only", font: "preview-only", fallback: "plain text only" }
+  });
+
   const PRESETS = Object.freeze({
     standard: {
       removeHidden: true,
@@ -1649,6 +1713,11 @@
     const destinationFontSelect = document.getElementById("destinationFontSelect");
     const destinationSizeSelect = document.getElementById("destinationSizeSelect");
     const destinationStyleNote = document.getElementById("destinationStyleNote");
+    const destinationSummary = document.getElementById("destinationSummary");
+    const presetDescription = document.getElementById("presetDescription");
+    const presetChangeSummary = document.getElementById("presetChangeSummary");
+    const sampleSelect = document.getElementById("sampleSelect");
+    const diffLegend = document.getElementById("diffLegend");
     const presetSelect = document.getElementById("presetSelect");
     const status = document.getElementById("status");
     const pasteStatus = document.getElementById("pasteStatus");
@@ -1693,6 +1762,21 @@
     function applyOptionsToUi(options) {
       optionInputs.forEach((input) => {
         input.checked = Boolean(options[input.dataset.option]);
+        const example = OPTION_EXAMPLES[input.dataset.option];
+        if (example) {
+          const label = input.closest("label");
+          if (label) {
+            label.title = example;
+            input.setAttribute("aria-describedby", `${input.dataset.option}Example`);
+            if (!label.querySelector(".toggle-example")) {
+              const hint = document.createElement("span");
+              hint.className = "toggle-example";
+              hint.id = `${input.dataset.option}Example`;
+              hint.textContent = example;
+              label.appendChild(hint);
+            }
+          }
+        }
       });
     }
 
@@ -1766,13 +1850,28 @@
       const saved = loadDestinationStylePreference(destination);
       populateSelect(destinationFontSelect, config.fonts, saved.fontFamily || config.defaultFont);
       populateSelect(destinationSizeSelect, config.sizes, saved.fontSize || config.defaultSize);
-      if (destinationStyleNote) destinationStyleNote.textContent = config.note;
+      const detail = DESTINATION_DETAILS[destination] || DESTINATION_DETAILS.gmail;
+      if (destinationStyleNote) destinationStyleNote.textContent = detail.font === "preview-only" ? "This destination copies plain text. Font and size only affect the preview." : config.note;
+      const disabled = false;
+      if (destinationFontSelect) destinationFontSelect.disabled = disabled;
+      if (destinationSizeSelect) destinationSizeSelect.disabled = disabled;
     }
 
     function refreshProfileUi() {
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
       if (destinationNote) destinationNote.textContent = profile.note;
-      if (destinationCopyButton) destinationCopyButton.textContent = profile.copyLabel;
+      const details = DESTINATION_DETAILS[destinationSelect.value] || DESTINATION_DETAILS.gmail;
+      if (destinationSummary) {
+        destinationSummary.innerHTML = "";
+        [["Output format", details.format], ["List behavior", details.list], ["Typography", details.typography], ["Font/size", details.font], ["Fallback", details.fallback]].forEach(([term, desc]) => {
+          const dt = document.createElement("dt");
+          const dd = document.createElement("dd");
+          dt.textContent = term;
+          dd.textContent = desc;
+          destinationSummary.append(dt, dd);
+        });
+      }
+      if (destinationCopyButton) destinationCopyButton.textContent = `${profile.copyLabel} (${details.format})`;
       outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output", "markdown-output", "diff-output", "compact-diff-output");
       outputEditor.classList.add(profile.outputClass);
     }
@@ -1787,6 +1886,15 @@
         options.gmailFontSize = options.textFontSize;
       }
       return options;
+    }
+
+    function focusOutputForMetric(label) {
+      outputEditor.classList.add("inspector-pulse");
+      outputEditor.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      const firstChange = outputEditor.querySelector(".char-change, .removed-hidden, li");
+      if (firstChange) firstChange.scrollIntoView({ block: "center", behavior: "smooth" });
+      window.setTimeout(() => outputEditor.classList.remove("inspector-pulse"), 1200);
+      setStatus(`Highlighted related output for: ${label}.`);
     }
 
     function renderStats(result) {
@@ -1815,6 +1923,16 @@
         span.textContent = label;
         strong.textContent = String(value);
         li.append(span, strong);
+        const canLink = /changes|Hidden|Spaces|Quotes|Dashes|Ellipses|Lists|ASCII|Compatibility/i.test(label) && Number(value) > 0;
+        if (canLink) {
+          li.tabIndex = 0;
+          li.role = "button";
+          li.title = "Highlight related output text.";
+          li.addEventListener("click", () => focusOutputForMetric(label));
+          li.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") focusOutputForMetric(label); });
+        } else {
+          li.title = "This metric summarizes the document and does not map to one exact text span.";
+        }
         statsList.appendChild(li);
       });
     }
@@ -1874,7 +1992,12 @@
         const li = document.createElement("li");
         const source = getCodeLabelForChangeValue(change.source);
         const target = getCodeLabelForChangeValue(change.target);
-        li.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "inspector-link";
+        button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
+        button.addEventListener("click", () => focusOutputForMetric(change.note || change.target || change.source));
+        li.appendChild(button);
         changesList.appendChild(li);
       });
       if (result.changes.length > 80) {
@@ -2053,21 +2176,49 @@
       parent.appendChild(list);
     }
 
+    function appendPlainDoc(container, model, options) {
+      (model.blocks || []).forEach((block) => {
+        if (block.type === "blank") { container.appendChild(document.createElement("br")); return; }
+        if (block.type === "paragraph") {
+          const div = document.createElement("div");
+          div.className = "diff-block paragraph";
+          div.textContent = options && options.showInvisibles ? visualizeInvisibles(block.text || "") : block.text || "";
+          container.appendChild(div);
+        } else if (block.type === "ul" || block.type === "ol") {
+          const list = document.createElement(block.type);
+          list.className = "diff-block list";
+          (block.items || []).forEach((item) => { const li = document.createElement("li"); li.textContent = item.text || ""; list.appendChild(li); });
+          container.appendChild(list);
+        }
+      });
+    }
+
     function renderCompactDiff(inputModel, outputModel, changeRecords, destinationProfile, options) {
       outputEditor.innerHTML = "";
+      const note = document.createElement("p");
+      note.className = "diff-note";
+      note.textContent = "Diff view compares original text on the left with cleaned destination output on the right. Matching highlight colors indicate linked before/after changes; turn Diff view off for clean output only.";
       const wrapper = document.createElement("div");
-      wrapper.className = "compact-diff";
+      wrapper.className = "compact-diff side-by-side-diff";
+      const left = document.createElement("section");
+      const right = document.createElement("section");
+      left.className = "diff-pane diff-original";
+      right.className = "diff-pane diff-cleaned";
+      left.innerHTML = "<h3>Original text</h3>";
+      right.innerHTML = "<h3>Cleaned output</h3>";
+      appendPlainDoc(left, inputModel, options);
       (outputModel.blocks || []).forEach((block, index) => {
         const inputBlock = (inputModel.blocks || [])[index];
-        if (block.type === "blank") { wrapper.appendChild(document.createElement("br")); return; }
+        if (block.type === "blank") { right.appendChild(document.createElement("br")); return; }
         if (block.type === "paragraph") {
           const div = document.createElement("div");
           div.className = "diff-block paragraph";
           appendAnnotatedText(div, inputBlock && inputBlock.type === "paragraph" ? inputBlock.text || "" : "", block.text || "", options);
-          wrapper.appendChild(div);
-        } else if (block.type === "ul" || block.type === "ol") appendListPreview(wrapper, inputBlock, block, options);
+          right.appendChild(div);
+        } else if (block.type === "ul" || block.type === "ol") appendListPreview(right, inputBlock, block, options);
       });
-      outputEditor.appendChild(wrapper);
+      wrapper.append(left, right);
+      outputEditor.append(note, wrapper);
     }
 
     function renderInputEditorForOptions(options) {
@@ -2112,13 +2263,21 @@
       renderChanges(lastResult);
       renderWarnings(lastResult);
       renderCompatibility();
+      if (diffLegend) diffLegend.hidden = !showDiff;
       setStatus("");
     }
 
     function applyPresetAndProfile() {
       const preset = PRESETS[presetSelect.value] || PRESETS.standard;
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
-      applyOptionsToUi(Object.assign({}, OPTION_DEFAULTS, preset, profile.overrides));
+      const before = currentOptionsFromUi(destinationSelect.value, presetSelect, optionInputs);
+      const next = Object.assign({}, OPTION_DEFAULTS, preset, profile.overrides);
+      applyOptionsToUi(next);
+      const changed = Object.keys(next).filter((key) => before[key] !== next[key]);
+      const enabled = changed.filter((key) => next[key] === true).length;
+      const disabled = changed.filter((key) => next[key] === false).length;
+      if (presetDescription) presetDescription.textContent = PRESET_DESCRIPTIONS[presetSelect.value] || "";
+      if (presetChangeSummary) presetChangeSummary.textContent = `This preset enabled ${enabled} options and disabled ${disabled} options.`;
       refreshStyleControls();
       update();
     }
@@ -2168,6 +2327,19 @@
     });
 
     optionInputs.forEach((input) => input.addEventListener("change", update));
+    if (sampleSelect) sampleSelect.addEventListener("change", () => {
+      const text = SAMPLE_TEXTS[sampleSelect.value];
+      if (!text) return;
+      const sampleText = text.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\u200B/g, "\u200B").replace(/\\u200E/g, "\u200E").replace(/\\u00A0/g, "\u00A0");
+      inputDoc = parsePlainTextToDoc(sampleText, getOptions().detectLists);
+      inputDoc.meta.source = "sample";
+      suppressInputEvent = true;
+      renderDocInto(inputEditor, inputDoc, "input", "source", {});
+      suppressInputEvent = false;
+      setPasteStatus("Loaded sample text.");
+      sampleSelect.value = "";
+      update();
+    });
     if (diffViewToggle) diffViewToggle.addEventListener("change", update);
     if (themeToggle) themeToggle.addEventListener("change", () => applyTheme(themeToggle.checked));
     presetSelect.addEventListener("change", applyPresetAndProfile);

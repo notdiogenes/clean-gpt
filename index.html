@@ -20,6 +20,15 @@
   </header>
 
   <main class="app-shell">
+    <section class="panel how-panel" aria-labelledby="howLabel">
+      <h2 id="howLabel">How this works</h2>
+      <ol class="workflow-list">
+        <li>Paste messy text or rich clipboard content.</li>
+        <li>Pick the destination where you plan to paste.</li>
+        <li>Review highlighted changes in Diff view.</li>
+        <li>Copy <strong>destination output</strong> for the selected app, or <strong>visible text</strong> for exactly what the preview shows as plain text.</li>
+      </ol>
+    </section>
     <section class="panel top-settings" aria-labelledby="controlsLabel">
       <div class="settings-group destination-card" aria-labelledby="destinationLabel">
         <label class="field-label inline-label" for="destinationSelect" id="destinationLabel">Destination profile</label>
@@ -36,6 +45,7 @@
           <option value="strictAscii">Strict ASCII</option>
         </select>
         <p id="destinationNote" class="destination-note"></p>
+        <dl id="destinationSummary" class="destination-summary"></dl>
       </div>
 
       <div class="settings-group">
@@ -46,6 +56,8 @@
           <option value="lightCleanup">Light cleanup</option>
           <option value="strictPlainText">Strict plain text</option>
         </select>
+        <p id="presetDescription" class="destination-note compact-note"></p>
+        <p id="presetChangeSummary" class="preset-change-summary" aria-live="polite"></p>
       </div>
 
       <fieldset id="destinationStyleControls" class="destination-style-controls settings-group" aria-labelledby="destinationStyleLabel">
@@ -72,6 +84,7 @@
         <p id="inputHelp" class="panel-subtitle">Paste here. The app reads clipboard HTML first, then plain text, so paragraphs and lists can be shown before cleanup.</p>
       </div>
       <div class="editor-actions input-actions" aria-label="Input actions">
+        <label class="sample-loader">Load sample text <select id="sampleSelect" class="compact-select"><option value="">Choose a sample...</option><option value="smart">Smart quotes, dashes, ellipsis</option><option value="hidden">Hidden/invisible characters</option><option value="richList">Rich pasted list</option><option value="markdownList">Markdown list</option><option value="ascii">Strict ASCII stress test</option><option value="form">Form-safe plain text</option><option value="code">Code comment cleanup</option></select></label>
         <button id="clearButton" type="button" class="ghost-button">Clear</button>
         <span id="pasteStatus" class="inline-status" aria-live="polite">Ready for paste.</span>
       </div>
@@ -95,12 +108,20 @@
       <div class="editor-local-options" aria-label="Output view options">
         <label class="pill-toggle"><input id="diffViewToggle" type="checkbox" checked> Diff view</label>
       </div>
+      <div id="diffLegend" class="diff-legend" aria-label="Diff legend">
+        <span><mark class="legend-removed">Removed character</mark></span>
+        <span><mark class="legend-replaced">Replaced character</mark></span>
+        <span><mark class="legend-inserted">Inserted character</mark></span>
+        <span><mark class="legend-spacing">Normalized spacing</mark></span>
+        <span><mark class="legend-warning">Remaining warning</mark></span>
+      </div>
       <p id="status" class="status" aria-live="polite"></p>
     </section>
 
     <aside class="side-rail">
       <section class="panel controls-panel" aria-labelledby="cleanupSettingsLabel">
-        <h2 id="cleanupSettingsLabel">Cleanup settings</h2>
+        <details id="advancedSettings" class="advanced-settings">
+          <summary><h2 id="cleanupSettingsLabel">Advanced settings</h2><span>Cleanup toggles for power users</span></summary>
         <details open>
           <summary>Clipboard intake</summary>
           <div class="control-stack">
@@ -165,6 +186,7 @@
             <label><input type="checkbox" data-option="foldAccents"> Fold accented letters in strict mode</label>
             <label><input type="checkbox" data-option="replaceSymbolsAscii"> Replace common symbols in strict mode</label>
           </div>
+        </details>
         </details>
       </section>
 
