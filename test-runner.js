@@ -113,20 +113,44 @@
     const summary = document.querySelector("#testSummary");
     list.innerHTML = "";
     const passed = results.filter((result) => result.status === "pass").length;
-    summary.textContent = `${passed}/${results.length} tests passing`;
+    const categories = results.reduce((acc, result) => { acc[result.category || "General"] = (acc[result.category || "General"] || 0) + 1; return acc; }, {});
+    summary.textContent = `${passed}/${results.length} tests passing · Destination coverage: ${categories.Destinations || 0} · Cleanup-toggle coverage: ${categories.Cleanup || 0} · Clipboard-format coverage: ${categories.Clipboard || 0}`;
     summary.className = passed === results.length ? "test-summary pass" : "test-summary fail";
 
     results.forEach((result) => {
       const item = document.createElement("li");
       item.className = `test-result ${result.status}`;
-      const detail = result.error ? `<pre>${escapeHtml(result.error.stack || result.error.message)}</pre>` : "";
-      item.innerHTML = `<span class="test-badge">${result.status === "pass" ? "PASS" : "FAIL"}</span><span>${escapeHtml(result.name)}</span>${detail}`;
+      const body = result.body || String(result.run).replace(/\s+/g, " ").slice(0, 220);
+      const detail = result.error ? `<pre>${escapeHtml(result.error.stack || result.error.message)}</pre>` : `<pre>${escapeHtml(body)}</pre>`;
+      item.innerHTML = `<span class="test-badge">${result.status === "pass" ? "PASS" : "FAIL"}</span><span>${escapeHtml(result.category || "General")}: ${escapeHtml(result.name)}</span>${detail}`;
       list.append(item);
     });
   }
 
   function escapeHtml(value) {
     return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+  }
+
+  function addCoverageTests(api) {
+    if (tests.some((test) => test.name === "all destination profiles produce output")) return;
+    tests.push({ category: "Destinations", name: "all destination profiles produce output", body: "Runs shared stress input through every destination profile.", run(api) {
+      Object.keys(api.DESTINATIONS).forEach((destination) => {
+        const doc = api.parsePlainTextToDoc("- one\n1. two\nCafé — ½", true);
+        const result = api.sanitizeDoc(doc, api.buildOptions(destination));
+        ok(result.cleanText.length, `${destination} output`);
+      });
+    }});
+    tests.push({ category: "Cleanup", name: "all cleanup presets are callable", body: "Applies each preset and verifies output exists.", run(api) {
+      Object.entries(api.PRESETS).forEach(([name, preset]) => ok(api.sanitize("Café — ½", api.buildOptions("plain", preset)).cleanText.length, name));
+    }});
+    tests.push({ category: "Cleanup", name: "source, punctuation, compatibility, typography toggles are registered", body: "Verifies expected toggle groups are present in OPTION_DEFAULTS.", run(api) {
+      ["removeHidden","normalizeQuotes","normalizeDashes","normalizeFullwidth","expandLigatures","smartQuotes","numericRangesToEnDash","strictAscii"].forEach((key) => ok(key in api.OPTION_DEFAULTS, key));
+    }});
+    tests.push({ category: "Clipboard", name: "copy format capabilities are represented", body: "Checks HTML destinations and plain-text destinations expose distinct copy modes/labels.", run(api) {
+      ok(api.DESTINATIONS.gmail.copyLabel.includes("Copy"));
+      equal(api.DESTINATIONS.markdown.copyMode, "markdown");
+      equal(api.DESTINATIONS.cms.copyMode, "plain");
+    }});
   }
 
   function runAllTests() {
@@ -137,12 +161,13 @@
     }
 
     renderDiagnostics(api);
+    addCoverageTests(api);
     const results = tests.map((test) => {
       try {
         test.run(api);
-        return { name: test.name, status: "pass" };
+        return { name: test.name, category: test.category, body: test.body, run: test.run, status: "pass" };
       } catch (error) {
-        return { name: test.name, status: "fail", error };
+        return { name: test.name, category: test.category, body: test.body, run: test.run, status: "fail", error };
       }
     });
     renderResults(results);
