@@ -1724,6 +1724,10 @@
     const warningsList = document.getElementById("warningsList");
     const nonAsciiList = document.getElementById("nonAsciiList");
     const diffViewToggle = document.getElementById("diffViewToggle");
+    const previewTab = document.getElementById("previewTab");
+    const diffTab = document.getElementById("diffTab") || diffViewToggle;
+    const advancedSettingsButton = document.getElementById("advancedSettingsButton");
+    const advancedSettings = document.getElementById("advancedSettings");
     const advancedSettingsSearch = document.getElementById("advancedSettingsSearch");
     const advancedSettingsSearchStatus = document.getElementById("advancedSettingsSearchStatus");
     const advancedSettingsClear = document.getElementById("advancedSettingsClear");
@@ -1766,16 +1770,17 @@
         input.checked = Boolean(options[input.dataset.option]);
         const example = OPTION_EXAMPLES[input.dataset.option];
         if (example) {
-          const label = input.closest("label");
-          if (label) {
-            label.title = example;
+          const item = input.closest(".setting-item") || input.closest("label");
+          if (item) {
+            item.title = example;
             input.setAttribute("aria-describedby", `${input.dataset.option}Example`);
-            if (!label.querySelector(".toggle-example")) {
+            if (!item.querySelector(".setting-item-description, .toggle-example")) {
               const hint = document.createElement("span");
-              hint.className = "toggle-example";
+              hint.className = item.classList.contains("setting-item") ? "setting-item-description" : "toggle-example";
               hint.id = `${input.dataset.option}Example`;
               hint.textContent = example;
-              label.appendChild(hint);
+              const content = item.querySelector(".setting-item-content") || item;
+              content.appendChild(hint);
             }
           }
         }
@@ -1920,7 +1925,6 @@
       renderInputDiffHighlights(inputDoc, lastResult.doc, options, matcher || ((part) => sourceChangeMatchesMetric(part, label)));
       inputEditor.classList.add("inspector-pulse");
       window.setTimeout(() => inputEditor.classList.remove("inspector-pulse"), 1200);
-      setStatus(`Highlighted one related input change for: ${label}.`);
     }
 
     function renderStats(result) {
@@ -2214,10 +2218,11 @@
       wrapper.className = "compact-diff";
       (outputModel.blocks || []).forEach((block, index) => {
         const inputBlock = (inputModel.blocks || [])[index];
-        if (block.type === "blank") { wrapper.appendChild(document.createElement("br")); return; }
+        if (block.type === "blank") { const blank = document.createElement("div"); blank.className = "diff-block paragraph editor-paragraph"; if (options.destination === "gmail") blank.classList.add("gmail_default", "gmail-line"); blank.appendChild(document.createElement("br")); wrapper.appendChild(blank); return; }
         if (block.type === "paragraph") {
           const div = document.createElement("div");
-          div.className = "diff-block paragraph";
+          div.className = "diff-block paragraph editor-paragraph";
+          if (options.destination === "gmail") div.classList.add("gmail_default", "gmail-line");
           appendAnnotatedText(div, inputBlock && inputBlock.type === "paragraph" ? inputBlock.text || "" : "", block.text || "", options);
           wrapper.appendChild(div);
         } else if (block.type === "ul" || block.type === "ol") appendListPreview(wrapper, inputBlock, block, options);
@@ -2254,7 +2259,9 @@
       outputEditor.style.setProperty("--gmail-font-family", destinationStyle.fontFamily);
       outputEditor.style.setProperty("--gmail-font-size", destinationStyle.fontSize);
       lastResult = sanitizeDoc(inputDoc, options);
-      const showDiff = diffViewToggle ? diffViewToggle.checked : true;
+      const showDiff = diffViewToggle ? diffViewToggle.checked : false;
+      if (previewTab) previewTab.setAttribute("aria-selected", String(!showDiff));
+      if (diffTab) diffTab.setAttribute("aria-selected", String(showDiff));
       if (showDiff) {
         outputEditor.classList.add("diff-output", "compact-diff-output");
         renderCompactDiff(inputDoc, lastResult.doc, lastResult.changes, DESTINATIONS[destinationSelect.value], options);
@@ -2318,17 +2325,17 @@
       const query = advancedSettingsSearch.value.trim().toLowerCase();
       let visible = 0;
       optionInputs.forEach((input) => {
-        const label = input.closest("label");
-        if (!label) return;
+        const item = input.closest(".setting-item") || input.closest("label");
+        if (!item) return;
         const key = input.dataset.option || "";
-        const haystack = [key, label.textContent, OPTION_EXAMPLES[key], OPTION_TAGS[key]].join(" ").toLowerCase();
+        const haystack = [key, item.textContent, OPTION_EXAMPLES[key], OPTION_TAGS[key]].join(" ").toLowerCase();
         const match = !query || haystack.includes(query);
-        label.classList.toggle("setting-filter-hidden", !match);
+        item.classList.toggle("setting-filter-hidden", !match);
         if (match) visible += 1;
       });
       Array.from(document.querySelectorAll(".advanced-settings details")).forEach((group) => {
         if (group.id === "advancedSettings") return;
-        const hasMatch = Boolean(group.querySelector("label:not(.setting-filter-hidden)"));
+        const hasMatch = Boolean(group.querySelector(".setting-item:not(.setting-filter-hidden), label:not(.setting-filter-hidden)"));
         group.classList.toggle("setting-filter-hidden", !hasMatch && Boolean(query));
         if (query && hasMatch) group.open = true;
       });
@@ -2442,6 +2449,24 @@
       update();
     });
     if (diffViewToggle) diffViewToggle.addEventListener("change", update);
+    document.querySelectorAll(".setting-item").forEach((item) => {
+      const input = item.querySelector("[data-option]");
+      if (!input) return;
+      item.addEventListener("click", (event) => {
+        if (event.target === input) return;
+        input.checked = !input.checked;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+    if (advancedSettingsButton && advancedSettings) advancedSettingsButton.addEventListener("click", () => { advancedSettings.open = true; });
+    document.addEventListener("keydown", (event) => { if (event.key === "Escape" && advancedSettings) advancedSettings.open = false; });
+    document.addEventListener("pointerdown", (event) => {
+      if (!advancedSettings || !advancedSettings.open) return;
+      const sheet = advancedSettings.closest(".advanced-sheet");
+      if (sheet && !sheet.contains(event.target) && event.target !== advancedSettingsButton) advancedSettings.open = false;
+    });
+    if (previewTab && diffViewToggle) previewTab.addEventListener("click", () => { diffViewToggle.checked = false; update(); });
+    if (diffTab && diffViewToggle && diffTab !== diffViewToggle) diffTab.addEventListener("click", () => { diffViewToggle.checked = true; update(); });
     function clearAdvancedSettingsSearch() {
       if (!advancedSettingsSearch) return;
       advancedSettingsSearch.value = "";
