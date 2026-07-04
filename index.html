@@ -29,6 +29,9 @@
         <span id="pasteStatus" class="inline-status" aria-live="polite">Ready for paste.</span>
       </div>
       <div id="inputEditor" class="rich-editor source-editor" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Original clipboard content" aria-describedby="inputHelp pasteStatus" data-placeholder="Paste text or rich content here..."></div>
+      <div class="editor-local-options" aria-label="Input preview options">
+        <label class="pill-toggle"><input type="checkbox" data-option="showInvisibles"> Show invisible characters</label>
+      </div>
       <p id="inputStatus" class="status status-spacer" aria-hidden="true"></p>
     </section>
 
@@ -42,6 +45,9 @@
         <button id="copyVisibleButton" type="button" class="ghost-button">Copy visible text</button>
       </div>
       <div id="outputEditor" class="rich-editor destination-output gmail-compose" role="region" aria-live="polite" aria-label="Destination-ready output" data-placeholder="Sanitized output appears here..."></div>
+      <div class="editor-local-options" aria-label="Output view options">
+        <label class="pill-toggle"><input type="checkbox" id="diffViewToggle"> Diff view</label>
+      </div>
       <p id="status" class="status" aria-live="polite"></p>
     </section>
 
@@ -149,7 +155,6 @@
           <div class="control-stack">
             <label><input type="checkbox" data-option="structuredListsForDocs"> Copy semantic HTML lists for Google Docs and Word</label>
             <label><input type="checkbox" data-option="gmailListsAsHyphenLines"> Flatten Gmail lists to plain hyphen lines</label>
-            <label><input type="checkbox" data-option="showInvisibles"> Show invisible characters in input/output previews</label>
           </div>
         </details>
 

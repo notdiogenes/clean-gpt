@@ -42,13 +42,24 @@ test('shows invisible characters in input and output previews', async ({ page })
   await page.locator('#inputEditor').fill(sample);
   await page.locator('[data-option="removeHidden"]').uncheck();
   await page.locator('[data-option="normalizeSpaces"]').uncheck();
-  await page.locator('[data-option="showInvisibles"]').check();
+  await page.getByLabel('Show invisible characters').check();
 
   await expect(page.locator('#inputEditor')).toContainText('A⍽B[ZWSP]C[SHY]D');
   await expect(page.locator('#outputEditor')).toContainText('A⍽B[ZWSP]C[SHY]D');
 
-  await page.locator('[data-option="showInvisibles"]').uncheck();
+  await page.getByLabel('Show invisible characters').uncheck();
   await expect(page.locator('#inputEditor')).toContainText(sample);
+});
+
+
+test('offers compact diff view beside the output preview', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#inputEditor').fill('Hello — world');
+  await page.getByLabel('Diff view').check();
+
+  await expect(page.locator('#outputEditor')).toContainText('changed line');
+  await expect(page.locator('#outputEditor .diff-remove')).toContainText('Hello — world');
+  await expect(page.locator('#outputEditor .diff-add')).toContainText('Hello -- world');
 });
 
 test('links to tests and debugging page with runnable checks', async ({ page }) => {

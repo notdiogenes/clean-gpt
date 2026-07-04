@@ -1642,6 +1642,7 @@
     const warningsList = document.getElementById("warningsList");
     const nonAsciiList = document.getElementById("nonAsciiList");
     const compatibilityList = document.getElementById("compatibilityList");
+    const diffViewToggle = document.getElementById("diffViewToggle");
     const optionInputs = Array.from(document.querySelectorAll("[data-option]"));
 
     if (!inputEditor || !outputEditor || !destinationSelect || !presetSelect) return;
@@ -1741,7 +1742,7 @@
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
       if (destinationNote) destinationNote.textContent = profile.note;
       if (destinationCopyButton) destinationCopyButton.textContent = profile.copyLabel;
-      outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output", "markdown-output");
+      outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output", "markdown-output", "diff-output");
       outputEditor.classList.add(profile.outputClass);
     }
 
@@ -1882,6 +1883,65 @@
       }
     }
 
+
+    function appendDiffLine(container, marker, text, className) {
+      const row = document.createElement("div");
+      row.className = `diff-line ${className}`;
+      const mark = document.createElement("span");
+      mark.className = "diff-marker";
+      mark.textContent = marker;
+      const body = document.createElement("span");
+      body.textContent = text || "";
+      if (!text) body.className = "diff-empty";
+      row.append(mark, body);
+      container.appendChild(row);
+    }
+
+    function compactDiffLines(beforeText, afterText, options) {
+      const before = String(beforeText || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+      const after = String(afterText || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+      const max = Math.max(before.length, after.length);
+      const rows = [];
+      let changed = 0;
+      for (let index = 0; index < max; index += 1) {
+        const left = before[index] == null ? "" : before[index];
+        const right = after[index] == null ? "" : after[index];
+        if (left === right) {
+          if (left && rows.length < 8) rows.push({ type: "context", text: left });
+          continue;
+        }
+        changed += 1;
+        rows.push({ type: "remove", text: left });
+        rows.push({ type: "add", text: right });
+      }
+      return {
+        changed,
+        rows: rows.map((row) => Object.assign({}, row, {
+          text: options && options.showInvisibles ? visualizeInvisibles(row.text) : row.text
+        }))
+      };
+    }
+
+    function renderDiffView(result, options) {
+      outputEditor.innerHTML = "";
+      const beforeText = docToPlainText(inputDoc, "plain");
+      const diff = compactDiffLines(beforeText, result.cleanText, options);
+      const summary = document.createElement("p");
+      summary.className = "diff-summary";
+      summary.textContent = diff.changed ? `${diff.changed} changed line(s). Red is removed input; green is destination output.` : "No visible text changes. Use Show invisible characters to inspect hidden spacing differences.";
+      outputEditor.appendChild(summary);
+      if (!diff.rows.length) {
+        appendDiffLine(outputEditor, " ", result.cleanText || "No output yet.", "diff-context");
+        return;
+      }
+      diff.rows.slice(0, 80).forEach((row) => {
+        const marker = row.type === "remove" ? "−" : (row.type === "add" ? "+" : " ");
+        const className = row.type === "remove" ? "diff-remove" : (row.type === "add" ? "diff-add" : "diff-context");
+        appendDiffLine(outputEditor, marker, row.text, className);
+      });
+      if (diff.rows.length > 80) appendDiffLine(outputEditor, "…", `${diff.rows.length - 80} more diff rows hidden`, "diff-context");
+    }
+
     function renderInputEditorForOptions(options) {
       const shouldVisualize = Boolean(options.showInvisibles);
       const isVisualized = inputEditor.dataset.showingInvisibles === "true";
@@ -1911,7 +1971,13 @@
       outputEditor.style.setProperty("--gmail-font-family", destinationStyle.fontFamily);
       outputEditor.style.setProperty("--gmail-font-size", destinationStyle.fontSize);
       lastResult = sanitizeDoc(inputDoc, options);
-      renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, options);
+      if (diffViewToggle && diffViewToggle.checked) {
+        outputEditor.classList.add("diff-output");
+        renderDiffView(lastResult, options);
+      } else {
+        outputEditor.classList.remove("diff-output");
+        renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, options);
+      }
       renderStats(lastResult);
       renderStructure(lastResult);
       renderChanges(lastResult);
@@ -1973,6 +2039,7 @@
     });
 
     optionInputs.forEach((input) => input.addEventListener("change", update));
+    if (diffViewToggle) diffViewToggle.addEventListener("change", update);
     presetSelect.addEventListener("change", applyPresetAndProfile);
     destinationSelect.addEventListener("change", applyPresetAndProfile);
     [destinationFontSelect, destinationSizeSelect].forEach((select) => {
