@@ -57,7 +57,7 @@ The app uses one page with:
 - Copy plain text button
 - Copy for Gmail button
 - Clear button
-- Inspector panel
+- Inspector panel with counts, warnings, remaining non-ASCII characters, and exact replacement details
 
 The desktop layout places the original text, clean text, and controls side by side. The mobile layout stacks them.
 
@@ -777,3 +777,11 @@ Possible later features:
 - Removed browser and Node test files from the shipped project.
 - Kept Strict ASCII mode off by default to avoid altering names, foreign-language text, emoji, and symbols unless the user explicitly selects it.
 - Made the app static so it can run on GitHub Pages without a build process.
+
+
+### 2026-07-04 Inspector restoration
+
+- Restored and expanded the Inspector details after the Gmail HTML copy revisions.
+- Added a **Changes made** section that lists exact character replacements by Unicode code point and name, such as `U+201C LEFT DOUBLE QUOTATION MARK -> U+0022 QUOTATION MARK`.
+- Detailed changes now cover hidden character removals, unusual spaces, quote normalization, dash normalization, ellipses, bullets, emoji removal, strict ASCII removals, and line-ending normalization.
+- Gmail copy behavior remains direct HTML generation with no intentionally inserted zero-width characters.

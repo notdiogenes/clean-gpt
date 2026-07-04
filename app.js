@@ -73,12 +73,101 @@
     quoteLikeSingle: /[\u2018\u2019\u201A\u201B\u2032\u2035\u02BC\u02BB\u02BD\u055A\u275B\u275C\uFF07]/g,
     quoteLikeDouble: /[\u201C\u201D\u201E\u201F\u2033\u2036\u275D\u275E\u301D\u301E\u301F\u00AB\u00BB\uFF02]/g,
     emDashLikeWithSurroundingSpaces: /[ \t]*[\u2014\u2015][ \t]*/g,
+    emDashLike: /[\u2014\u2015]/g,
     enDashLike: /[\u2010\u2011\u2012\u2013\u2212]/g,
     ellipsis: /\u2026/g,
-    bulletsAtLineStart: /^(\s*)[\u2022\u2023\u25E6\u2043\u2219]\s+/gm,
+    bulletsAtLineStart: /^(\s*)([\u2022\u2023\u25E6\u2043\u2219])\s+/gm,
     emoji: /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/gu,
     combiningMarks: /[\u0300-\u036f]/g,
     nonAscii: /[^\x00-\x7F]/g
+  });
+
+  const CODE_POINT_NAMES = Object.freeze({
+    "U+0009": "CHARACTER TABULATION",
+    "U+000A": "LINE FEED",
+    "U+000D": "CARRIAGE RETURN",
+    "U+0020": "SPACE",
+    "U+0022": "QUOTATION MARK",
+    "U+0027": "APOSTROPHE",
+    "U+002D": "HYPHEN-MINUS",
+    "U+002E": "FULL STOP",
+    "U+00A0": "NO-BREAK SPACE",
+    "U+00AB": "LEFT-POINTING DOUBLE ANGLE QUOTATION MARK",
+    "U+00AD": "SOFT HYPHEN",
+    "U+00BB": "RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK",
+    "U+034F": "COMBINING GRAPHEME JOINER",
+    "U+061C": "ARABIC LETTER MARK",
+    "U+1680": "OGHAM SPACE MARK",
+    "U+180B": "MONGOLIAN FREE VARIATION SELECTOR ONE",
+    "U+180C": "MONGOLIAN FREE VARIATION SELECTOR TWO",
+    "U+180D": "MONGOLIAN FREE VARIATION SELECTOR THREE",
+    "U+180E": "MONGOLIAN VOWEL SEPARATOR",
+    "U+2000": "EN QUAD",
+    "U+2001": "EM QUAD",
+    "U+2002": "EN SPACE",
+    "U+2003": "EM SPACE",
+    "U+2004": "THREE-PER-EM SPACE",
+    "U+2005": "FOUR-PER-EM SPACE",
+    "U+2006": "SIX-PER-EM SPACE",
+    "U+2007": "FIGURE SPACE",
+    "U+2008": "PUNCTUATION SPACE",
+    "U+2009": "THIN SPACE",
+    "U+200A": "HAIR SPACE",
+    "U+200B": "ZERO WIDTH SPACE",
+    "U+200C": "ZERO WIDTH NON-JOINER",
+    "U+200D": "ZERO WIDTH JOINER",
+    "U+200E": "LEFT-TO-RIGHT MARK",
+    "U+200F": "RIGHT-TO-LEFT MARK",
+    "U+2010": "HYPHEN",
+    "U+2011": "NON-BREAKING HYPHEN",
+    "U+2012": "FIGURE DASH",
+    "U+2013": "EN DASH",
+    "U+2014": "EM DASH",
+    "U+2015": "HORIZONTAL BAR",
+    "U+2018": "LEFT SINGLE QUOTATION MARK",
+    "U+2019": "RIGHT SINGLE QUOTATION MARK",
+    "U+201A": "SINGLE LOW-9 QUOTATION MARK",
+    "U+201B": "SINGLE HIGH-REVERSED-9 QUOTATION MARK",
+    "U+201C": "LEFT DOUBLE QUOTATION MARK",
+    "U+201D": "RIGHT DOUBLE QUOTATION MARK",
+    "U+201E": "DOUBLE LOW-9 QUOTATION MARK",
+    "U+201F": "DOUBLE HIGH-REVERSED-9 QUOTATION MARK",
+    "U+2022": "BULLET",
+    "U+2023": "TRIANGULAR BULLET",
+    "U+2026": "HORIZONTAL ELLIPSIS",
+    "U+202A": "LEFT-TO-RIGHT EMBEDDING",
+    "U+202B": "RIGHT-TO-LEFT EMBEDDING",
+    "U+202C": "POP DIRECTIONAL FORMATTING",
+    "U+202D": "LEFT-TO-RIGHT OVERRIDE",
+    "U+202E": "RIGHT-TO-LEFT OVERRIDE",
+    "U+202F": "NARROW NO-BREAK SPACE",
+    "U+2032": "PRIME",
+    "U+2033": "DOUBLE PRIME",
+    "U+2035": "REVERSED PRIME",
+    "U+2036": "REVERSED DOUBLE PRIME",
+    "U+2043": "HYPHEN BULLET",
+    "U+205F": "MEDIUM MATHEMATICAL SPACE",
+    "U+2060": "WORD JOINER",
+    "U+2061": "FUNCTION APPLICATION",
+    "U+2062": "INVISIBLE TIMES",
+    "U+2063": "INVISIBLE SEPARATOR",
+    "U+2064": "INVISIBLE PLUS",
+    "U+2212": "MINUS SIGN",
+    "U+2219": "BULLET OPERATOR",
+    "U+25E6": "WHITE BULLET",
+    "U+275B": "HEAVY SINGLE TURNED COMMA QUOTATION MARK ORNAMENT",
+    "U+275C": "HEAVY SINGLE COMMA QUOTATION MARK ORNAMENT",
+    "U+275D": "HEAVY DOUBLE TURNED COMMA QUOTATION MARK ORNAMENT",
+    "U+275E": "HEAVY DOUBLE COMMA QUOTATION MARK ORNAMENT",
+    "U+3000": "IDEOGRAPHIC SPACE",
+    "U+301D": "REVERSED DOUBLE PRIME QUOTATION MARK",
+    "U+301E": "DOUBLE PRIME QUOTATION MARK",
+    "U+301F": "LOW DOUBLE PRIME QUOTATION MARK",
+    "U+FE00": "VARIATION SELECTOR-1",
+    "U+FE0F": "VARIATION SELECTOR-16",
+    "U+FEFF": "ZERO WIDTH NO-BREAK SPACE",
+    "U+FF02": "FULLWIDTH QUOTATION MARK",
+    "U+FF07": "FULLWIDTH APOSTROPHE"
   });
 
   function makeStats() {
@@ -130,9 +219,83 @@
     return matches ? matches.length : 0;
   }
 
+  function cloneGlobalRegex(regex) {
+    const flags = regex.flags.includes("g") ? regex.flags : regex.flags + "g";
+    return new RegExp(regex.source, flags);
+  }
+
   function getCodePointLabel(char) {
     const codePoint = char.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
     return `U+${codePoint}`;
+  }
+
+  function getCodePointName(char) {
+    const code = getCodePointLabel(char);
+    if (CODE_POINT_NAMES[code]) return CODE_POINT_NAMES[code];
+
+    if (/^[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]$/u.test(char)) {
+      return "emoji or pictographic symbol";
+    }
+
+    if (/^[\u0300-\u036f]$/u.test(char)) {
+      return "combining mark";
+    }
+
+    return "non-ASCII character";
+  }
+
+  function codePointSequenceLabel(text) {
+    if (text === "") return "removed";
+    return Array.from(text).map((char) => `${getCodePointLabel(char)} ${getCodePointName(char)}`).join(" + ");
+  }
+
+  function addChangeDetail(detailMap, category, originalText, replacementText, count) {
+    const key = `${category}\u0000${originalText}\u0000${replacementText}`;
+    const existing = detailMap.get(key);
+    if (existing) {
+      existing.count += count || 1;
+      return;
+    }
+
+    detailMap.set(key, {
+      category,
+      originalText,
+      originalLabel: codePointSequenceLabel(originalText),
+      replacementText,
+      replacementLabel: codePointSequenceLabel(replacementText),
+      count: count || 1
+    });
+  }
+
+  function addRegexCharacterDetails(text, regex, replacementText, category, detailMap) {
+    const clone = cloneGlobalRegex(regex);
+    for (const match of text.matchAll(clone)) {
+      for (const char of match[0]) {
+        addChangeDetail(detailMap, category, char, replacementText, 1);
+      }
+    }
+  }
+
+  function addLineEndingDetails(text, detailMap) {
+    const crlfCount = countMatches(text, /\r\n/g);
+    const crOnlyCount = countMatches(text.replace(/\r\n/g, ""), /\r/g);
+    if (crlfCount > 0) {
+      addChangeDetail(detailMap, "Line endings normalized", "\r\n", "\n", crlfCount);
+    }
+    if (crOnlyCount > 0) {
+      addChangeDetail(detailMap, "Line endings normalized", "\r", "\n", crOnlyCount);
+    }
+  }
+
+  function addBulletDetails(text, detailMap) {
+    const clone = cloneGlobalRegex(RULES.bulletsAtLineStart);
+    for (const match of text.matchAll(clone)) {
+      addChangeDetail(detailMap, "Line-start bullets converted", match[2], "-", 1);
+    }
+  }
+
+  function addTrimmedBlankLineDetail(detailMap) {
+    addChangeDetail(detailMap, "Leading or trailing blank lines trimmed", "leading/trailing blank line", "removed", 1);
   }
 
   function getRemainingWarnings(text) {
@@ -166,20 +329,25 @@
     const options = Object.assign({}, DEFAULT_OPTIONS, userOptions || {});
     let text = String(input == null ? "" : input);
     const changes = [];
+    const detailMap = new Map();
     const stats = makeStats();
 
     if (options.normalizeLineEndings) {
       const crlfCount = countMatches(text, /\r\n/g);
-      const crCount = countMatches(text, /\r/g);
+      const crCount = countMatches(text.replace(/\r\n/g, ""), /\r/g);
       const total = crlfCount + crCount;
       if (total > 0) {
         stats.lineEndingReplacements += total;
         changes.push({ type: "Line endings normalized", count: total });
+        addLineEndingDetails(text, detailMap);
         text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
       }
     }
 
     if (options.removeHidden) {
+      if (countMatches(text, RULES.hiddenChars) > 0) {
+        addRegexCharacterDetails(text, RULES.hiddenChars, "", "Hidden or formatting characters removed", detailMap);
+      }
       text = replaceWithCount(
         text,
         RULES.hiddenChars,
@@ -192,6 +360,9 @@
     }
 
     if (options.normalizeSpaces) {
+      if (countMatches(text, RULES.unusualSpaces) > 0) {
+        addRegexCharacterDetails(text, RULES.unusualSpaces, " ", "Unusual spaces normalized", detailMap);
+      }
       text = replaceWithCount(
         text,
         RULES.unusualSpaces,
@@ -221,6 +392,8 @@
       if (singleQuoteCount + doubleQuoteCount > 0) {
         stats.quoteReplacements += singleQuoteCount + doubleQuoteCount;
         changes.push({ type: "Quote-like characters normalized to keyboard quotes", count: singleQuoteCount + doubleQuoteCount });
+        addRegexCharacterDetails(text, RULES.quoteLikeSingle, "'", "Quote-like characters normalized", detailMap);
+        addRegexCharacterDetails(text, RULES.quoteLikeDouble, '"', "Quote-like characters normalized", detailMap);
         text = text.replace(RULES.quoteLikeSingle, "'").replace(RULES.quoteLikeDouble, '"');
       }
     }
@@ -231,6 +404,8 @@
       if (emDashCount + enDashCount > 0) {
         stats.dashReplacements += emDashCount + enDashCount;
         changes.push({ type: "Dash characters normalized", count: emDashCount + enDashCount });
+        addRegexCharacterDetails(text, RULES.emDashLike, " -- ", "Dash characters normalized", detailMap);
+        addRegexCharacterDetails(text, RULES.enDashLike, "-", "Dash characters normalized", detailMap);
         text = text
           .replace(RULES.emDashLikeWithSurroundingSpaces, " -- ")
           .replace(RULES.enDashLike, "-");
@@ -238,6 +413,9 @@
     }
 
     if (options.normalizeEllipsis) {
+      if (countMatches(text, RULES.ellipsis) > 0) {
+        addRegexCharacterDetails(text, RULES.ellipsis, "...", "Ellipsis characters normalized", detailMap);
+      }
       text = replaceWithCount(
         text,
         RULES.ellipsis,
@@ -254,11 +432,15 @@
       if (count > 0) {
         stats.bulletReplacements += count;
         changes.push({ type: "Line-start bullets converted to hyphens", count });
+        addBulletDetails(text, detailMap);
         text = text.replace(RULES.bulletsAtLineStart, "$1- ");
       }
     }
 
     if (options.removeEmoji) {
+      if (countMatches(text, RULES.emoji) > 0) {
+        addRegexCharacterDetails(text, RULES.emoji, "", "Emoji and pictographic symbols removed", detailMap);
+      }
       text = replaceWithCount(
         text,
         RULES.emoji,
@@ -278,6 +460,9 @@
         const changedByNormalization = before === text ? 0 : 1;
         stats.strictAsciiCharactersChanged += nonAsciiCount + changedByNormalization;
         changes.push({ type: "Strict ASCII cleanup applied", count: nonAsciiCount + changedByNormalization });
+        if (nonAsciiCount > 0) {
+          addRegexCharacterDetails(text, RULES.nonAscii, "", "Strict ASCII characters removed", detailMap);
+        }
         text = text.replace(RULES.nonAscii, "");
       }
     }
@@ -322,6 +507,7 @@
     return {
       cleanText: text,
       changes,
+      changeDetails: Array.from(detailMap.values()),
       stats,
       warnings: diagnostics.warnings,
       remainingNonAscii: diagnostics.remainingNonAscii,
@@ -469,6 +655,7 @@
     const status = document.getElementById("status");
     const statsList = document.getElementById("statsList");
     const warningsList = document.getElementById("warningsList");
+    const changesList = document.getElementById("changesList");
     const nonAsciiList = document.getElementById("nonAsciiList");
     const optionInputs = Array.from(document.querySelectorAll("[data-option]"));
 
@@ -513,6 +700,34 @@
       });
     }
 
+    function renderChangeDetails(result) {
+      if (!changesList) return;
+      changesList.innerHTML = "";
+
+      if (!result.changeDetails || result.changeDetails.length === 0) {
+        const item = document.createElement("li");
+        item.textContent = "No replacements made.";
+        changesList.appendChild(item);
+        return;
+      }
+
+      result.changeDetails.forEach((detail) => {
+        const item = document.createElement("li");
+        const category = document.createElement("span");
+        const mapping = document.createElement("strong");
+        const count = document.createElement("em");
+
+        category.textContent = detail.category;
+        mapping.textContent = `${detail.originalLabel} -> ${detail.replacementLabel}`;
+        count.textContent = `x ${detail.count}`;
+
+        item.appendChild(category);
+        item.appendChild(mapping);
+        item.appendChild(count);
+        changesList.appendChild(item);
+      });
+    }
+
     function renderWarnings(result) {
       if (!warningsList || !nonAsciiList) return;
       warningsList.innerHTML = "";
@@ -547,6 +762,7 @@
       const result = sanitize(input.value, optionsFromUi());
       renderGmailHtmlPreview(output, result.cleanText);
       renderStats(result);
+      renderChangeDetails(result);
       renderWarnings(result);
       if (status) status.textContent = "";
     }

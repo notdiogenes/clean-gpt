@@ -313,3 +313,20 @@ input[type="checkbox"] {
     justify-content: flex-start;
   }
 }
+
+.changes-list li {
+  display: grid;
+  gap: 2px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--soft);
+}
+
+.changes-list strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.changes-list em {
+  color: var(--muted);
+  font-style: normal;
+}
