@@ -35,7 +35,7 @@
         <p class="panel-subtitle">This preview shows the selected destination rendering. The primary copy button may include HTML for paragraph and list structure.</p>
       </div>
       <div class="editor-actions output-actions" aria-label="Copy actions">
-        <button id="destinationCopyButton" type="button" class="primary-button">Copy for Gmail</button>
+        <button id="destinationCopyButton" type="button" class="primary-button">Copy output</button>
         <button id="copyVisibleButton" type="button" class="ghost-button">Copy visible text</button>
       </div>
       <div id="outputEditor" class="rich-editor destination-output gmail-compose" role="region" aria-live="polite" aria-label="Destination-ready output" data-placeholder="Sanitized output appears here..."></div>
@@ -61,6 +61,33 @@
             <option value="strictAscii">Strict ASCII</option>
           </select>
           <p id="destinationNote" class="destination-note"></p>
+          <fieldset id="gmailStyleControls" class="gmail-style-controls" aria-labelledby="gmailStyleLabel">
+            <legend id="gmailStyleLabel">Gmail style</legend>
+            <div class="control-grid two-up">
+              <label>
+                <span>Font</span>
+                <select id="gmailFontSelect">
+                  <option value="verdana, sans-serif">Verdana</option>
+                  <option value="arial, sans-serif">Arial</option>
+                  <option value="tahoma, sans-serif">Tahoma</option>
+                  <option value="georgia, serif">Georgia</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
+                  <option value="system-ui, sans-serif">System UI</option>
+                </select>
+              </label>
+              <label>
+                <span>Size</span>
+                <select id="gmailSizeSelect">
+                  <option value="10pt">10 pt</option>
+                  <option value="11pt">11 pt</option>
+                  <option value="12pt">12 pt</option>
+                  <option value="14px">14 px</option>
+                  <option value="16px">16 px</option>
+                </select>
+              </label>
+            </div>
+            <p class="destination-note compact-note">Saved locally and applied to Gmail preview and rich-copy HTML.</p>
+          </fieldset>
         </div>
 
         <label class="field-label" for="presetSelect">Cleanup preset</label>

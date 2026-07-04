@@ -197,7 +197,7 @@
   const DESTINATIONS = Object.freeze({
     gmail: {
       label: "Gmail",
-      copyLabel: "Copy for Gmail",
+      copyLabel: "Copy output",
       note: "Keyboard punctuation in paragraph text. The primary copy action writes Gmail-shaped HTML and preserves detected lists as semantic HTML lists.",
       outputClass: "gmail-compose",
       overrides: {
@@ -212,7 +212,7 @@
     },
     googleDocs: {
       label: "Google Docs",
-      copyLabel: "Copy for Google Docs",
+      copyLabel: "Copy output",
       note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
@@ -227,7 +227,7 @@
     },
     word: {
       label: "Microsoft Word",
-      copyLabel: "Copy for Word",
+      copyLabel: "Copy output",
       note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
@@ -325,7 +325,7 @@
     },
     plain: {
       label: "Plain text / forms",
-      copyLabel: "Copy plain text",
+      copyLabel: "Copy output",
       note: "Keyboard-safe visible characters only. Good for forms, CMS fields, terminals, and places where rich text is a liability.",
       outputClass: "plain-output",
       overrides: {
@@ -340,7 +340,7 @@
     },
     strictAscii: {
       label: "Strict ASCII",
-      copyLabel: "Copy ASCII",
+      copyLabel: "Copy output",
       note: "Aggressive compatibility mode. Removes or replaces non-ASCII characters after cleanup.",
       outputClass: "strict-output",
       overrides: {
@@ -937,7 +937,8 @@
     const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
     const lastTextIndex = nonEmptyIndexes.length ? nonEmptyIndexes[nonEmptyIndexes.length - 1] : -1;
     const divs = lines.map((line, index) => {
-      const prefix = '<div class="gmail_default" style="font-family: verdana, sans-serif;">';
+      const style = gmailStyleFromOptions(OPTION_DEFAULTS);
+      const prefix = `<div class="gmail_default" style="${style.inline}">`;
       if (!line) return `${prefix}<br></div>`;
       const suffix = index === lastTextIndex ? "<br></div>" : "</div>";
       return `${prefix}${htmlEscape(line)}${suffix}`;
@@ -1270,16 +1271,18 @@
   }
 
 
-  function buildGmailLineDiv(text, finalText) {
-    const prefix = '<div class="gmail_default" style="font-family: verdana, sans-serif;">';
+  function buildGmailLineDiv(text, finalText, options) {
+    const style = gmailStyleFromOptions(options);
+    const prefix = `<div class="gmail_default" style="${style.inline}">`;
     if (!text) return `${prefix}<br></div>`;
     const body = htmlEscapeWithBreaks(text);
     return `${prefix}${body}${finalText ? "<br>" : ""}</div>`;
   }
 
-  function buildGmailListHtml(block, isFinalContent) {
+  function buildGmailListHtml(block, isFinalContent, options) {
     const tag = block.type === "ol" ? "ol" : "ul";
-    const parts = [`<${tag} style="font-family: verdana, sans-serif;">`];
+    const style = gmailStyleFromOptions(options);
+    const parts = [`<${tag} style="${style.inline}">`];
     const items = block.items || [];
     items.forEach((item, index) => {
       const isFinalItem = isFinalContent && index === items.length - 1;
@@ -1295,7 +1298,7 @@
       const lines = docBlocksAsGmailLines(doc, options);
       const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
       const lastTextIndex = nonEmptyIndexes.length ? nonEmptyIndexes[nonEmptyIndexes.length - 1] : -1;
-      const divs = lines.map((line, index) => buildGmailLineDiv(line, index === lastTextIndex && line.trim()));
+      const divs = lines.map((line, index) => buildGmailLineDiv(line, index === lastTextIndex && line.trim(), options));
       return `<div>${divs.join("")}<br clear="all"></div>`;
     }
 
@@ -1310,11 +1313,11 @@
 
     blocks.forEach((block, index) => {
       if (block.type === "blank") {
-        parts.push(buildGmailLineDiv("", false));
+        parts.push(buildGmailLineDiv("", false, options));
       } else if (block.type === "paragraph") {
-        parts.push(buildGmailLineDiv(block.text || "", index === lastContentIndex));
+        parts.push(buildGmailLineDiv(block.text || "", index === lastContentIndex, options));
       } else if (block.type === "ul" || block.type === "ol") {
-        parts.push(buildGmailListHtml(block, index === lastContentIndex));
+        parts.push(buildGmailListHtml(block, index === lastContentIndex, options));
       }
     });
     parts.push('<br clear="all"></div>');
@@ -1394,7 +1397,8 @@
     function appendGmailSemanticList(block, isFinalContent) {
       const list = document.createElement(block.type);
       list.className = "editor-list gmail-list";
-      list.setAttribute("style", "font-family: verdana, sans-serif;");
+      const style = gmailStyleFromOptions(options);
+      list.setAttribute("style", style.inline);
       const items = block.items || [];
       items.forEach((item, index) => {
         const li = document.createElement("li");
@@ -1531,6 +1535,9 @@
     const copyVisibleButton = document.getElementById("copyVisibleButton");
     const destinationSelect = document.getElementById("destinationSelect");
     const destinationNote = document.getElementById("destinationNote");
+    const gmailStyleControls = document.getElementById("gmailStyleControls");
+    const gmailFontSelect = document.getElementById("gmailFontSelect");
+    const gmailSizeSelect = document.getElementById("gmailSizeSelect");
     const presetSelect = document.getElementById("presetSelect");
     const status = document.getElementById("status");
     const pasteStatus = document.getElementById("pasteStatus");
@@ -1573,6 +1580,8 @@
     function getOptions() {
       const options = currentOptionsFromUi(destinationSelect.value, presetSelect, optionInputs);
       options.destination = destinationSelect.value;
+      if (gmailFontSelect) options.gmailFontFamily = gmailFontSelect.value;
+      if (gmailSizeSelect) options.gmailFontSize = gmailSizeSelect.value;
       return options;
     }
 
@@ -1704,8 +1713,12 @@
     function update() {
       if (!suppressInputEvent) inputDoc = parseEditorToDoc(inputEditor);
       refreshProfileUi();
-      lastResult = sanitizeDoc(inputDoc, getOptions());
-      renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, getOptions());
+      const options = getOptions();
+      const gmailStyle = gmailStyleFromOptions(options);
+      outputEditor.style.setProperty("--gmail-font-family", gmailStyle.fontFamily);
+      outputEditor.style.setProperty("--gmail-font-size", gmailStyle.fontSize);
+      lastResult = sanitizeDoc(inputDoc, options);
+      renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, options);
       renderStats(lastResult);
       renderStructure(lastResult);
       renderChanges(lastResult);
@@ -1760,9 +1773,37 @@
       update();
     });
 
+    function loadGmailStylePreference() {
+      try {
+        const saved = JSON.parse(global.localStorage?.getItem("copySanitizer.gmailStyle") || "{}");
+        if (gmailFontSelect && saved.fontFamily) gmailFontSelect.value = saved.fontFamily;
+        if (gmailSizeSelect && saved.fontSize) gmailSizeSelect.value = saved.fontSize;
+      } catch (error) {
+        // Ignore malformed local preferences.
+      }
+    }
+
+    function saveGmailStylePreference() {
+      try {
+        global.localStorage?.setItem("copySanitizer.gmailStyle", JSON.stringify({
+          fontFamily: gmailFontSelect ? gmailFontSelect.value : OPTION_DEFAULTS.gmailFontFamily,
+          fontSize: gmailSizeSelect ? gmailSizeSelect.value : OPTION_DEFAULTS.gmailFontSize
+        }));
+      } catch (error) {
+        // Local storage may be unavailable in private or locked-down contexts.
+      }
+    }
+
     optionInputs.forEach((input) => input.addEventListener("change", update));
     presetSelect.addEventListener("change", applyPresetAndProfile);
     destinationSelect.addEventListener("change", applyPresetAndProfile);
+    [gmailFontSelect, gmailSizeSelect].forEach((select) => {
+      if (!select) return;
+      select.addEventListener("change", () => {
+        saveGmailStylePreference();
+        update();
+      });
+    });
 
     if (clearButton) {
       clearButton.addEventListener("click", () => {
@@ -1846,6 +1887,7 @@
       });
     }
 
+    loadGmailStylePreference();
     applyPresetAndProfile();
   }
 

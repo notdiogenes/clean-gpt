@@ -200,6 +200,39 @@ select {
   line-height: 1.4;
 }
 
+
+.gmail-style-controls {
+  margin: 12px 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfaf6;
+}
+
+.gmail-style-controls[hidden] { display: none; }
+
+.control-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.control-grid.two-up {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.control-grid label span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.compact-note {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+}
+
 details {
   border-top: 1px solid var(--soft);
   padding: 9px 0;
@@ -317,8 +350,8 @@ button, select, textarea, .rich-editor { font: inherit; }
 }
 
 .destination-output.gmail-compose {
-  font-family: Verdana, Geneva, sans-serif;
-  font-size: 10pt;
+  font-family: var(--gmail-font-family, Verdana, Geneva, sans-serif);
+  font-size: var(--gmail-font-size, 10pt);
   line-height: normal;
   letter-spacing: normal;
 }
@@ -398,15 +431,15 @@ button, select, textarea, .rich-editor { font: inherit; }
 }
 
 .destination-output.gmail-compose {
-  font-family: Verdana, Geneva, sans-serif;
-  font-size: 10pt;
+  font-family: var(--gmail-font-family, Verdana, Geneva, sans-serif);
+  font-size: var(--gmail-font-size, 10pt);
   line-height: normal;
 }
 
 .destination-output.gmail-compose .gmail_default,
 .destination-output.gmail-compose .gmail-line {
-  font-family: verdana, sans-serif;
-  font-size: 10pt;
+  font-family: var(--gmail-font-family, verdana, sans-serif);
+  font-size: var(--gmail-font-size, 10pt);
   line-height: normal;
   margin: 0;
   min-height: 1.2em;
