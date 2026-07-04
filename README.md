@@ -29,7 +29,7 @@ The input panel is a structural preview of the parsed clipboard payload. It rend
 
 The output panel is also structural:
 
-- Gmail shows Verdana-style Gmail paragraph lines and Gmail-safe list lines.
+- Gmail shows Verdana-style Gmail paragraphs and semantic HTML lists by default.
 - Google Docs and Microsoft Word show document-style typography and semantic lists.
 - Plain text and Strict ASCII show the plain-text serialization.
 
@@ -55,12 +55,13 @@ Primary copy writes Gmail-shaped `text/html`:
 
 The app does not intentionally insert zero-width spaces, spans, font tags, color styles, background-color styles, line-height styles, or extra wrappers.
 
-Detected lists are rendered for Gmail as plain list lines by default:
+Detected lists are preserved for Gmail as semantic list HTML by default:
 
-```text
-- First item
-- Second item
+```html
+<ul style="font-family: verdana, sans-serif;"><li class="gmail_default" style="font-family: verdana, sans-serif;">First item</li><li class="gmail_default" style="font-family: verdana, sans-serif;">Second item</li></ul>
 ```
+
+An advanced option can flatten Gmail lists to plain hyphen lines when a deliberately plain fallback is needed.
 
 ### Google Docs
 
@@ -95,7 +96,7 @@ The app detects list structure during paste:
 
 1. If clipboard HTML contains `<ul>`, `<ol>`, or `<li>`, it stores list structure in the internal document model.
 2. If only plain text is available, it detects lines beginning with markers such as `*`, `-`, `•`, and numbered items such as `1.`.
-3. Each destination decides how lists are rendered and copied.
+3. Each destination decides how lists are rendered and copied. Gmail, Google Docs, and Microsoft Word preserve semantic lists by default; Plain text and Strict ASCII flatten them to plain text.
 
 This replaces the old blanket rule of converting bullet characters to hyphens.
 

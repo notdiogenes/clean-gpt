@@ -190,14 +190,14 @@
     detectLists: true,
     preferHtmlPaste: true,
     structuredListsForDocs: true,
-    gmailListsAsHyphenLines: true
+    gmailListsAsHyphenLines: false
   });
 
   const DESTINATIONS = Object.freeze({
     gmail: {
       label: "Gmail",
       copyLabel: "Copy for Gmail",
-      note: "Keyboard punctuation in the visible output. The primary copy action writes Gmail-shaped HTML; detected lists become plain hyphen lines inside Gmail divs.",
+      note: "Keyboard punctuation in paragraph text. The primary copy action writes Gmail-shaped HTML and preserves detected lists as semantic HTML lists.",
       outputClass: "gmail-compose",
       overrides: {
         smartQuotes: false,
@@ -1058,7 +1058,7 @@
         lines.push(block.text || "");
       } else if (block.type === "ul") {
         (block.items || []).forEach((item) => {
-          const marker = (destination === "googleDocs" || destination === "word") ? "•" : "-";
+          const marker = (destination === "plain" || destination === "strictAscii") ? "-" : "•";
           lines.push(`${marker} ${item.text || ""}`);
         });
       } else if (block.type === "ol") {
@@ -1138,17 +1138,54 @@
   }
 
 
-  function buildGmailHtmlFromDoc(doc, options) {
-    const lines = docBlocksAsGmailLines(doc, options);
-    const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
-    const lastTextIndex = nonEmptyIndexes.length ? nonEmptyIndexes[nonEmptyIndexes.length - 1] : -1;
-    const divs = lines.map((line, index) => {
-      const prefix = '<div class="gmail_default" style="font-family: verdana, sans-serif;">';
-      if (!line) return `${prefix}<br></div>`;
-      const suffix = index === lastTextIndex ? "<br></div>" : "</div>";
-      return `${prefix}${htmlEscape(line)}${suffix}`;
+  function buildGmailLineDiv(text, finalText) {
+    const prefix = '<div class="gmail_default" style="font-family: verdana, sans-serif;">';
+    if (!text) return `${prefix}<br></div>`;
+    const body = htmlEscapeWithBreaks(text);
+    return `${prefix}${body}${finalText ? "<br>" : ""}</div>`;
+  }
+
+  function buildGmailListHtml(block, isFinalContent) {
+    const tag = block.type === "ol" ? "ol" : "ul";
+    const parts = [`<${tag} style="font-family: verdana, sans-serif;">`];
+    const items = block.items || [];
+    items.forEach((item, index) => {
+      const isFinalItem = isFinalContent && index === items.length - 1;
+      parts.push(`<li class="gmail_default" style="font-family: verdana, sans-serif;">${htmlEscapeWithBreaks(item.text || "")}${isFinalItem ? "<br>" : ""}</li>`);
     });
-    return `<div>${divs.join("")}<br clear="all"></div>`;
+    parts.push(`</${tag}>`);
+    return parts.join("");
+  }
+
+  function buildGmailHtmlFromDoc(doc, options) {
+    if (options && options.gmailListsAsHyphenLines) {
+      const lines = docBlocksAsGmailLines(doc, options);
+      const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
+      const lastTextIndex = nonEmptyIndexes.length ? nonEmptyIndexes[nonEmptyIndexes.length - 1] : -1;
+      const divs = lines.map((line, index) => buildGmailLineDiv(line, index === lastTextIndex && line.trim()));
+      return `<div>${divs.join("")}<br clear="all"></div>`;
+    }
+
+    const blocks = doc.blocks || [];
+    const contentIndexes = blocks.map((block, index) => {
+      if (block.type === "paragraph" && (block.text || "").trim()) return index;
+      if ((block.type === "ul" || block.type === "ol") && (block.items || []).length) return index;
+      return -1;
+    }).filter((index) => index >= 0);
+    const lastContentIndex = contentIndexes.length ? contentIndexes[contentIndexes.length - 1] : -1;
+    const parts = ["<div>"];
+
+    blocks.forEach((block, index) => {
+      if (block.type === "blank") {
+        parts.push(buildGmailLineDiv("", false));
+      } else if (block.type === "paragraph") {
+        parts.push(buildGmailLineDiv(block.text || "", index === lastContentIndex));
+      } else if (block.type === "ul" || block.type === "ol") {
+        parts.push(buildGmailListHtml(block, index === lastContentIndex));
+      }
+    });
+    parts.push('<br clear="all"></div>');
+    return parts.join("");
   }
 
   function buildDocumentHtmlFromDoc(doc) {
@@ -1209,11 +1246,43 @@
       frag.appendChild(list);
     }
 
+    function appendGmailSemanticList(block, isFinalContent) {
+      const list = document.createElement(block.type);
+      list.className = "editor-list gmail-list";
+      list.setAttribute("style", "font-family: verdana, sans-serif;");
+      const items = block.items || [];
+      items.forEach((item, index) => {
+        const li = document.createElement("li");
+        li.className = "gmail_default";
+        li.setAttribute("style", "font-family: verdana, sans-serif;");
+        li.textContent = item.text || "";
+        if (isFinalContent && index === items.length - 1) li.appendChild(document.createElement("br"));
+        list.appendChild(li);
+      });
+      frag.appendChild(list);
+    }
+
     if (isOutput && destination === "gmail") {
-      const lines = docBlocksAsGmailLines(doc, options || {});
-      const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
-      const lastTextIndex = nonEmptyIndexes.length ? nonEmptyIndexes[nonEmptyIndexes.length - 1] : -1;
-      lines.forEach((line, index) => frag.appendChild(gmailDiv(line, index === lastTextIndex && line.trim())));
+      if (options && options.gmailListsAsHyphenLines) {
+        const lines = docBlocksAsGmailLines(doc, options || {});
+        const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
+        const lastTextIndex = nonEmptyIndexes.length ? nonEmptyIndexes[nonEmptyIndexes.length - 1] : -1;
+        lines.forEach((line, index) => frag.appendChild(gmailDiv(line, index === lastTextIndex && line.trim())));
+        return frag;
+      }
+
+      const blocks = doc.blocks || [];
+      const contentIndexes = blocks.map((block, index) => {
+        if (block.type === "paragraph" && (block.text || "").trim()) return index;
+        if ((block.type === "ul" || block.type === "ol") && (block.items || []).length) return index;
+        return -1;
+      }).filter((index) => index >= 0);
+      const lastContentIndex = contentIndexes.length ? contentIndexes[contentIndexes.length - 1] : -1;
+      blocks.forEach((block, index) => {
+        if (block.type === "blank") frag.appendChild(gmailDiv("", false));
+        else if (block.type === "paragraph") frag.appendChild(gmailDiv(block.text || "", index === lastContentIndex));
+        else if (block.type === "ul" || block.type === "ol") appendGmailSemanticList(block, index === lastContentIndex);
+      });
       return frag;
     }
 
