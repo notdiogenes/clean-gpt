@@ -165,3 +165,8 @@ The app runs locally in the browser. It does not send text to a server.
 ## UI model
 
 - The editor cards reserve matching status/footer space so the input and output panels keep the same visual height.
+
+
+## Layout notes
+
+The input and output editor cards use matching fixed header, action, textarea, and status rows so their top and bottom edges line up. The side rail moves below the editors before the editor columns become too narrow for the copy controls.
