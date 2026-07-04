@@ -190,7 +190,8 @@
     detectLists: true,
     preferHtmlPaste: true,
     structuredListsForDocs: true,
-    gmailListsAsHyphenLines: false
+    gmailListsAsHyphenLines: false,
+    showInvisibles: false
   });
 
   const DESTINATIONS = Object.freeze({
@@ -237,6 +238,89 @@
         smartFractions: false,
         measurementPrimes: true,
         strictAscii: false
+      }
+    },
+
+    markdown: {
+      label: "Markdown",
+      copyLabel: "Copy Markdown",
+      note: "Plain Markdown for GitHub, issues, and technical notes. Lists serialize as Markdown markers.",
+      outputClass: "markdown-output",
+      copyMode: "markdown",
+      overrides: {
+        smartQuotes: false,
+        smartDashes: false,
+        numericRangesToEnDash: false,
+        smartEllipsis: false,
+        smartFractions: false,
+        measurementPrimes: false,
+        strictAscii: false
+      }
+    },
+    outlook: {
+      label: "Outlook",
+      copyLabel: "Copy for Outlook",
+      note: "Conservative rich HTML for Outlook. Preserves semantic paragraphs and lists with a plain-text fallback.",
+      outputClass: "document-output",
+      copyMode: "documentHtml",
+      overrides: {
+        smartQuotes: false,
+        smartDashes: false,
+        numericRangesToEnDash: false,
+        smartEllipsis: false,
+        smartFractions: false,
+        measurementPrimes: false,
+        strictAscii: false
+      }
+    },
+    slack: {
+      label: "Slack / Teams",
+      copyLabel: "Copy for Slack / Teams",
+      note: "Markdown-like plain text for chat tools. Avoids rich clipboard HTML.",
+      outputClass: "markdown-output",
+      copyMode: "markdown",
+      overrides: {
+        smartQuotes: false,
+        smartDashes: false,
+        numericRangesToEnDash: false,
+        smartEllipsis: false,
+        smartFractions: false,
+        measurementPrimes: false,
+        strictAscii: false
+      }
+    },
+    cms: {
+      label: "CMS / web forms",
+      copyLabel: "Copy for CMS",
+      note: "Plain text for CMS fields and web forms, with conservative character cleanup and preserved paragraph spacing.",
+      outputClass: "plain-output",
+      copyMode: "plain",
+      overrides: {
+        smartQuotes: false,
+        smartDashes: false,
+        numericRangesToEnDash: false,
+        smartEllipsis: false,
+        smartFractions: false,
+        measurementPrimes: false,
+        strictAscii: false
+      }
+    },
+    code: {
+      label: "Code comments",
+      copyLabel: "Copy for code",
+      note: "Code-safe plain text. Normalizes punctuation to keyboard-safe characters and removes hidden Unicode.",
+      outputClass: "strict-output",
+      copyMode: "plain",
+      overrides: {
+        smartQuotes: false,
+        smartDashes: false,
+        numericRangesToEnDash: false,
+        smartEllipsis: false,
+        smartFractions: false,
+        measurementPrimes: false,
+        strictAscii: false,
+        collapseRepeatedSpaces: false,
+        convertTabs: false
       }
     },
     plain: {
@@ -873,21 +957,30 @@
     };
   }
 
+  function itemTextWithChildren(item) {
+    const parts = [item && item.text ? item.text : ""];
+    (item && item.children || []).forEach((child) => parts.push(blockText(child)));
+    return parts.filter(Boolean).join("\n");
+  }
+
   function blockText(block) {
     if (!block) return "";
-    if (block.type === "ul" || block.type === "ol") return (block.items || []).map((item) => item.text || "").join("\n");
+    if (block.type === "ul" || block.type === "ol") return (block.items || []).map(itemTextWithChildren).join("\n");
     return block.text || "";
   }
 
   function countDocLists(blocks) {
     let lists = 0;
     let items = 0;
-    (blocks || []).forEach((block) => {
+    function visit(block) {
+      if (!block) return;
       if (block.type === "ul" || block.type === "ol") {
         lists += 1;
         items += (block.items || []).length;
+        (block.items || []).forEach((item) => (item.children || []).forEach(visit));
       }
-    });
+    }
+    (blocks || []).forEach(visit);
     return { lists, items };
   }
 
@@ -913,10 +1006,12 @@
     const items = [];
     Array.from(element.children || []).forEach((child) => {
       if (child.tagName !== "LI") return;
+      const nestedLists = Array.from(child.children || []).filter((nested) => nested.tagName === "UL" || nested.tagName === "OL");
       const clone = child.cloneNode(true);
       Array.from(clone.querySelectorAll("ul,ol")).forEach((nested) => nested.remove());
       const text = cleanNodeText(clone);
-      if (text) items.push({ text });
+      const children = nestedLists.map((nested) => parseListElement(nested, nested.tagName === "OL")).filter((nested) => nested.items.length);
+      if (text || children.length) items.push(Object.assign({ text }, children.length ? { children } : {}));
     });
     return { type: ordered ? "ol" : "ul", items };
   }
@@ -1006,11 +1101,32 @@
     }
 
     function markerForLine(line) {
-      const unordered = line.match(/^\s*[-*\u2022\u2023\u25E6\u2043\u2219]\s+(.+)$/u);
-      if (unordered) return { type: "ul", text: unordered[1] };
-      const ordered = line.match(/^\s*(\d+|[A-Za-z])[.)]\s+(.+)$/u);
-      if (ordered) return { type: "ol", text: ordered[2] };
+      const unordered = line.match(/^(\s*)[-*\u2022\u2023\u25E6\u2043\u2219]\s+(.+)$/u);
+      if (unordered) return { type: "ul", text: unordered[2], indent: unordered[1].replace(/\t/g, "  ").length };
+      const ordered = line.match(/^(\s*)(\d+|[A-Za-z])[.)]\s+(.+)$/u);
+      if (ordered) return { type: "ol", text: ordered[3], indent: ordered[1].replace(/\t/g, "  ").length };
       return null;
+    }
+
+    function parseListAt(startIndex, baseIndent, expectedType) {
+      const list = { type: expectedType, items: [] };
+      let index = startIndex;
+      while (index < lines.length) {
+        const marker = markerForLine(lines[index]);
+        if (!marker || marker.indent < baseIndent) break;
+        if (marker.indent > baseIndent) {
+          const parent = list.items[list.items.length - 1];
+          if (!parent) break;
+          const child = parseListAt(index, marker.indent, marker.type);
+          parent.children = (parent.children || []).concat(child.block);
+          index = child.index;
+          continue;
+        }
+        if (marker.type !== expectedType) break;
+        list.items.push({ text: marker.text.trim() });
+        index += 1;
+      }
+      return { block: list, index };
     }
 
     while (i < lines.length) {
@@ -1023,14 +1139,9 @@
 
       const marker = detectLists ? markerForLine(line) : null;
       if (marker) {
-        const list = { type: marker.type, items: [] };
-        while (i < lines.length) {
-          const next = markerForLine(lines[i]);
-          if (!next || next.type !== marker.type) break;
-          list.items.push({ text: next.text.trim() });
-          i += 1;
-        }
-        blocks.push(list);
+        const parsed = parseListAt(i, marker.indent, marker.type);
+        blocks.push(parsed.block);
+        i = parsed.index;
         continue;
       }
 
@@ -1051,18 +1162,22 @@
 
   function docToPlainText(doc, destination) {
     const lines = [];
+    const markdownLike = destination === "markdown" || destination === "slack";
+    function appendList(block, depth) {
+      (block.items || []).forEach((item, index) => {
+        const indent = markdownLike ? "  ".repeat(depth) : "";
+        const marker = block.type === "ol" ? `${index + 1}.` : ((destination === "plain" || destination === "strictAscii" || markdownLike || destination === "cms" || destination === "code") ? "-" : "•");
+        lines.push(`${indent}${marker} ${item.text || ""}`);
+        (item.children || []).forEach((child) => appendList(child, depth + 1));
+      });
+    }
     (doc.blocks || []).forEach((block) => {
       if (block.type === "blank") {
         lines.push("");
       } else if (block.type === "paragraph") {
         lines.push(block.text || "");
-      } else if (block.type === "ul") {
-        (block.items || []).forEach((item) => {
-          const marker = (destination === "plain" || destination === "strictAscii") ? "-" : "•";
-          lines.push(`${marker} ${item.text || ""}`);
-        });
-      } else if (block.type === "ol") {
-        (block.items || []).forEach((item, index) => lines.push(`${index + 1}. ${item.text || ""}`));
+      } else if (block.type === "ul" || block.type === "ol") {
+        appendList(block, 0);
       }
     });
     return lines.join("\n");
@@ -1090,10 +1205,14 @@
       if (block.type === "paragraph") return { type: "paragraph", text: sanitizeTextPart(block.text || "", options, changes, stats) };
       if (block.type === "blank") return { type: "blank" };
       if (block.type === "ul" || block.type === "ol") {
-        return {
-          type: block.type,
-          items: (block.items || []).map((item) => ({ text: sanitizeTextPart(item.text || "", options, changes, stats) }))
-        };
+        function sanitizeItem(item) {
+          const children = (item.children || []).map(sanitizeListBlock).filter((child) => child.items.length);
+          return Object.assign({ text: sanitizeTextPart(item.text || "", options, changes, stats) }, children.length ? { children } : {});
+        }
+        function sanitizeListBlock(listBlock) {
+          return { type: listBlock.type, items: (listBlock.items || []).map(sanitizeItem) };
+        }
+        return sanitizeListBlock(block);
       }
       return { type: "paragraph", text: sanitizeTextPart(blockText(block), options, changes, stats) };
     }).filter((block) => block.type === "blank" || block.type === "paragraph" || block.items?.length);
@@ -1115,6 +1234,17 @@
     return htmlEscape(text).replace(/\n/g, "<br>");
   }
 
+  function visualizeInvisibles(text) {
+    return String(text || "").replace(/[\u0009\u00a0\u00ad\u034f\u061c\u180e\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff]/gu, (char) => {
+      if (char === "\t") return "→";
+      if (char === "\u00a0") return "⍽";
+      if (char === "\u00ad") return "[SHY]";
+      if (char === "\u2028") return "[LS]";
+      if (char === "\u2029") return "[PS]";
+      return `[${labelChar(char).split(" ")[0]}]`;
+    });
+  }
+
 
   function docBlocksAsGmailLines(doc, options) {
     const lines = [];
@@ -1125,13 +1255,15 @@
         const text = block.text || "";
         const split = text.split("\n");
         split.forEach((line) => lines.push(line));
-      } else if (block.type === "ul") {
-        (block.items || []).forEach((item) => {
-          const prefix = options.gmailListsAsHyphenLines === false ? "• " : "- ";
-          lines.push(`${prefix}${item.text || ""}`);
-        });
-      } else if (block.type === "ol") {
-        (block.items || []).forEach((item, index) => lines.push(`${index + 1}. ${item.text || ""}`));
+      } else if (block.type === "ul" || block.type === "ol") {
+        function appendList(listBlock, depth) {
+          (listBlock.items || []).forEach((item, index) => {
+            const marker = listBlock.type === "ol" ? `${index + 1}. ` : (options.gmailListsAsHyphenLines === false ? "• " : "- ");
+            lines.push(`${"  ".repeat(depth)}${marker}${item.text || ""}`);
+            (item.children || []).forEach((child) => appendList(child, depth + 1));
+          });
+        }
+        appendList(block, 0);
       }
     });
     return lines;
@@ -1151,7 +1283,8 @@
     const items = block.items || [];
     items.forEach((item, index) => {
       const isFinalItem = isFinalContent && index === items.length - 1;
-      parts.push(`<li class="gmail_default" style="font-family: verdana, sans-serif;">${htmlEscapeWithBreaks(item.text || "")}${isFinalItem ? "<br>" : ""}</li>`);
+      const nested = (item.children || []).map((child) => buildGmailListHtml(child, false)).join("");
+      parts.push(`<li class="gmail_default" style="font-family: verdana, sans-serif;">${htmlEscapeWithBreaks(item.text || "")}${nested}${isFinalItem ? "<br>" : ""}</li>`);
     });
     parts.push(`</${tag}>`);
     return parts.join("");
@@ -1198,7 +1331,10 @@
       } else if (block.type === "ul" || block.type === "ol") {
         const tag = block.type;
         parts.push(`<${tag}>`);
-        (block.items || []).forEach((item) => parts.push(`<li>${htmlEscapeWithBreaks(item.text || "")}</li>`));
+        (block.items || []).forEach((item) => {
+          const nested = (item.children || []).map((child) => buildDocumentHtmlFromDoc({ blocks: [child] }).replace(/^<div>|<\/div>$/g, "")).join("");
+          parts.push(`<li>${htmlEscapeWithBreaks(item.text || "")}${nested}</li>`);
+        });
         parts.push(`</${tag}>`);
       }
     });
@@ -1214,7 +1350,7 @@
     function blockDiv(text, className) {
       const div = document.createElement("div");
       div.className = className || "editor-paragraph";
-      div.textContent = text || "";
+      div.textContent = options && options.showInvisibles ? visualizeInvisibles(text || "") : (text || "");
       if (!text) div.appendChild(document.createElement("br"));
       return div;
     }
@@ -1223,27 +1359,36 @@
       const div = document.createElement("div");
       div.className = "gmail_default editor-paragraph gmail-line";
       div.setAttribute("style", "font-family: verdana, sans-serif;");
-      div.textContent = text || "";
+      div.textContent = options && options.showInvisibles ? visualizeInvisibles(text || "") : (text || "");
       if (!text || isFinalText) div.appendChild(document.createElement("br"));
       return div;
     }
 
     function appendPlainTextList(block) {
-      (block.items || []).forEach((item, index) => {
-        const marker = block.type === "ol" ? `${index + 1}. ` : "- ";
-        frag.appendChild(blockDiv(`${marker}${item.text || ""}`, "editor-paragraph list-as-text"));
-      });
+      function appendList(listBlock, depth) {
+        (listBlock.items || []).forEach((item, index) => {
+          const marker = listBlock.type === "ol" ? `${index + 1}. ` : "- ";
+          frag.appendChild(blockDiv(`${"  ".repeat(depth)}${marker}${item.text || ""}`, "editor-paragraph list-as-text"));
+          (item.children || []).forEach((child) => appendList(child, depth + 1));
+        });
+      }
+      appendList(block, 0);
     }
 
-    function appendSemanticList(block) {
+    function createSemanticList(block) {
       const list = document.createElement(block.type);
       list.className = "editor-list";
       (block.items || []).forEach((item) => {
         const li = document.createElement("li");
-        li.textContent = item.text || "";
+        li.textContent = options && options.showInvisibles ? visualizeInvisibles(item.text || "") : (item.text || "");
+        (item.children || []).forEach((child) => li.appendChild(createSemanticList(child)));
         list.appendChild(li);
       });
-      frag.appendChild(list);
+      return list;
+    }
+
+    function appendSemanticList(block) {
+      frag.appendChild(createSemanticList(block));
     }
 
     function appendGmailSemanticList(block, isFinalContent) {
@@ -1255,7 +1400,8 @@
         const li = document.createElement("li");
         li.className = "gmail_default";
         li.setAttribute("style", "font-family: verdana, sans-serif;");
-        li.textContent = item.text || "";
+        li.textContent = options && options.showInvisibles ? visualizeInvisibles(item.text || "") : (item.text || "");
+        (item.children || []).forEach((child) => li.appendChild(createSemanticList(child)));
         if (isFinalContent && index === items.length - 1) li.appendChild(document.createElement("br"));
         list.appendChild(li);
       });
@@ -1292,7 +1438,7 @@
       } else if (block.type === "paragraph") {
         frag.appendChild(blockDiv(block.text || "", "editor-paragraph"));
       } else if (block.type === "ul" || block.type === "ol") {
-        if (isOutput && (destination === "plain" || destination === "strictAscii")) appendPlainTextList(block);
+        if (isOutput && (destination === "plain" || destination === "strictAscii" || destination === "markdown" || destination === "slack" || destination === "cms" || destination === "code")) appendPlainTextList(block);
         else appendSemanticList(block);
       }
     });
@@ -1393,6 +1539,7 @@
     const changesList = document.getElementById("changesList");
     const warningsList = document.getElementById("warningsList");
     const nonAsciiList = document.getElementById("nonAsciiList");
+    const compatibilityList = document.getElementById("compatibilityList");
     const optionInputs = Array.from(document.querySelectorAll("[data-option]"));
 
     if (!inputEditor || !outputEditor || !destinationSelect || !presetSelect) return;
@@ -1419,7 +1566,7 @@
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
       if (destinationNote) destinationNote.textContent = profile.note;
       if (destinationCopyButton) destinationCopyButton.textContent = profile.copyLabel;
-      outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output");
+      outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output", "markdown-output");
       outputEditor.classList.add(profile.outputClass);
     }
 
@@ -1464,7 +1611,7 @@
       structureList.innerHTML = "";
       const destination = destinationSelect.value;
       const profile = DESTINATIONS[destination] || DESTINATIONS.gmail;
-      const formats = destination === "gmail" ? "text/html" : ((destination === "googleDocs" || destination === "word") ? "text/html + text/plain" : "text/plain");
+      const formats = destination === "gmail" ? "text/html" : ((destination === "googleDocs" || destination === "word" || destination === "outlook") ? "text/html + text/plain" : "text/plain");
       const entries = [
         `Input source: ${inputDoc.meta.source || "manual"}`,
         `Clipboard HTML seen: ${inputDoc.meta.htmlAvailable ? "yes" : "no"}`,
@@ -1477,6 +1624,27 @@
         const li = document.createElement("li");
         li.textContent = entry;
         structureList.appendChild(li);
+      });
+    }
+
+    function renderCompatibility() {
+      if (!compatibilityList) return;
+      const secure = typeof window === "undefined" ? false : window.isSecureContext;
+      const hasClipboard = Boolean(navigator.clipboard);
+      const hasWrite = Boolean(navigator.clipboard && navigator.clipboard.write);
+      const hasWriteText = Boolean(navigator.clipboard && navigator.clipboard.writeText);
+      const hasClipboardItem = Boolean(global.ClipboardItem);
+      const entries = [
+        `Secure context: ${secure ? "yes" : "no"}`,
+        `Plain text clipboard write: ${hasWriteText ? "yes" : "no"}`,
+        `HTML clipboard write: ${hasClipboard && hasWrite && hasClipboardItem ? "yes" : "no"}`,
+        `ClipboardItem support: ${hasClipboardItem ? "yes" : "no"}`
+      ];
+      compatibilityList.innerHTML = "";
+      entries.forEach((entry) => {
+        const li = document.createElement("li");
+        li.textContent = entry;
+        compatibilityList.appendChild(li);
       });
     }
 
@@ -1542,6 +1710,7 @@
       renderStructure(lastResult);
       renderChanges(lastResult);
       renderWarnings(lastResult);
+      renderCompatibility();
       setStatus("");
     }
 
@@ -1646,7 +1815,7 @@
           return;
         }
 
-        if ((destination === "googleDocs" || destination === "word") && options.structuredListsForDocs) {
+        if ((destination === "googleDocs" || destination === "word" || destination === "outlook") && options.structuredListsForDocs) {
           const html = buildDocumentHtmlFromDoc(result.doc);
           try {
             if (!navigator.clipboard || !global.ClipboardItem) throw new Error("HTML clipboard unavailable");
