@@ -987,32 +987,15 @@
 
   function gmailStyleFromOptions(options) {
     const mergedOptions = options || {};
-    const fontFamily = mergedOptions.gmailFontFamily || mergedOptions.textFontFamily || "Arial, Helvetica, sans-serif";
-    const fontSize = mergedOptions.gmailFontSize || mergedOptions.textFontSize || "";
+    const fontFamily = mergedOptions.gmailFontFamily || "verdana, sans-serif";
+    const fontSize = mergedOptions.gmailFontSize || "";
     const declarations = [`font-family: ${fontFamily};`];
     if (fontSize) declarations.push(`font-size: ${fontSize};`);
     return {
       fontFamily,
-      fontSize: fontSize || "13px",
+      fontSize: fontSize || "10pt",
       inline: declarations.join(" ")
     };
-  }
-
-  function destinationStyleFromOptions(options) {
-    const mergedOptions = options || {};
-    const destination = mergedOptions.destination || "gmail";
-    if (destination === "gmail") return gmailStyleFromOptions(mergedOptions);
-    return {
-      fontFamily: mergedOptions.textFontFamily || (destination === "plain" || destination === "strictAscii" || destination === "markdown" || destination === "slack" || destination === "cms" || destination === "code"
-        ? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace"
-        : "Arial, sans-serif"),
-      fontSize: mergedOptions.textFontSize || (destination === "plain" || destination === "strictAscii" || destination === "markdown" || destination === "slack" || destination === "cms" || destination === "code" ? "0.92rem" : "11pt")
-    };
-  }
-
-  function styleAttributeFromOptions(options) {
-    const style = destinationStyleFromOptions(options);
-    return `font-family: ${style.fontFamily}; font-size: ${style.fontSize};`;
   }
 
   function buildGmailHtml(text) {
