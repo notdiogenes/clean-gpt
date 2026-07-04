@@ -24,16 +24,27 @@
       <textarea id="inputText" spellcheck="true" placeholder="Paste text here..."></textarea>
     </section>
 
-    <section class="panel editor-panel" aria-labelledby="outputLabel">
+    <section class="panel editor-panel output-panel" aria-labelledby="outputLabel">
       <div class="panel-header">
-        <h2 id="outputLabel">Clean text</h2>
+        <div>
+          <h2 id="outputLabel">Clean text</h2>
+          <p class="panel-subtitle">Use Gmail preview for Gmail, or the textarea for Docs, Word, and other plain-text destinations.</p>
+        </div>
         <div class="button-row">
           <button id="copyButton" type="button" class="ghost-button">Copy plain text</button>
           <button id="gmailCopyButton" type="button" class="primary-button">Copy for Gmail</button>
         </div>
       </div>
+
+      <div class="output-toolbar" role="group" aria-label="Output view">
+        <button id="gmailViewButton" type="button" class="view-toggle is-active" aria-pressed="true">Gmail preview</button>
+        <button id="plainViewButton" type="button" class="view-toggle" aria-pressed="false">Plain-text textarea</button>
+      </div>
+
       <div id="outputText" class="gmail-compose-output" role="textbox" aria-readonly="true" tabindex="0" data-placeholder="Sanitized output appears here..."></div>
-      <p class="preview-note">Preview font: Verdana, Gmail normal size. “Copy for Gmail” writes Gmail-compatible HTML directly to the clipboard, with no added hidden characters.</p>
+      <textarea id="plainOutputText" class="plain-output is-hidden" readonly spellcheck="false" aria-label="Clean plain text output" placeholder="Sanitized output appears here..."></textarea>
+
+      <p class="preview-note">The Gmail button copies Gmail-compatible HTML. The textarea view is plain text only, useful for manual copy/paste into Google Docs, Word, forms, and editors.</p>
       <p id="status" class="status" aria-live="polite"></p>
     </section>
 

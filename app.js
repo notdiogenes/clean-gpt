@@ -648,6 +648,9 @@
   function bindDom() {
     const input = document.getElementById("inputText");
     const output = document.getElementById("outputText");
+    const plainOutput = document.getElementById("plainOutputText");
+    const gmailViewButton = document.getElementById("gmailViewButton");
+    const plainViewButton = document.getElementById("plainViewButton");
     const copyButton = document.getElementById("copyButton");
     const gmailCopyButton = document.getElementById("gmailCopyButton");
     const clearButton = document.getElementById("clearButton");
@@ -675,6 +678,30 @@
         el.checked = Boolean(options[el.dataset.option]);
       });
       update();
+    }
+
+    function setOutputMode(mode) {
+      const showPlain = mode === "plain";
+
+      if (output) {
+        output.classList.toggle("is-hidden", showPlain);
+        output.setAttribute("aria-hidden", showPlain ? "true" : "false");
+      }
+
+      if (plainOutput) {
+        plainOutput.classList.toggle("is-hidden", !showPlain);
+        plainOutput.setAttribute("aria-hidden", showPlain ? "false" : "true");
+      }
+
+      if (gmailViewButton) {
+        gmailViewButton.classList.toggle("is-active", !showPlain);
+        gmailViewButton.setAttribute("aria-pressed", showPlain ? "false" : "true");
+      }
+
+      if (plainViewButton) {
+        plainViewButton.classList.toggle("is-active", showPlain);
+        plainViewButton.setAttribute("aria-pressed", showPlain ? "true" : "false");
+      }
     }
 
     function renderStats(result) {
@@ -761,6 +788,7 @@
     function update() {
       const result = sanitize(input.value, optionsFromUi());
       renderGmailHtmlPreview(output, result.cleanText);
+      if (plainOutput) plainOutput.value = result.cleanText;
       renderStats(result);
       renderChangeDetails(result);
       renderWarnings(result);
@@ -827,6 +855,7 @@
       copyButton.addEventListener("click", async () => {
         const result = sanitize(input.value, optionsFromUi());
         renderGmailHtmlPreview(output, result.cleanText);
+        if (plainOutput) plainOutput.value = result.cleanText;
         await copyTextWithFallback(result.cleanText, "Copied clean plain text.");
       });
     }
@@ -835,6 +864,7 @@
       gmailCopyButton.addEventListener("click", async () => {
         const result = sanitize(input.value, optionsFromUi());
         renderGmailHtmlPreview(output, result.cleanText);
+        if (plainOutput) plainOutput.value = result.cleanText;
         await copyGmailHtml(result.cleanText);
       });
     }
@@ -847,6 +877,20 @@
       });
     }
 
+    if (gmailViewButton) {
+      gmailViewButton.addEventListener("click", () => {
+        setOutputMode("gmail");
+      });
+    }
+
+    if (plainViewButton) {
+      plainViewButton.addEventListener("click", () => {
+        setOutputMode("plain");
+        if (plainOutput) plainOutput.focus();
+      });
+    }
+
+    setOutputMode("gmail");
     applyPreset("gmailSafe");
   }
 

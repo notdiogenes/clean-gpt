@@ -101,12 +101,26 @@ h3 {
 
 .panel-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
-.editor-panel textarea {
+.panel-header h2 {
+  margin-bottom: 0;
+}
+
+.panel-subtitle {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  max-width: 480px;
+}
+
+.editor-panel textarea,
+.plain-output {
   display: block;
   width: 100%;
   min-height: 62vh;
@@ -122,6 +136,17 @@ h3 {
 
 #inputText {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+#plainOutputText.plain-output {
+  font-family: verdana, sans-serif;
+  font-size: 10pt;
+  line-height: normal;
+  letter-spacing: normal;
+}
+
+.is-hidden {
+  display: none !important;
 }
 
 #outputText.gmail-compose-output {
@@ -151,9 +176,37 @@ textarea:focus,
 button:focus,
 select:focus,
 a:focus,
+.view-toggle:focus,
 .gmail-compose-output:focus {
   outline: 3px solid color-mix(in srgb, var(--focus), transparent 70%);
   outline-offset: 2px;
+}
+
+.output-toolbar {
+  display: inline-flex;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--soft);
+}
+
+.view-toggle {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.view-toggle.is-active,
+.view-toggle[aria-pressed="true"] {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .primary-button,
@@ -296,6 +349,7 @@ input[type="checkbox"] {
   }
 
   .editor-panel textarea,
+  .plain-output,
   #outputText.gmail-compose-output {
     min-height: 38vh;
   }
@@ -306,6 +360,7 @@ input[type="checkbox"] {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
 }
 
 @media (max-width: 680px) {
