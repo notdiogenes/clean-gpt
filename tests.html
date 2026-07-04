@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Copy Sanitizer Tests and Debugging</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">Developer diagnostics</p>
+      <h1>Tests and Debugging</h1>
+      <p class="lede">Run the browser-safe sanitizer test suite, inspect environment capabilities, and use the results to debug static deployments.</p>
+    </div>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="index.html">Main app</a>
+    </nav>
+  </header>
+
+  <main class="debug-shell">
+    <section class="panel debug-panel" aria-labelledby="testRunnerLabel">
+      <div class="debug-heading">
+        <div>
+          <h2 id="testRunnerLabel">In-browser test runner</h2>
+          <p class="panel-subtitle">These checks mirror core Node tests and add deployment-focused smoke tests that can run directly in the browser.</p>
+        </div>
+        <button id="runTestsButton" type="button" class="primary-button">Run tests</button>
+      </div>
+      <p id="testSummary" class="test-summary" aria-live="polite">Tests have not run yet.</p>
+      <ul id="testResults" class="test-results" aria-live="polite"></ul>
+    </section>
+
+    <section class="panel debug-panel" aria-labelledby="diagnosticsLabel">
+      <h2 id="diagnosticsLabel">Debug diagnostics</h2>
+      <p class="panel-subtitle">Environment details that commonly explain clipboard or rich-copy behavior differences.</p>
+      <ul id="debugDiagnostics" class="plain-list diagnostics-list"></ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Static GitHub Pages app. Tests run locally in this browser and do not send clipboard content anywhere.</p>
+  </footer>
+
+  <script src="app.js"></script>
+  <script src="test-runner.js"></script>
+</body>
+</html>

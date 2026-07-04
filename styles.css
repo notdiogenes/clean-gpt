@@ -462,3 +462,118 @@ button, select, textarea, .rich-editor { font: inherit; }
 .destination-output.markdown-output .editor-blank {
   min-height: 1.55em;
 }
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 9px 13px;
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+}
+
+.site-nav a:hover { filter: brightness(0.96); }
+
+.debug-shell {
+  max-width: 1340px;
+  margin: 0 auto;
+  padding: 0 20px 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.debug-panel { min-height: 180px; }
+
+.debug-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.test-summary {
+  margin: 16px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--soft);
+  font-weight: 700;
+}
+
+.test-summary.pass {
+  color: #155724;
+  background: #dff3e3;
+}
+
+.test-summary.fail {
+  color: var(--danger);
+  background: #f8dddd;
+}
+
+.test-results {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.test-result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fbfaf6;
+}
+
+.test-result.pass { border-color: #99d8a4; }
+.test-result.fail { border-color: #df9999; }
+
+.test-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--accent-ink);
+  background: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.test-result.pass .test-badge { background: #237a35; }
+.test-result.fail .test-badge { background: var(--danger); }
+
+.test-result pre {
+  grid-column: 1 / -1;
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px;
+  white-space: pre-wrap;
+  border-radius: 10px;
+  background: var(--soft);
+}
+
+.diagnostics-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 820px) {
+  .debug-shell { grid-template-columns: 1fr; }
+  .debug-heading { flex-direction: column; }
+}
