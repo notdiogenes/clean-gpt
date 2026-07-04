@@ -65,6 +65,37 @@
     }
   });
 
+  const DESTINATIONS = Object.freeze({
+    gmail: {
+      label: "Gmail",
+      copyLabel: "Copy for Gmail",
+      typography: "keyboard",
+      copyMode: "gmailHtml",
+      note: "Keeps keyboard quotes/apostrophes and copies Gmail-shaped Verdana HTML."
+    },
+    googleDocs: {
+      label: "Google Docs",
+      copyLabel: "Copy for Google Docs",
+      typography: "smartDocument",
+      copyMode: "plain",
+      note: "Converts cleaned keyboard punctuation into smart document punctuation, then copies plain text so Docs can inherit the current document style."
+    },
+    word: {
+      label: "Microsoft Word",
+      copyLabel: "Copy for Word",
+      typography: "smartDocument",
+      copyMode: "plain",
+      note: "Converts cleaned keyboard punctuation into smart document punctuation, then copies plain text so Word can inherit the current document style."
+    },
+    plain: {
+      label: "Plain text / forms",
+      copyLabel: "Copy plain text",
+      typography: "keyboard",
+      copyMode: "plain",
+      note: "Keeps keyboard-safe punctuation and copies only text/plain."
+    }
+  });
+
   const RULES = Object.freeze({
     hiddenChars: /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFE00-\uFE0F\uFEFF\uFFF9-\uFFFB]|[\u{E0000}-\u{E007F}]/gu,
     unusualSpaces: /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g,
@@ -552,9 +583,95 @@
     return `<div>${body}<br clear="all"></div>`;
   }
 
-  function renderGmailHtmlPreview(target, text) {
-    if (!target) return;
-    target.textContent = String(text == null ? "" : text);
+  function applyCurlyQuotes(text, detailMap) {
+    let output = "";
+
+    function previousVisibleCharacter() {
+      for (let index = output.length - 1; index >= 0; index -= 1) {
+        const char = output[index];
+        if (!/\s/.test(char)) return char;
+      }
+      return "";
+    }
+
+    for (let index = 0; index < text.length; index += 1) {
+      const char = text[index];
+      const previous = index > 0 ? text[index - 1] : "";
+      const next = index + 1 < text.length ? text[index + 1] : "";
+
+      if (char === '"') {
+        const opening = !previous || /[\s([{<\u2014\u2013-]/.test(previous);
+        const replacement = opening ? "“" : "”";
+        addChangeDetail(detailMap, "Destination typography", char, replacement, 1);
+        output += replacement;
+        continue;
+      }
+
+      if (char === "'") {
+        let replacement;
+        if (/^[A-Za-z0-9]$/.test(previous) && /^[A-Za-z0-9]$/.test(next)) {
+          replacement = "’";
+        } else if (!previous && /^[0-9]$/.test(next)) {
+          replacement = "’";
+        } else {
+          replacement = (!previous || /[\s([{<\u2014\u2013-]/.test(previous)) ? "‘" : "’";
+        }
+        addChangeDetail(detailMap, "Destination typography", char, replacement, 1);
+        output += replacement;
+        continue;
+      }
+
+      output += char;
+    }
+
+    return output;
+  }
+
+  function applyDestinationTypography(text, destinationName) {
+    const destination = DESTINATIONS[destinationName] || DESTINATIONS.gmail;
+    let output = String(text == null ? "" : text);
+    const detailMap = new Map();
+
+    if (destination.typography !== "smartDocument") {
+      return {
+        text: output,
+        changeDetails: [],
+        stats: { destinationTypographyChanges: 0 }
+      };
+    }
+
+    output = output.replace(/ {1,}-- {1,}/g, (match) => {
+      addChangeDetail(detailMap, "Destination typography", match, "—", 1);
+      return "—";
+    });
+
+    output = output.replace(/\.\.\./g, (match) => {
+      addChangeDetail(detailMap, "Destination typography", match, "…", 1);
+      return "…";
+    });
+
+    output = applyCurlyQuotes(output, detailMap);
+
+    const changeDetails = Array.from(detailMap.values());
+    const total = changeDetails.reduce((sum, detail) => sum + detail.count, 0);
+
+    return {
+      text: output,
+      changeDetails,
+      stats: { destinationTypographyChanges: total }
+    };
+  }
+
+  function buildDestinationOutput(cleanText, destinationName) {
+    const destination = DESTINATIONS[destinationName] || DESTINATIONS.gmail;
+    const typography = applyDestinationTypography(cleanText, destinationName);
+
+    return {
+      destination,
+      text: typography.text,
+      changeDetails: typography.changeDetails,
+      stats: typography.stats
+    };
   }
 
   function copyPlainText(text) {
@@ -648,13 +765,12 @@
   function bindDom() {
     const input = document.getElementById("inputText");
     const output = document.getElementById("outputText");
-    const plainOutput = document.getElementById("plainOutputText");
-    const gmailViewButton = document.getElementById("gmailViewButton");
-    const plainViewButton = document.getElementById("plainViewButton");
     const copyButton = document.getElementById("copyButton");
-    const gmailCopyButton = document.getElementById("gmailCopyButton");
+    const destinationCopyButton = document.getElementById("destinationCopyButton");
     const clearButton = document.getElementById("clearButton");
     const presetSelect = document.getElementById("presetSelect");
+    const destinationSelect = document.getElementById("destinationSelect");
+    const destinationNote = document.getElementById("destinationNote");
     const status = document.getElementById("status");
     const statsList = document.getElementById("statsList");
     const warningsList = document.getElementById("warningsList");
@@ -662,7 +778,14 @@
     const nonAsciiList = document.getElementById("nonAsciiList");
     const optionInputs = Array.from(document.querySelectorAll("[data-option]"));
 
+    let latestSanitized = null;
+    let latestDestinationOutput = null;
+
     if (!input || !output) return;
+
+    function currentDestinationName() {
+      return destinationSelect ? destinationSelect.value : "gmail";
+    }
 
     function optionsFromUi() {
       const options = {};
@@ -680,36 +803,12 @@
       update();
     }
 
-    function setOutputMode(mode) {
-      const showPlain = mode === "plain";
-
-      if (output) {
-        output.classList.toggle("is-hidden", showPlain);
-        output.setAttribute("aria-hidden", showPlain ? "true" : "false");
-      }
-
-      if (plainOutput) {
-        plainOutput.classList.toggle("is-hidden", !showPlain);
-        plainOutput.setAttribute("aria-hidden", showPlain ? "false" : "true");
-      }
-
-      if (gmailViewButton) {
-        gmailViewButton.classList.toggle("is-active", !showPlain);
-        gmailViewButton.setAttribute("aria-pressed", showPlain ? "false" : "true");
-      }
-
-      if (plainViewButton) {
-        plainViewButton.classList.toggle("is-active", showPlain);
-        plainViewButton.setAttribute("aria-pressed", showPlain ? "true" : "false");
-      }
-    }
-
-    function renderStats(result) {
+    function renderStats(result, destinationOutput) {
       if (!statsList) return;
       statsList.innerHTML = "";
       const entries = [
         ["Characters in", input.value.length],
-        ["Characters out", result.cleanText.length],
+        ["Characters out", destinationOutput.text.length],
         ["Hidden removed", result.stats.hiddenCharactersRemoved],
         ["Spaces normalized", result.stats.unusualSpacesNormalized],
         ["Quotes normalized", result.stats.quoteReplacements],
@@ -717,7 +816,8 @@
         ["Ellipses normalized", result.stats.ellipsisReplacements],
         ["Bullets converted", result.stats.bulletReplacements],
         ["Trailing spaces removed", result.stats.trailingSpacesRemoved],
-        ["Blank-line runs reduced", result.stats.blankLineRunsReduced]
+        ["Blank-line runs reduced", result.stats.blankLineRunsReduced],
+        ["Destination typography changes", destinationOutput.stats.destinationTypographyChanges]
       ];
 
       entries.forEach(([label, value]) => {
@@ -727,18 +827,22 @@
       });
     }
 
-    function renderChangeDetails(result) {
+    function renderChangeDetails(result, destinationOutput) {
       if (!changesList) return;
       changesList.innerHTML = "";
 
-      if (!result.changeDetails || result.changeDetails.length === 0) {
+      const details = [];
+      if (result.changeDetails) details.push(...result.changeDetails);
+      if (destinationOutput.changeDetails) details.push(...destinationOutput.changeDetails);
+
+      if (details.length === 0) {
         const item = document.createElement("li");
         item.textContent = "No replacements made.";
         changesList.appendChild(item);
         return;
       }
 
-      result.changeDetails.forEach((detail) => {
+      details.forEach((detail) => {
         const item = document.createElement("li");
         const category = document.createElement("span");
         const mapping = document.createElement("strong");
@@ -785,13 +889,27 @@
       }
     }
 
+    function renderDestinationUi(destinationOutput) {
+      const destination = destinationOutput.destination;
+      output.value = destinationOutput.text;
+      output.dataset.destination = destination.label;
+
+      if (destinationCopyButton) {
+        destinationCopyButton.textContent = destination.copyLabel;
+      }
+
+      if (destinationNote) {
+        destinationNote.textContent = destination.note;
+      }
+    }
+
     function update() {
-      const result = sanitize(input.value, optionsFromUi());
-      renderGmailHtmlPreview(output, result.cleanText);
-      if (plainOutput) plainOutput.value = result.cleanText;
-      renderStats(result);
-      renderChangeDetails(result);
-      renderWarnings(result);
+      latestSanitized = sanitize(input.value, optionsFromUi());
+      latestDestinationOutput = buildDestinationOutput(latestSanitized.cleanText, currentDestinationName());
+      renderDestinationUi(latestDestinationOutput);
+      renderStats(latestSanitized, latestDestinationOutput);
+      renderChangeDetails(latestSanitized, latestDestinationOutput);
+      renderWarnings(latestSanitized);
       if (status) status.textContent = "";
     }
 
@@ -818,11 +936,14 @@
     });
 
     input.addEventListener("input", update);
-
     optionInputs.forEach((el) => el.addEventListener("change", update));
 
     if (presetSelect) {
       presetSelect.addEventListener("change", () => applyPreset(presetSelect.value));
+    }
+
+    if (destinationSelect) {
+      destinationSelect.addEventListener("change", update);
     }
 
     async function copyTextWithFallback(text, successMessage) {
@@ -853,19 +974,22 @@
 
     if (copyButton) {
       copyButton.addEventListener("click", async () => {
-        const result = sanitize(input.value, optionsFromUi());
-        renderGmailHtmlPreview(output, result.cleanText);
-        if (plainOutput) plainOutput.value = result.cleanText;
-        await copyTextWithFallback(result.cleanText, "Copied clean plain text.");
+        update();
+        await copyTextWithFallback(latestDestinationOutput.text, "Copied visible textarea text.");
       });
     }
 
-    if (gmailCopyButton) {
-      gmailCopyButton.addEventListener("click", async () => {
-        const result = sanitize(input.value, optionsFromUi());
-        renderGmailHtmlPreview(output, result.cleanText);
-        if (plainOutput) plainOutput.value = result.cleanText;
-        await copyGmailHtml(result.cleanText);
+    if (destinationCopyButton) {
+      destinationCopyButton.addEventListener("click", async () => {
+        update();
+        const destination = latestDestinationOutput.destination;
+
+        if (destination.copyMode === "gmailHtml") {
+          await copyGmailHtml(latestDestinationOutput.text);
+          return;
+        }
+
+        await copyTextWithFallback(latestDestinationOutput.text, `Copied ${destination.label} text.`);
       });
     }
 
@@ -877,20 +1001,6 @@
       });
     }
 
-    if (gmailViewButton) {
-      gmailViewButton.addEventListener("click", () => {
-        setOutputMode("gmail");
-      });
-    }
-
-    if (plainViewButton) {
-      plainViewButton.addEventListener("click", () => {
-        setOutputMode("plain");
-        if (plainOutput) plainOutput.focus();
-      });
-    }
-
-    setOutputMode("gmail");
     applyPreset("gmailSafe");
   }
 
@@ -898,11 +1008,14 @@
     sanitize,
     DEFAULT_OPTIONS,
     PRESETS,
+    DESTINATIONS,
     getPresetOptions,
     normalizeToLf,
     toWindowsClipboardLineEndings,
     escapeHtml,
-    textToGmailHtml
+    textToGmailHtml,
+    applyDestinationTypography,
+    buildDestinationOutput
   };
 
   if (typeof module !== "undefined" && module.exports) {

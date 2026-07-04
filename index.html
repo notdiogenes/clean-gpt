@@ -9,9 +9,9 @@
 <body>
   <header class="site-header">
     <div>
-      <p class="eyebrow">Static plain text cleanup tool</p>
+      <p class="eyebrow">Static copy/paste cleanup tool</p>
       <h1>Plain Text Sanitizer</h1>
-      <p class="lede">Paste text, normalize hidden characters and typographic punctuation, then copy Gmail-compatible HTML.</p>
+      <p class="lede">Paste text, clean the source artifacts, choose a destination, then copy output shaped for that destination.</p>
     </div>
   </header>
 
@@ -25,33 +25,38 @@
     </section>
 
     <section class="panel editor-panel output-panel" aria-labelledby="outputLabel">
-      <div class="panel-header">
+      <div class="panel-header output-header">
         <div>
-          <h2 id="outputLabel">Clean text</h2>
-          <p class="panel-subtitle">Use Gmail preview for Gmail, or the textarea for Docs, Word, and other plain-text destinations.</p>
+          <h2 id="outputLabel">Destination output</h2>
+          <p class="panel-subtitle">The textarea shows the exact characters that will be copied for the selected destination.</p>
         </div>
         <div class="button-row">
-          <button id="copyButton" type="button" class="ghost-button">Copy plain text</button>
-          <button id="gmailCopyButton" type="button" class="primary-button">Copy for Gmail</button>
+          <button id="copyButton" type="button" class="ghost-button">Copy visible text</button>
+          <button id="destinationCopyButton" type="button" class="primary-button">Copy for Gmail</button>
         </div>
       </div>
 
-      <div class="output-toolbar" role="group" aria-label="Output view">
-        <button id="gmailViewButton" type="button" class="view-toggle is-active" aria-pressed="true">Gmail preview</button>
-        <button id="plainViewButton" type="button" class="view-toggle" aria-pressed="false">Plain-text textarea</button>
+      <div class="destination-card" aria-labelledby="destinationLabel">
+        <label class="field-label inline-label" for="destinationSelect" id="destinationLabel">Destination</label>
+        <select id="destinationSelect">
+          <option value="gmail">Gmail</option>
+          <option value="googleDocs">Google Docs</option>
+          <option value="word">Microsoft Word</option>
+          <option value="plain">Plain text / forms</option>
+        </select>
+        <p id="destinationNote" class="destination-note"></p>
       </div>
 
-      <div id="outputText" class="gmail-compose-output" role="textbox" aria-readonly="true" tabindex="0" data-placeholder="Sanitized output appears here..."></div>
-      <textarea id="plainOutputText" class="plain-output is-hidden" readonly spellcheck="false" aria-label="Clean plain text output" placeholder="Sanitized output appears here..."></textarea>
+      <textarea id="outputText" class="destination-output" readonly spellcheck="false" aria-label="Destination-ready output" placeholder="Sanitized output appears here..."></textarea>
 
-      <p class="preview-note">The Gmail button copies Gmail-compatible HTML. The textarea view is plain text only, useful for manual copy/paste into Google Docs, Word, forms, and editors.</p>
+      <p class="preview-note">Gmail uses a Gmail-shaped HTML clipboard payload. Google Docs, Word, and Plain text copy the visible textarea text as text/plain so the target app can apply its own current style.</p>
       <p id="status" class="status" aria-live="polite"></p>
     </section>
 
     <aside class="panel controls-panel" aria-labelledby="controlsLabel">
-      <h2 id="controlsLabel">Controls</h2>
+      <h2 id="controlsLabel">Cleanup controls</h2>
 
-      <label class="field-label" for="presetSelect">Preset</label>
+      <label class="field-label" for="presetSelect">Base cleanup preset</label>
       <select id="presetSelect">
         <option value="gmailSafe">Gmail Safe</option>
         <option value="strictPlainText">Strict Plain Text</option>
@@ -65,9 +70,9 @@
         <label><input type="checkbox" data-option="normalizeSpaces"> Normalize unusual spaces</label>
         <label><input type="checkbox" data-option="trimTrailingSpaces"> Trim trailing spaces</label>
         <label><input type="checkbox" data-option="limitBlankLines"> Limit extra blank lines</label>
-        <label><input type="checkbox" data-option="normalizeQuotes"> Normalize quotes and apostrophes</label>
-        <label><input type="checkbox" data-option="normalizeDashes"> Normalize dashes</label>
-        <label><input type="checkbox" data-option="normalizeEllipsis"> Normalize ellipses</label>
+        <label><input type="checkbox" data-option="normalizeQuotes"> Normalize source quotes and apostrophes</label>
+        <label><input type="checkbox" data-option="normalizeDashes"> Normalize source dashes</label>
+        <label><input type="checkbox" data-option="normalizeEllipsis"> Normalize source ellipses</label>
         <label><input type="checkbox" data-option="convertBullets"> Convert line bullets to hyphens</label>
         <label><input type="checkbox" data-option="collapseRepeatedSpaces"> Collapse repeated spaces</label>
         <label><input type="checkbox" data-option="convertTabs"> Convert tabs to spaces</label>
