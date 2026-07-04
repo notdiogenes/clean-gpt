@@ -201,7 +201,7 @@ select {
 }
 
 
-.gmail-style-controls {
+.destination-style-controls {
   margin: 12px 0 18px;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -209,7 +209,7 @@ select {
   background: #fbfaf6;
 }
 
-.gmail-style-controls[hidden] { display: none; }
+.destination-style-controls[hidden] { display: none; }
 
 .control-grid {
   display: grid;
@@ -350,23 +350,23 @@ button, select, textarea, .rich-editor { font: inherit; }
 }
 
 .destination-output.gmail-compose {
-  font-family: var(--gmail-font-family, Verdana, Geneva, sans-serif);
-  font-size: var(--gmail-font-size, 10pt);
+  font-family: var(--destination-font-family, var(--gmail-font-family, Verdana, Geneva, sans-serif));
+  font-size: var(--destination-font-size, var(--gmail-font-size, 10pt));
   line-height: normal;
   letter-spacing: normal;
 }
 
 .destination-output.document-output {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 12pt;
+  font-family: var(--destination-font-family, Arial, sans-serif);
+  font-size: var(--destination-font-size, 11pt);
   line-height: 1.45;
 }
 
 .destination-output.plain-output,
 .destination-output.strict-output,
 .destination-output.markdown-output {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.92rem;
+  font-family: var(--destination-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace);
+  font-size: var(--destination-font-size, 0.92rem);
   line-height: 1.55;
 }
 
@@ -431,15 +431,15 @@ button, select, textarea, .rich-editor { font: inherit; }
 }
 
 .destination-output.gmail-compose {
-  font-family: var(--gmail-font-family, Verdana, Geneva, sans-serif);
-  font-size: var(--gmail-font-size, 10pt);
+  font-family: var(--destination-font-family, var(--gmail-font-family, Verdana, Geneva, sans-serif));
+  font-size: var(--destination-font-size, var(--gmail-font-size, 10pt));
   line-height: normal;
 }
 
 .destination-output.gmail-compose .gmail_default,
 .destination-output.gmail-compose .gmail-line {
-  font-family: var(--gmail-font-family, verdana, sans-serif);
-  font-size: var(--gmail-font-size, 10pt);
+  font-family: var(--destination-font-family, var(--gmail-font-family, verdana, sans-serif));
+  font-size: var(--destination-font-size, var(--gmail-font-size, 10pt));
   line-height: normal;
   margin: 0;
   min-height: 1.2em;

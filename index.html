@@ -61,32 +61,21 @@
             <option value="strictAscii">Strict ASCII</option>
           </select>
           <p id="destinationNote" class="destination-note"></p>
-          <fieldset id="gmailStyleControls" class="gmail-style-controls" aria-labelledby="gmailStyleLabel">
-            <legend id="gmailStyleLabel">Gmail style</legend>
+          <fieldset id="destinationStyleControls" class="destination-style-controls" aria-labelledby="destinationStyleLabel">
+            <legend id="destinationStyleLabel">Destination text style</legend>
             <div class="control-grid two-up">
               <label>
                 <span>Font</span>
-                <select id="gmailFontSelect">
-                  <option value="verdana, sans-serif">Verdana</option>
-                  <option value="arial, sans-serif">Arial</option>
-                  <option value="tahoma, sans-serif">Tahoma</option>
-                  <option value="georgia, serif">Georgia</option>
-                  <option value="'Times New Roman', serif">Times New Roman</option>
-                  <option value="system-ui, sans-serif">System UI</option>
+                <select id="destinationFontSelect">
                 </select>
               </label>
               <label>
                 <span>Size</span>
-                <select id="gmailSizeSelect">
-                  <option value="10pt">10 pt</option>
-                  <option value="11pt">11 pt</option>
-                  <option value="12pt">12 pt</option>
-                  <option value="14px">14 px</option>
-                  <option value="16px">16 px</option>
+                <select id="destinationSizeSelect">
                 </select>
               </label>
             </div>
-            <p class="destination-note compact-note">Saved locally and applied to Gmail preview and rich-copy HTML.</p>
+            <p id="destinationStyleNote" class="destination-note compact-note">Saved locally and applied to the selected destination preview and rich-copy HTML where available.</p>
           </fieldset>
         </div>
 
