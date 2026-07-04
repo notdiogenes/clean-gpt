@@ -55,9 +55,14 @@ test('shows invisible characters in input and output previews', async ({ page })
 test('offers compact diff view beside the output preview', async ({ page }) => {
   await page.goto('/');
   await page.locator('#inputEditor').fill('Hello — world');
-  await page.getByLabel('Diff view').check();
 
-  await expect(page.locator('#outputEditor')).toContainText('changed line');
+  await expect(page.locator('#diffViewMode')).toHaveValue('compact');
+  await expect(page.locator('#outputEditor')).toContainText('Hello -- world');
+  await expect(page.locator('#outputEditor .char-change')).toContainText(' -- ');
+  await expect(page.locator('#outputEditor')).not.toContainText('changed line');
+
+  await page.locator('#diffViewMode').selectOption('diagnostic');
+  await expect(page.locator('#outputEditor')).toContainText('Full diagnostic diff');
   await expect(page.locator('#outputEditor .diff-remove')).toContainText('Hello — world');
   await expect(page.locator('#outputEditor .diff-add')).toContainText('Hello -- world');
 });
@@ -72,4 +77,16 @@ test('links to tests and debugging page with runnable checks', async ({ page }) 
 
   await page.getByRole('button', { name: 'Run tests' }).click();
   await expect(page.locator('#testResults .test-result.fail')).toHaveCount(0);
+});
+
+test('compact diff preserves HTML list provenance for Gmail', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#inputEditor').evaluate((editor) => {
+    editor.innerHTML = '<ul><li>Approximately 38 box lunches</li><li>Pickup or delivery around 12:00 p.m. on Monday</li></ul>';
+    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
+  });
+
+  await expect(page.locator('#outputEditor')).toContainText('Unordered list preserved: 2 items.');
+  await expect(page.locator('#outputEditor .diff-note')).not.toContainText('hyphen lines');
+  await expect(page.locator('#outputEditor li').first()).toHaveText('Approximately 38 box lunches');
 });

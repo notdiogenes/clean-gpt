@@ -1036,9 +1036,25 @@
     return String(text == null ? "" : text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   }
 
+  let nextBlockId = 1;
+
+  function assignStableIds(blocks) {
+    (blocks || []).forEach((block) => {
+      if (!block.id) block.id = `block-${nextBlockId++}`;
+      if (block.type === "ul" || block.type === "ol") {
+        (block.items || []).forEach((item) => {
+          if (!item.id) item.id = `item-${nextBlockId++}`;
+          assignStableIds(item.children || []);
+        });
+      }
+    });
+  }
+
   function makeDoc(blocks, meta) {
+    const docBlocks = Array.isArray(blocks) ? blocks : [];
+    assignStableIds(docBlocks);
     return {
-      blocks: Array.isArray(blocks) ? blocks : [],
+      blocks: docBlocks,
       meta: Object.assign({ source: "manual", htmlAvailable: false, plainAvailable: false, lists: 0, listItems: 0 }, meta || {})
     };
   }
@@ -1288,19 +1304,19 @@
     const stats = makeStats();
     const changes = [];
     const outBlocks = (doc.blocks || []).map((block) => {
-      if (block.type === "paragraph") return { type: "paragraph", text: sanitizeTextPart(block.text || "", options, changes, stats) };
-      if (block.type === "blank") return { type: "blank" };
+      if (block.type === "paragraph") return { type: "paragraph", id: block.id, text: sanitizeTextPart(block.text || "", options, changes, stats) };
+      if (block.type === "blank") return { type: "blank", id: block.id };
       if (block.type === "ul" || block.type === "ol") {
         function sanitizeItem(item) {
           const children = (item.children || []).map(sanitizeListBlock).filter((child) => child.items.length);
-          return Object.assign({ text: sanitizeTextPart(item.text || "", options, changes, stats) }, children.length ? { children } : {});
+          return Object.assign({ id: item.id, text: sanitizeTextPart(item.text || "", options, changes, stats) }, children.length ? { children } : {});
         }
         function sanitizeListBlock(listBlock) {
-          return { type: listBlock.type, items: (listBlock.items || []).map(sanitizeItem) };
+          return { type: listBlock.type, id: listBlock.id, items: (listBlock.items || []).map(sanitizeItem) };
         }
         return sanitizeListBlock(block);
       }
-      return { type: "paragraph", text: sanitizeTextPart(blockText(block), options, changes, stats) };
+      return { type: "paragraph", id: block.id, text: sanitizeTextPart(blockText(block), options, changes, stats) };
     }).filter((block) => block.type === "blank" || block.type === "paragraph" || block.items?.length);
     const outputDoc = makeDoc(outBlocks, Object.assign({}, doc.meta));
     const visibleText = docToPlainText(outputDoc, options.destination || "gmail");
@@ -1642,7 +1658,7 @@
     const warningsList = document.getElementById("warningsList");
     const nonAsciiList = document.getElementById("nonAsciiList");
     const compatibilityList = document.getElementById("compatibilityList");
-    const diffViewToggle = document.getElementById("diffViewToggle");
+    const diffViewMode = document.getElementById("diffViewMode");
     const optionInputs = Array.from(document.querySelectorAll("[data-option]"));
 
     if (!inputEditor || !outputEditor || !destinationSelect || !presetSelect) return;
@@ -1742,7 +1758,7 @@
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
       if (destinationNote) destinationNote.textContent = profile.note;
       if (destinationCopyButton) destinationCopyButton.textContent = profile.copyLabel;
-      outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output", "markdown-output", "diff-output");
+      outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output", "markdown-output", "diff-output", "compact-diff-output");
       outputEditor.classList.add(profile.outputClass);
     }
 
@@ -1922,13 +1938,13 @@
       };
     }
 
-    function renderDiffView(result, options) {
+    function renderDiagnosticDiffView(result, options) {
       outputEditor.innerHTML = "";
       const beforeText = docToPlainText(inputDoc, "plain");
       const diff = compactDiffLines(beforeText, result.cleanText, options);
       const summary = document.createElement("p");
-      summary.className = "diff-summary";
-      summary.textContent = diff.changed ? `${diff.changed} changed line(s). Red is removed input; green is destination output.` : "No visible text changes. Use Show invisible characters to inspect hidden spacing differences.";
+      summary.className = "diff-summary diagnostic-label";
+      summary.textContent = diff.changed ? `Full diagnostic diff: ${diff.changed} changed serialized line(s). This view compares plain-text fallback serialization.` : "Full diagnostic diff: no serialized text changes.";
       outputEditor.appendChild(summary);
       if (!diff.rows.length) {
         appendDiffLine(outputEditor, " ", result.cleanText || "No output yet.", "diff-context");
@@ -1940,6 +1956,140 @@
         appendDiffLine(outputEditor, marker, row.text, className);
       });
       if (diff.rows.length > 80) appendDiffLine(outputEditor, "…", `${diff.rows.length - 80} more diff rows hidden`, "diff-context");
+    }
+
+    function replacementTitle(source, target) {
+      if (!source) return `Inserted ${getCodeLabelForChangeValue(target)}`;
+      if (!target) return `Removed ${getCodeLabelForChangeValue(source)}`;
+      return `${getCodeLabelForChangeValue(source)} -> ${getCodeLabelForChangeValue(target)}`;
+    }
+
+    function diffTextParts(beforeText, afterText) {
+      const a = Array.from(beforeText || "");
+      const b = Array.from(afterText || "");
+      if (a.length * b.length > 120000) {
+        const prefix = (() => { let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i += 1; return i; })();
+        let as = a.length, bs = b.length;
+        while (as > prefix && bs > prefix && a[as - 1] === b[bs - 1]) { as -= 1; bs -= 1; }
+        return [
+          prefix ? { type: "equal", text: b.slice(0, prefix).join("") } : null,
+          (a.length !== as || b.length !== bs) ? { type: b.slice(prefix, bs).length ? "replace" : "remove", source: a.slice(prefix, as).join(""), text: b.slice(prefix, bs).join("") } : null,
+          bs < b.length ? { type: "equal", text: b.slice(bs).join("") } : null
+        ].filter(Boolean);
+      }
+      const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+      for (let i = a.length - 1; i >= 0; i -= 1) {
+        for (let j = b.length - 1; j >= 0; j -= 1) dp[i][j] = a[i] === b[j] ? 1 + dp[i + 1][j + 1] : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+      const raw = [];
+      let i = 0, j = 0;
+      while (i < a.length || j < b.length) {
+        if (i < a.length && j < b.length && a[i] === b[j]) { raw.push({ type: "equal", text: b[j++] }); i += 1; }
+        else if (j < b.length && (i >= a.length || dp[i][j + 1] > dp[i + 1][j])) raw.push({ type: "add", text: b[j++] });
+        else raw.push({ type: "remove", source: a[i++] });
+      }
+      const parts = [];
+      function push(part) {
+        const last = parts[parts.length - 1];
+        if (last && last.type === part.type) {
+          last.text = (last.text || "") + (part.text || "");
+          last.source = (last.source || "") + (part.source || "");
+        } else parts.push(Object.assign({}, part));
+      }
+      for (let k = 0; k < raw.length; k += 1) {
+        if (raw[k].type === "remove" && raw[k + 1] && raw[k + 1].type === "add") { push({ type: "replace", source: raw[k].source, text: raw[k + 1].text }); k += 1; }
+        else if (raw[k].type === "add") push({ type: "replace", source: "", text: raw[k].text });
+        else push(raw[k]);
+      }
+      return parts;
+    }
+
+    function appendAnnotatedText(container, beforeText, afterText, options) {
+      diffTextParts(beforeText, afterText).forEach((part) => {
+        if (part.type === "equal") container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.text) : part.text));
+        else if (part.type === "remove") {
+          const badge = document.createElement("span");
+          badge.className = "removed-hidden";
+          badge.title = replacementTitle(part.source, "");
+          badge.textContent = `${getCodeLabelForChangeValue(part.source).replace(/^U\+[0-9A-F]+\s*/, "")} removed`;
+          container.appendChild(badge);
+        } else {
+          const span = document.createElement("span");
+          span.className = "char-change";
+          span.title = replacementTitle(part.source, part.text);
+          span.setAttribute("aria-label", span.title);
+          span.textContent = options && options.showInvisibles ? visualizeInvisibles(part.text) : part.text;
+          container.appendChild(span);
+        }
+      });
+    }
+
+    function destinationPreservesLists(options) {
+      if (options.destination === "gmail") return !options.gmailListsAsHyphenLines;
+      if (options.destination === "googleDocs" || options.destination === "word" || options.destination === "outlook") return Boolean(options.structuredListsForDocs || options.destination === "outlook");
+      return false;
+    }
+
+    function appendListPreview(parent, inputBlock, outputBlock, options) {
+      const preserved = destinationPreservesLists(options);
+      const count = (outputBlock.items || []).length;
+      const note = document.createElement("div");
+      note.className = "diff-note";
+      const kind = outputBlock.type === "ol" ? "Ordered list" : "Unordered list";
+      note.textContent = preserved ? `${kind} preserved: ${count} items.` : `${kind === "Ordered list" ? "Ordered list serialized as numbered lines." : "Bulleted list serialized as plain hyphen lines."}`;
+      parent.appendChild(note);
+      const list = document.createElement(outputBlock.type === "ol" ? "ol" : "ul");
+      list.className = "diff-block list";
+      (outputBlock.items || []).forEach((item, index) => {
+        const li = document.createElement("li");
+        const before = inputBlock && inputBlock.items && inputBlock.items[index] ? inputBlock.items[index].text || "" : "";
+        appendAnnotatedText(li, before, item.text || "", options);
+        list.appendChild(li);
+      });
+      parent.appendChild(list);
+    }
+
+    function summarizeChanges(changeRecords, modelTransformRecords, clipboardFormats) {
+      const parts = [];
+      const total = (changeRecords || []).reduce((sum, change) => sum + (change.count || 0), 0);
+      if (total) parts.push(`${total} character changes`);
+      (changeRecords || []).forEach((change) => {
+        if (/Quote/.test(change.note)) parts.push(`${change.count} quote/apostrophe normalized`);
+        else if (/dash/i.test(change.note)) parts.push(`${change.count} dash normalized`);
+        else if (/Ellipsis|leader/.test(change.note)) parts.push(`${change.count} ellipsis/dot leader normalized`);
+        else if (/Hidden/.test(change.note)) parts.push(`${change.count} hidden characters removed`);
+        else if (/space|Line endings|separator/i.test(change.note)) parts.push(`${change.count} whitespace changes`);
+      });
+      (modelTransformRecords || []).forEach((record) => parts.push(record));
+      if (clipboardFormats && clipboardFormats.length) parts.push(`Clipboard output: ${clipboardFormats.join(" + ")}`);
+      return parts.length ? parts.join("; ") : "No sanitizer changes; destination preview unchanged.";
+    }
+
+    function renderCompactDiff(inputModel, outputModel, changeRecords, destinationProfile, options) {
+      outputEditor.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.className = "compact-diff";
+      const modelNotes = [];
+      if ((outputModel.blocks || []).some((block) => block.type === "ul" || block.type === "ol")) {
+        const listItems = countDocLists(outputModel.blocks).items;
+        modelNotes.push(destinationPreservesLists(options) ? `${listItems} list items preserved` : `${listItems} list items serialized`);
+      }
+      const summary = document.createElement("div");
+      summary.className = "diff-summary";
+      const formats = destinationPreservesLists(options) ? ["text/html", "text/plain"] : ["text/plain"];
+      summary.textContent = summarizeChanges(changeRecords, modelNotes, formats);
+      wrapper.appendChild(summary);
+      (outputModel.blocks || []).forEach((block, index) => {
+        const inputBlock = (inputModel.blocks || [])[index];
+        if (block.type === "blank") { wrapper.appendChild(document.createElement("br")); return; }
+        if (block.type === "paragraph") {
+          const div = document.createElement("div");
+          div.className = "diff-block paragraph";
+          appendAnnotatedText(div, inputBlock && inputBlock.type === "paragraph" ? inputBlock.text || "" : "", block.text || "", options);
+          wrapper.appendChild(div);
+        } else if (block.type === "ul" || block.type === "ol") appendListPreview(wrapper, inputBlock, block, options);
+      });
+      outputEditor.appendChild(wrapper);
     }
 
     function renderInputEditorForOptions(options) {
@@ -1971,11 +2121,16 @@
       outputEditor.style.setProperty("--gmail-font-family", destinationStyle.fontFamily);
       outputEditor.style.setProperty("--gmail-font-size", destinationStyle.fontSize);
       lastResult = sanitizeDoc(inputDoc, options);
-      if (diffViewToggle && diffViewToggle.checked) {
+      const diffMode = diffViewMode ? diffViewMode.value : "compact";
+      if (diffMode === "compact") {
+        outputEditor.classList.add("diff-output", "compact-diff-output");
+        renderCompactDiff(inputDoc, lastResult.doc, lastResult.changes, DESTINATIONS[destinationSelect.value], options);
+      } else if (diffMode === "diagnostic") {
         outputEditor.classList.add("diff-output");
-        renderDiffView(lastResult, options);
+        outputEditor.classList.remove("compact-diff-output");
+        renderDiagnosticDiffView(lastResult, options);
       } else {
-        outputEditor.classList.remove("diff-output");
+        outputEditor.classList.remove("diff-output", "compact-diff-output");
         renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, options);
       }
       renderStats(lastResult);
@@ -2039,7 +2194,7 @@
     });
 
     optionInputs.forEach((input) => input.addEventListener("change", update));
-    if (diffViewToggle) diffViewToggle.addEventListener("change", update);
+    if (diffViewMode) diffViewMode.addEventListener("change", update);
     presetSelect.addEventListener("change", applyPresetAndProfile);
     destinationSelect.addEventListener("change", applyPresetAndProfile);
     [destinationFontSelect, destinationSizeSelect].forEach((select) => {
