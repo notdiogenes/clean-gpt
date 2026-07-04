@@ -1,0 +1,13 @@
+{
+  "name": "copy-sanitizer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static destination-aware clipboard sanitizer.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0"
+  }
+}

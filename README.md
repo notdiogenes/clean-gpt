@@ -1,6 +1,6 @@
 # Copy Sanitizer
 
-A static GitHub Pages app for cleaning copied text and preparing it for a target destination such as Gmail, Google Docs, Microsoft Word, forms, or strict ASCII workflows.
+A static GitHub Pages app for cleaning copied text and preparing it for a target destination such as Gmail, Google Docs, Microsoft Word, Markdown/chat, Outlook, CMS/forms, code comments, or strict ASCII workflows.
 
 The app runs fully in the browser. It does not send text to a server.
 
@@ -96,7 +96,7 @@ The app detects list structure during paste:
 
 1. If clipboard HTML contains `<ul>`, `<ol>`, or `<li>`, it stores list structure in the internal document model.
 2. If only plain text is available, it detects lines beginning with markers such as `*`, `-`, `•`, and numbered items such as `1.`.
-3. Each destination decides how lists are rendered and copied. Gmail, Google Docs, and Microsoft Word preserve semantic lists by default; Plain text and Strict ASCII flatten them to plain text.
+3. Each destination decides how lists are rendered and copied. Gmail, Google Docs, Microsoft Word, and Outlook preserve semantic lists by default; Markdown/chat, CMS, code comments, Plain text, and Strict ASCII flatten them to plain text.
 
 This replaces the old blanket rule of converting bullet characters to hyphens.
 
@@ -136,6 +136,7 @@ The Inspector reports:
 - detected list count
 - detected list-item count
 - primary copy formats for the selected destination
+- browser Clipboard API compatibility
 
 ## Deployment
 
