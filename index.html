@@ -30,14 +30,8 @@
       </ol>
     </section>
     <section class="panel top-settings" aria-labelledby="controlsLabel">
-      <div class="settings-heading">
-        <h2 id="controlsLabel">Output configuration</h2>
-        <p>Choose how cleaned content is formatted, copied, and previewed.</p>
-      </div>
-
-      <div class="settings-card destination-card" aria-labelledby="destinationLabel">
-        <h3 id="destinationLabel">Destination</h3>
-        <label class="field-label" for="destinationSelect">Destination profile</label>
+      <div class="settings-group destination-card" aria-labelledby="destinationLabel">
+        <label class="field-label inline-label" for="destinationSelect" id="destinationLabel">Destination profile</label>
         <select id="destinationSelect">
           <option value="gmail">Gmail</option>
           <option value="googleDocs">Google Docs</option>
@@ -54,8 +48,8 @@
         <dl id="destinationSummary" class="destination-summary"></dl>
       </div>
 
-      <div class="settings-card" aria-labelledby="cleanupLabel">
-        <h3 id="cleanupLabel">Cleanup</h3>
+      <div class="settings-group">
+        <h2 id="controlsLabel">Character policy</h2>
         <label class="field-label" for="presetSelect">Cleanup preset</label>
         <select id="presetSelect">
           <option value="standard">Comprehensive cleanup</option>
@@ -63,11 +57,10 @@
           <option value="strictPlainText">Strict plain text</option>
         </select>
         <p id="presetDescription" class="destination-note compact-note"></p>
-        <p class="configuration-fact"><span>Affects</span> punctuation, spacing, lists, and compatibility cleanup.</p>
       </div>
 
-      <div id="destinationStyleControls" class="destination-style-controls settings-card" aria-labelledby="destinationStyleLabel">
-        <h3 id="destinationStyleLabel">Style</h3>
+      <fieldset id="destinationStyleControls" class="destination-style-controls settings-group" aria-labelledby="destinationStyleLabel">
+        <legend id="destinationStyleLabel">Destination text style</legend>
         <div class="control-grid two-up">
           <label>
             <span>Font</span>
@@ -80,9 +73,8 @@
             </select>
           </label>
         </div>
-        <p id="destinationStyleNote" class="destination-note compact-note">Applies to preview and rich-copy HTML.</p>
-        <p class="configuration-fact"><span>Copies</span> font and size only when supported.</p>
-      </div>
+        <p id="destinationStyleNote" class="destination-note compact-note">Saved locally and applied to the selected destination preview and rich-copy HTML where available.</p>
+      </fieldset>
     </section>
 
     <section class="panel editor-panel" aria-labelledby="inputLabel">
@@ -107,6 +99,13 @@
         </div>
         <div class="diff-control-cluster">
           <label class="pill-toggle diff-toggle"><input id="diffViewToggle" type="checkbox" checked> Diff view</label>
+          <div id="diffLegend" class="diff-legend" aria-label="Diff legend" hidden>
+            <span><mark class="legend-token legend-removed">−</mark> Removed</span>
+            <span><mark class="legend-token legend-replaced">↔</mark> Replaced</span>
+            <span><mark class="legend-token legend-inserted">+</mark> Inserted</span>
+            <span><mark class="legend-token legend-spacing">·</mark> Spacing</span>
+            <span><mark class="legend-token legend-warning">!</mark> Warning</span>
+          </div>
         </div>
       </div>
       <div class="editor-actions output-actions" aria-label="Copy actions">

@@ -251,7 +251,7 @@
     gmail: {
       label: "Gmail",
       copyLabel: "Copy HTML",
-      note: "Copies rich HTML with semantic lists and a plain-text fallback.",
+      note: "Keyboard punctuation in paragraph text. The primary copy action writes Gmail-shaped HTML and preserves detected lists as semantic HTML lists.",
       outputClass: "gmail-compose",
       overrides: {
         smartQuotes: false,
@@ -266,7 +266,7 @@
     googleDocs: {
       label: "Google Docs",
       copyLabel: "Copy HTML",
-      note: "Copies rich HTML with semantic lists and a plain-text fallback.",
+      note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
         smartQuotes: true,
@@ -281,7 +281,7 @@
     word: {
       label: "Microsoft Word",
       copyLabel: "Copy HTML",
-      note: "Copies rich HTML with semantic lists and a plain-text fallback.",
+      note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
         smartQuotes: true,
@@ -313,7 +313,7 @@
     outlook: {
       label: "Outlook",
       copyLabel: "Copy HTML",
-      note: "Copies rich HTML with semantic lists and a plain-text fallback.",
+      note: "Conservative rich HTML for Outlook. Preserves semantic paragraphs and lists with a plain-text fallback.",
       outputClass: "document-output",
       copyMode: "documentHtml",
       overrides: {
@@ -414,7 +414,7 @@
 
 
   const PRESET_DESCRIPTIONS = Object.freeze({
-    standard: "Best default for punctuation, spacing, lists, and compatibility cleanup.",
+    standard: "Best default. Normalizes common punctuation, spacing, lists, and compatibility characters.",
     lightCleanup: "Minimal cleanup. Preserves more original punctuation and formatting.",
     strictPlainText: "Removes rich formatting and aggressively normalizes output for safe plain text."
   });
@@ -1716,6 +1716,7 @@
     const destinationSummary = document.getElementById("destinationSummary");
     const presetDescription = document.getElementById("presetDescription");
     const sampleSelect = document.getElementById("sampleSelect");
+    const diffLegend = document.getElementById("diffLegend");
     const presetSelect = document.getElementById("presetSelect");
     const status = document.getElementById("status");
     const pasteStatus = document.getElementById("pasteStatus");
@@ -1791,7 +1792,7 @@
           sizes: GMAIL_SIZE_OPTIONS,
           defaultFont: "Verdana, sans-serif",
           defaultSize: "13px",
-          note: "Applies to preview and rich-copy HTML."
+          note: "Matches Gmail's named compose choices: font family plus Small, Normal, Large, or Huge size."
         };
       }
       if (destination === "googleDocs" || destination === "word" || destination === "outlook") {
@@ -1800,7 +1801,7 @@
           sizes: DOCUMENT_SIZE_OPTIONS,
           defaultFont: "Arial, sans-serif",
           defaultSize: "11pt",
-          note: "Applies to preview and rich-copy HTML."
+          note: "Uses document-style fonts and Google Docs-style text size presets for the preview and rich-copy HTML."
         };
       }
       return {
@@ -1808,7 +1809,7 @@
         sizes: PLAIN_SIZE_OPTIONS,
         defaultFont: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
         defaultSize: "0.92rem",
-        note: "Preview only. Plain-text copies do not include font or size."
+        note: "Applies to the preview. Plain-text copy keeps text unstyled because the clipboard format does not carry fonts or sizes."
       };
     }
 
@@ -1855,7 +1856,7 @@
       populateSelect(destinationFontSelect, config.fonts, saved.fontFamily || config.defaultFont);
       populateSelect(destinationSizeSelect, config.sizes, saved.fontSize || config.defaultSize);
       const detail = DESTINATION_DETAILS[destination] || DESTINATION_DETAILS.gmail;
-      if (destinationStyleNote) destinationStyleNote.textContent = detail.font === "preview-only" ? "Preview only. Plain-text copies do not include font or size." : config.note;
+      if (destinationStyleNote) destinationStyleNote.textContent = detail.font === "preview-only" ? "This destination copies plain text. Font and size only affect the preview." : config.note;
       const disabled = false;
       if (destinationFontSelect) destinationFontSelect.disabled = disabled;
       if (destinationSizeSelect) destinationSizeSelect.disabled = disabled;
@@ -1867,7 +1868,7 @@
       const details = DESTINATION_DETAILS[destinationSelect.value] || DESTINATION_DETAILS.gmail;
       if (destinationSummary) {
         destinationSummary.innerHTML = "";
-        [["Copies", details.format], ["Lists", details.list], ["Typography", details.typography], ["Style", details.font], ["Fallback", details.fallback]].forEach(([term, desc]) => {
+        [["Output format", details.format], ["List behavior", details.list], ["Typography", details.typography], ["Font/size", details.font], ["Fallback", details.fallback]].forEach(([term, desc]) => {
           const dt = document.createElement("dt");
           const dd = document.createElement("dd");
           dt.textContent = term;
@@ -1897,13 +1898,13 @@
       return options;
     }
 
-    function focusInputForMetric(label) {
-      if (!lastResult) return;
-      const options = getOptions();
-      renderInputDiffHighlights(inputDoc, lastResult.doc, options);
-      inputEditor.classList.add("inspector-pulse");
-      window.setTimeout(() => inputEditor.classList.remove("inspector-pulse"), 1200);
-      setStatus(`Highlighted related input text for: ${label}.`);
+    function focusOutputForMetric(label) {
+      outputEditor.classList.add("inspector-pulse");
+      outputEditor.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      const firstChange = outputEditor.querySelector(".char-change, .removed-hidden, li");
+      if (firstChange) firstChange.scrollIntoView({ block: "center", behavior: "smooth" });
+      window.setTimeout(() => outputEditor.classList.remove("inspector-pulse"), 1200);
+      setStatus(`Highlighted related output for: ${label}.`);
     }
 
     function renderStats(result) {
@@ -1936,9 +1937,9 @@
         if (canLink) {
           li.tabIndex = 0;
           li.role = "button";
-          li.title = "Highlight related input text.";
-          li.addEventListener("click", () => focusInputForMetric(label));
-          li.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") focusInputForMetric(label); });
+          li.title = "Highlight related output text.";
+          li.addEventListener("click", () => focusOutputForMetric(label));
+          li.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") focusOutputForMetric(label); });
         } else {
           li.title = "This metric summarizes the document and does not map to one exact text span.";
         }
@@ -2005,7 +2006,7 @@
         button.type = "button";
         button.className = "inspector-link";
         button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
-        button.addEventListener("click", () => focusInputForMetric(change.note || change.target || change.source));
+        button.addEventListener("click", () => focusOutputForMetric(change.note || change.target || change.source));
         li.appendChild(button);
         changesList.appendChild(li);
       });
@@ -2185,62 +2186,49 @@
       parent.appendChild(list);
     }
 
-    function appendSourceAnnotatedText(container, beforeText, afterText, options) {
-      diffTextParts(beforeText, afterText).forEach((part) => {
-        if (part.type === "equal") {
-          container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.text) : part.text));
-        } else if (part.type === "remove" || part.type === "replace") {
-          const span = document.createElement("span");
-          span.className = "source-change";
-          span.title = replacementTitle(part.source, part.text || "");
-          span.setAttribute("aria-label", span.title);
-          span.textContent = options && options.showInvisibles ? visualizeInvisibles(part.source) : part.source;
-          container.appendChild(span);
-        }
-      });
-    }
-
-    function renderInputDiffHighlights(inputModel, outputModel, options) {
-      suppressInputEvent = true;
-      inputEditor.innerHTML = "";
-      (inputModel.blocks || []).forEach((block, index) => {
-        const outputBlock = (outputModel.blocks || [])[index];
-        if (block.type === "blank") { inputEditor.appendChild(document.createElement("br")); return; }
+    function appendPlainDoc(container, model, options) {
+      (model.blocks || []).forEach((block) => {
+        if (block.type === "blank") { container.appendChild(document.createElement("br")); return; }
         if (block.type === "paragraph") {
           const div = document.createElement("div");
-          div.className = "editor-paragraph";
-          appendSourceAnnotatedText(div, block.text || "", outputBlock && outputBlock.type === "paragraph" ? outputBlock.text || "" : "", options);
-          inputEditor.appendChild(div);
+          div.className = "diff-block paragraph";
+          div.textContent = options && options.showInvisibles ? visualizeInvisibles(block.text || "") : block.text || "";
+          container.appendChild(div);
         } else if (block.type === "ul" || block.type === "ol") {
           const list = document.createElement(block.type);
-          (block.items || []).forEach((item, itemIndex) => {
-            const li = document.createElement("li");
-            const outputItem = outputBlock && outputBlock.items ? outputBlock.items[itemIndex] : null;
-            appendSourceAnnotatedText(li, item.text || "", outputItem ? outputItem.text || "" : "", options);
-            list.appendChild(li);
-          });
-          inputEditor.appendChild(list);
+          list.className = "diff-block list";
+          (block.items || []).forEach((item) => { const li = document.createElement("li"); li.textContent = item.text || ""; list.appendChild(li); });
+          container.appendChild(list);
         }
       });
-      inputEditor.dataset.showingInvisibles = options && options.showInvisibles ? "true" : "false";
-      suppressInputEvent = false;
     }
 
     function renderCompactDiff(inputModel, outputModel, changeRecords, destinationProfile, options) {
       outputEditor.innerHTML = "";
+      const note = document.createElement("p");
+      note.className = "diff-note";
+      note.textContent = "Diff view compares original text on the left with cleaned destination output on the right. Matching highlight colors indicate linked before/after changes; turn Diff view off for clean output only.";
       const wrapper = document.createElement("div");
-      wrapper.className = "compact-diff";
+      wrapper.className = "compact-diff side-by-side-diff";
+      const left = document.createElement("section");
+      const right = document.createElement("section");
+      left.className = "diff-pane diff-original";
+      right.className = "diff-pane diff-cleaned";
+      left.innerHTML = "<h3>Original text</h3>";
+      right.innerHTML = "<h3>Cleaned output</h3>";
+      appendPlainDoc(left, inputModel, options);
       (outputModel.blocks || []).forEach((block, index) => {
         const inputBlock = (inputModel.blocks || [])[index];
-        if (block.type === "blank") { wrapper.appendChild(document.createElement("br")); return; }
+        if (block.type === "blank") { right.appendChild(document.createElement("br")); return; }
         if (block.type === "paragraph") {
           const div = document.createElement("div");
           div.className = "diff-block paragraph";
           appendAnnotatedText(div, inputBlock && inputBlock.type === "paragraph" ? inputBlock.text || "" : "", block.text || "", options);
-          wrapper.appendChild(div);
-        } else if (block.type === "ul" || block.type === "ol") appendListPreview(wrapper, inputBlock, block, options);
+          right.appendChild(div);
+        } else if (block.type === "ul" || block.type === "ol") appendListPreview(right, inputBlock, block, options);
       });
-      outputEditor.append(wrapper);
+      wrapper.append(left, right);
+      outputEditor.append(note, wrapper);
     }
 
     function renderInputEditorForOptions(options) {
@@ -2285,6 +2273,7 @@
       renderChanges(lastResult);
       renderWarnings(lastResult);
       renderCompatibility();
+      if (diffLegend) diffLegend.hidden = !showDiff;
       setStatus("");
     }
 

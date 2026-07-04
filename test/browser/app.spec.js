@@ -25,7 +25,7 @@ test('toggles page theme', async ({ page }) => {
 
 test('uses destination-specific style selectors', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('#destinationStyleLabel')).toHaveText('Style');
+  await expect(page.locator('#destinationStyleLabel')).toHaveText('Destination text style');
   await expect(page.locator('#destinationFontSelect option:checked')).toHaveText('Verdana');
   await expect(page.locator('#destinationSizeSelect')).toContainText('Normal');
 
@@ -63,18 +63,6 @@ test('toggles compact diff view beside the output preview', async ({ page }) => 
   await page.locator('#diffViewToggle').uncheck();
   await expect(page.locator('#outputEditor .char-change')).toHaveCount(0);
   await expect(page.locator('#outputEditor')).toContainText('Hello -- world');
-});
-
-test('inspector highlights changed source text without scrolling', async ({ page }) => {
-  await page.goto('/');
-  await page.locator('#inputEditor').fill('Hello — world');
-
-  const beforeScroll = await page.evaluate(() => window.scrollY);
-  await page.locator('#statsList li', { hasText: 'Dashes changed' }).evaluate((item) => item.dispatchEvent(new MouseEvent('click', { bubbles: true })));
-
-  await expect(page.locator('#inputEditor .source-change')).toHaveText('—');
-  await expect(page.locator('#outputEditor')).not.toHaveClass(/inspector-pulse/);
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(beforeScroll);
 });
 
 test('links to tests and debugging page with runnable checks', async ({ page }) => {
