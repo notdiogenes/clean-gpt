@@ -2,13 +2,13 @@
 
 A static GitHub Pages app for destination-aware copy/paste cleanup.
 
-The app takes pasted text, removes hidden/source artifacts, applies a character policy, and produces output shaped for the place where the text will be pasted.
+The app takes pasted text, removes hidden/source artifacts, applies a destination profile, and produces output shaped for the place where the text will be pasted.
 
-## Current destination profiles
+## Destination profiles
 
 ### Gmail
 
-Gmail mode keeps keyboard-style visible punctuation and uses a Gmail-compatible HTML clipboard payload for paragraph and font behavior.
+Gmail mode keeps keyboard-style visible punctuation and uses a Gmail-compatible rendered HTML clipboard payload for paragraph and font behavior.
 
 Visible character policy:
 
@@ -17,17 +17,18 @@ Visible character policy:
 - em-dash-like interruption: `space + -- + space`
 - ellipsis: three full stops, `...`
 - list bullets: hyphen lines, when enabled
+- no intentionally inserted zero-width spaces
 
-Clipboard policy:
+Primary copy policy:
 
-- primary button writes `text/html`
+- writes `text/html` to the clipboard
 - generated HTML shape:
 
 ```html
 <div><div class="gmail_default" style="font-family: verdana, sans-serif;">Paragraph one</div><div class="gmail_default" style="font-family: verdana, sans-serif;"><br></div><div class="gmail_default" style="font-family: verdana, sans-serif;">Paragraph two<br></div><br clear="all"></div>
 ```
 
-The app does not intentionally add zero-width spaces.
+The visible textarea remains plain text; the Gmail copy button generates the rendered HTML payload directly from that text.
 
 ### Google Docs
 
@@ -41,16 +42,17 @@ Default destination typography:
 - ` -- ` becomes `U+2014 EM DASH`
 - numeric ranges such as `5-10` become `5–10`
 - `...` becomes `U+2026 HORIZONTAL ELLIPSIS`
+- typed feet/inches can become prime marks when enabled
 
 ### Microsoft Word
 
-Word mode currently uses the same default document typography as Google Docs and copies `text/plain` so Word can inherit the current document style.
+Word mode currently uses the same document typography as Google Docs and copies `text/plain` so Word can inherit the active document style instead of browser styles.
 
-The UI keeps Word separate because the profile may later diverge if Word-specific clipboard behavior is added.
+The profile is kept separate so Word-specific clipboard behavior can diverge later if needed.
 
 ### Plain text / forms
 
-Plain mode keeps keyboard-safe characters and copies `text/plain`.
+Plain mode keeps keyboard-safe visible characters and copies `text/plain`.
 
 ### Strict ASCII
 
@@ -58,25 +60,13 @@ Strict ASCII mode aggressively removes or replaces non-ASCII characters.
 
 Default strict conversions include:
 
-- accented letters folded through compatibility decomposition
-- ligatures expanded
+- accent folding through compatibility decomposition
+- ligature expansion
 - single-character fractions converted to text fractions
 - superscript and subscript characters flattened
 - common symbols replaced with ASCII equivalents when available
 - emoji removed
 - remaining non-ASCII characters removed
-
-## UI layout
-
-The editor area is intentionally uniform:
-
-- the input and output textareas sit side by side with matched heading rows and matched action rows
-- input actions and output copy actions are separated from the title/description area so buttons do not change textarea alignment
-- destination selection lives in the Character Policy rail, not above the output textarea
-- the destination help text has reserved space so changing profiles does not shift the editor layout
-- all Character Policy sections are expanded by default, including Compatibility Cleanup and Strict ASCII
-
-The output textarea always shows the exact visible text for the selected destination. The primary copy button may use a richer clipboard payload when the destination requires it, such as Gmail HTML. The secondary copy button copies the visible textarea text as literal `text/plain`.
 
 ## Character policy categories
 
@@ -115,7 +105,8 @@ The UI is organized around character classes rather than one-off replacements.
 - typographic dashes
 - numeric en dashes
 - ellipsis character
-- optional smart fractions
+- typed fractions
+- measurement prime marks
 
 ### Strict ASCII
 
@@ -139,8 +130,16 @@ The Inspector reports:
 Example change record:
 
 ```text
-Quote cleanup: U+201C LEFT DOUBLE QUOTATION MARK -> U+0022 QUOTATION MARK ×1
+Source: U+201C LEFT DOUBLE QUOTATION MARK -> U+0022 QUOTATION MARK ×1 (Quote-like character normalized)
 ```
+
+## UI layout
+
+The editor cards use fixed matching rows for the header, action row, textarea, and status line. The input and output panels therefore line up at the top, at the textarea start, and at the bottom.
+
+Destination selection lives in the Character Policy rail. Its help text has reserved height so changing profiles does not shift the editor layout.
+
+All Character Policy sections are expanded by default, including Compatibility Cleanup and Strict ASCII.
 
 ## Files
 
@@ -161,12 +160,3 @@ Upload the files to the repository root and enable GitHub Pages from GitHub Acti
 ## Privacy
 
 The app runs locally in the browser. It does not send text to a server.
-
-## UI model
-
-- The editor cards reserve matching status/footer space so the input and output panels keep the same visual height.
-
-
-## Layout notes
-
-The input and output editor cards use matching fixed header, action, textarea, and status rows so their top and bottom edges line up. The side rail moves below the editors before the editor columns become too narrow for the copy controls.

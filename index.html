@@ -17,28 +17,27 @@
 
   <main class="app-shell">
     <section class="panel editor-panel" aria-labelledby="inputLabel">
-      <div class="panel-heading">
+      <div class="panel-heading editor-heading">
         <h2 id="inputLabel">Original text</h2>
-        <p class="panel-subtitle">Paste text here. The cleaner works from text only and reports every character class it changes.</p>
+        <p class="panel-subtitle">Paste text here. The sanitizer reads plain text and reports the character classes it changes.</p>
       </div>
       <div class="editor-actions input-actions" aria-label="Input actions">
         <button id="clearButton" type="button" class="ghost-button">Clear</button>
       </div>
       <textarea id="inputText" spellcheck="true" placeholder="Paste text here..."></textarea>
-      <p class="status status-spacer" aria-hidden="true"></p>
+      <p id="inputStatus" class="status status-spacer" aria-hidden="true"></p>
     </section>
 
     <section class="panel editor-panel output-panel" aria-labelledby="outputLabel">
-      <div class="panel-heading">
+      <div class="panel-heading editor-heading">
         <h2 id="outputLabel">Destination output</h2>
-        <p class="panel-subtitle">Choose a destination profile, then copy with destination-specific formatting or as visible text.</p>
+        <p class="panel-subtitle">This shows the exact visible characters for the selected destination. Gmail copy uses a rendered HTML clipboard payload.</p>
       </div>
       <div class="editor-actions output-actions" aria-label="Copy actions">
-        <button id="destinationCopyButton" type="button" class="primary-button">Copy for Gmail</button>
+        <button id="destinationCopyButton" type="button" class="primary-button">Copy Gmail HTML</button>
         <button id="copyVisibleButton" type="button" class="ghost-button">Copy visible text</button>
       </div>
-
-      <textarea id="outputText" class="destination-output" readonly spellcheck="false" aria-label="Destination-ready output" placeholder="Sanitized output appears here..."></textarea>
+      <textarea id="outputText" class="destination-output gmail-compose" readonly spellcheck="false" aria-label="Destination-ready output" placeholder="Sanitized output appears here..."></textarea>
       <p id="status" class="status" aria-live="polite"></p>
     </section>
 
@@ -83,7 +82,7 @@
           <summary>Punctuation cleanup</summary>
           <div class="control-stack">
             <label><input type="checkbox" data-option="normalizeQuotes"> Normalize quote-like characters</label>
-            <label><input type="checkbox" data-option="preservePrimeMarks"> Preserve prime marks in measurements</label>
+            <label><input type="checkbox" data-option="preservePrimeMarks"> Preserve existing prime marks</label>
             <label><input type="checkbox" data-option="normalizeDashes"> Normalize dash variants</label>
             <label><input type="checkbox" data-option="normalizeEllipsis"> Normalize ellipsis and dot leaders</label>
             <label><input type="checkbox" data-option="convertBullets"> Convert line bullets to hyphens</label>
@@ -109,6 +108,7 @@
             <label><input type="checkbox" data-option="numericRangesToEnDash"> Convert numeric ranges to en dash</label>
             <label><input type="checkbox" data-option="smartEllipsis"> Use ellipsis character for document destinations</label>
             <label><input type="checkbox" data-option="smartFractions"> Convert common typed fractions for document destinations</label>
+            <label><input type="checkbox" data-option="measurementPrimes"> Convert typed feet/inches to prime marks</label>
           </div>
         </details>
 
