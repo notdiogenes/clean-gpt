@@ -113,8 +113,12 @@ h3 {
   margin-bottom: 20px;
 }
 
+.editor-panel > .panel-header {
+  min-height: 96px;
+}
+
 .output-header {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .panel-header h2 {
@@ -137,8 +141,10 @@ h3 {
 }
 
 .output-actions {
-  justify-content: flex-start;
-  margin: 0 0 22px;
+  justify-content: flex-end;
+  align-self: flex-start;
+  margin: 0;
+  padding-top: 2px;
 }
 
 .primary-button,
@@ -194,9 +200,9 @@ h3 {
 
 .destination-card {
   display: grid;
-  grid-template-columns: auto minmax(180px, 1fr);
-  gap: 8px 12px;
-  align-items: center;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-items: start;
   margin: 0 0 18px;
   padding: 12px;
   border: 1px solid var(--border);
@@ -215,6 +221,7 @@ h3 {
 
 .destination-note {
   grid-column: 1 / -1;
+  min-height: 4.1em;
   margin: 0;
   color: var(--muted);
   font-size: 0.86rem;
@@ -376,6 +383,14 @@ input[type="checkbox"] {
 
   .panel-header {
     flex-direction: column;
+  }
+
+  .editor-panel > .panel-header {
+    min-height: 0;
+  }
+
+  .output-actions {
+    justify-content: flex-start;
   }
 
   .editor-panel textarea,
