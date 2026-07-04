@@ -1658,7 +1658,8 @@
     const warningsList = document.getElementById("warningsList");
     const nonAsciiList = document.getElementById("nonAsciiList");
     const compatibilityList = document.getElementById("compatibilityList");
-    const diffViewMode = document.getElementById("diffViewMode");
+    const diffViewToggle = document.getElementById("diffViewToggle");
+    const themeToggle = document.getElementById("themeToggle");
     const optionInputs = Array.from(document.querySelectorAll("[data-option]"));
 
     if (!inputEditor || !outputEditor || !destinationSelect || !presetSelect) return;
@@ -1673,6 +1674,20 @@
 
     function setPasteStatus(message) {
       if (pasteStatus) pasteStatus.textContent = message || "Ready for paste.";
+    }
+
+    function applyTheme(isDark) {
+      document.documentElement.dataset.theme = isDark ? "dark" : "light";
+      if (themeToggle) themeToggle.checked = isDark;
+      try { global.localStorage?.setItem("copySanitizer.theme", isDark ? "dark" : "light"); } catch (error) {}
+    }
+
+    function loadThemePreference() {
+      try {
+        const saved = global.localStorage?.getItem("copySanitizer.theme");
+        if (saved === "dark" || saved === "light") return saved;
+      } catch (error) {}
+      return global.matchMedia && global.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
 
     function applyOptionsToUi(options) {
@@ -1942,10 +1957,6 @@
       outputEditor.innerHTML = "";
       const beforeText = docToPlainText(inputDoc, "plain");
       const diff = compactDiffLines(beforeText, result.cleanText, options);
-      const summary = document.createElement("p");
-      summary.className = "diff-summary diagnostic-label";
-      summary.textContent = diff.changed ? `Full diagnostic diff: ${diff.changed} changed serialized line(s). This view compares plain-text fallback serialization.` : "Full diagnostic diff: no serialized text changes.";
-      outputEditor.appendChild(summary);
       if (!diff.rows.length) {
         appendDiffLine(outputEditor, " ", result.cleanText || "No output yet.", "diff-context");
         return;
@@ -2031,13 +2042,6 @@
     }
 
     function appendListPreview(parent, inputBlock, outputBlock, options) {
-      const preserved = destinationPreservesLists(options);
-      const count = (outputBlock.items || []).length;
-      const note = document.createElement("div");
-      note.className = "diff-note";
-      const kind = outputBlock.type === "ol" ? "Ordered list" : "Unordered list";
-      note.textContent = preserved ? `${kind} preserved: ${count} items.` : `${kind === "Ordered list" ? "Ordered list serialized as numbered lines." : "Bulleted list serialized as plain hyphen lines."}`;
-      parent.appendChild(note);
       const list = document.createElement(outputBlock.type === "ol" ? "ol" : "ul");
       list.className = "diff-block list";
       (outputBlock.items || []).forEach((item, index) => {
@@ -2049,36 +2053,10 @@
       parent.appendChild(list);
     }
 
-    function summarizeChanges(changeRecords, modelTransformRecords, clipboardFormats) {
-      const parts = [];
-      const total = (changeRecords || []).reduce((sum, change) => sum + (change.count || 0), 0);
-      if (total) parts.push(`${total} character changes`);
-      (changeRecords || []).forEach((change) => {
-        if (/Quote/.test(change.note)) parts.push(`${change.count} quote/apostrophe normalized`);
-        else if (/dash/i.test(change.note)) parts.push(`${change.count} dash normalized`);
-        else if (/Ellipsis|leader/.test(change.note)) parts.push(`${change.count} ellipsis/dot leader normalized`);
-        else if (/Hidden/.test(change.note)) parts.push(`${change.count} hidden characters removed`);
-        else if (/space|Line endings|separator/i.test(change.note)) parts.push(`${change.count} whitespace changes`);
-      });
-      (modelTransformRecords || []).forEach((record) => parts.push(record));
-      if (clipboardFormats && clipboardFormats.length) parts.push(`Clipboard output: ${clipboardFormats.join(" + ")}`);
-      return parts.length ? parts.join("; ") : "No sanitizer changes; destination preview unchanged.";
-    }
-
     function renderCompactDiff(inputModel, outputModel, changeRecords, destinationProfile, options) {
       outputEditor.innerHTML = "";
       const wrapper = document.createElement("div");
       wrapper.className = "compact-diff";
-      const modelNotes = [];
-      if ((outputModel.blocks || []).some((block) => block.type === "ul" || block.type === "ol")) {
-        const listItems = countDocLists(outputModel.blocks).items;
-        modelNotes.push(destinationPreservesLists(options) ? `${listItems} list items preserved` : `${listItems} list items serialized`);
-      }
-      const summary = document.createElement("div");
-      summary.className = "diff-summary";
-      const formats = destinationPreservesLists(options) ? ["text/html", "text/plain"] : ["text/plain"];
-      summary.textContent = summarizeChanges(changeRecords, modelNotes, formats);
-      wrapper.appendChild(summary);
       (outputModel.blocks || []).forEach((block, index) => {
         const inputBlock = (inputModel.blocks || [])[index];
         if (block.type === "blank") { wrapper.appendChild(document.createElement("br")); return; }
@@ -2121,14 +2099,10 @@
       outputEditor.style.setProperty("--gmail-font-family", destinationStyle.fontFamily);
       outputEditor.style.setProperty("--gmail-font-size", destinationStyle.fontSize);
       lastResult = sanitizeDoc(inputDoc, options);
-      const diffMode = diffViewMode ? diffViewMode.value : "compact";
-      if (diffMode === "compact") {
+      const showDiff = diffViewToggle ? diffViewToggle.checked : true;
+      if (showDiff) {
         outputEditor.classList.add("diff-output", "compact-diff-output");
         renderCompactDiff(inputDoc, lastResult.doc, lastResult.changes, DESTINATIONS[destinationSelect.value], options);
-      } else if (diffMode === "diagnostic") {
-        outputEditor.classList.add("diff-output");
-        outputEditor.classList.remove("compact-diff-output");
-        renderDiagnosticDiffView(lastResult, options);
       } else {
         outputEditor.classList.remove("diff-output", "compact-diff-output");
         renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, options);
@@ -2194,7 +2168,8 @@
     });
 
     optionInputs.forEach((input) => input.addEventListener("change", update));
-    if (diffViewMode) diffViewMode.addEventListener("change", update);
+    if (diffViewToggle) diffViewToggle.addEventListener("change", update);
+    if (themeToggle) themeToggle.addEventListener("change", () => applyTheme(themeToggle.checked));
     presetSelect.addEventListener("change", applyPresetAndProfile);
     destinationSelect.addEventListener("change", applyPresetAndProfile);
     [destinationFontSelect, destinationSizeSelect].forEach((select) => {
@@ -2287,6 +2262,7 @@
       });
     }
 
+    applyTheme(loadThemePreference() === "dark");
     refreshStyleControls();
     applyPresetAndProfile();
   }
