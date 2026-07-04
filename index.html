@@ -23,10 +23,10 @@
     <section class="panel how-panel" aria-labelledby="howLabel">
       <h2 id="howLabel">How this works</h2>
       <ol class="workflow-list">
-        <li>Paste messy text or rich clipboard content.</li>
-        <li>Pick the destination where you plan to paste.</li>
-        <li>Review highlighted changes in Diff view.</li>
-        <li>Copy <strong>destination output</strong> for the selected app, or <strong>visible text</strong> for exactly what the preview shows as plain text.</li>
+        <li><span class="step-number">1</span><div><strong>Paste text</strong><p>Paste messy text or rich clipboard content into the input box.</p></div></li>
+        <li><span class="step-number">2</span><div><strong>Choose destination</strong><p>Select where the cleaned text will be pasted, such as Gmail, Docs, Word, Markdown, Slack, CMS fields, or plain text.</p></div></li>
+        <li><span class="step-number">3</span><div><strong>Review changes</strong><p>Use Diff view and the Inspector to see what was changed.</p></div></li>
+        <li><span class="step-number">4</span><div><strong>Copy output</strong><p>Use Copy HTML for rich structure and supported styling when available. Use Copy text for plain visible text only; plain-text destinations may only show Copy text.</p></div></li>
       </ol>
     </section>
     <section class="panel top-settings" aria-labelledby="controlsLabel">
@@ -92,24 +92,28 @@
     </section>
 
     <section class="panel editor-panel output-panel" aria-labelledby="outputLabel">
-      <div class="panel-heading editor-heading">
-        <h2 id="outputLabel">Destination output</h2>
-        <p class="panel-subtitle">This preview shows the selected destination rendering. The primary copy button may include HTML for paragraph and list structure.</p>
+      <div class="panel-heading editor-heading output-card-header">
+        <div>
+          <h2 id="outputLabel">Destination output</h2>
+          <p class="panel-subtitle">This preview shows the selected destination rendering. The primary copy button may include HTML for paragraph and list structure.</p>
+        </div>
+        <div class="diff-control-cluster">
+          <label class="pill-toggle diff-toggle"><input id="diffViewToggle" type="checkbox" checked> Diff view</label>
+          <div id="diffLegend" class="diff-legend" aria-label="Diff legend" hidden>
+            <span><mark class="legend-token legend-removed">−</mark> Removed</span>
+            <span><mark class="legend-token legend-replaced">↔</mark> Replaced</span>
+            <span><mark class="legend-token legend-inserted">+</mark> Inserted</span>
+            <span><mark class="legend-token legend-spacing">·</mark> Spacing</span>
+            <span><mark class="legend-token legend-warning">!</mark> Warning</span>
+          </div>
+        </div>
       </div>
       <div class="editor-actions output-actions" aria-label="Copy actions">
         <button id="destinationCopyButton" type="button" class="primary-button">Copy HTML</button>
         <button id="copyVisibleButton" type="button" class="ghost-button">Copy text</button>
       </div>
       <div class="output-editor-wrap">
-        <label class="pill-toggle diff-toggle"><input id="diffViewToggle" type="checkbox" checked> Diff view</label>
         <div id="outputEditor" class="rich-editor destination-output gmail-compose" role="region" aria-live="polite" aria-label="Destination-ready output" data-placeholder="Sanitized output appears here..."></div>
-      </div>
-      <div id="diffLegend" class="diff-legend" aria-label="Diff legend">
-        <span><mark class="legend-removed">Removed character</mark></span>
-        <span><mark class="legend-replaced">Replaced character</mark></span>
-        <span><mark class="legend-inserted">Inserted character</mark></span>
-        <span><mark class="legend-spacing">Normalized spacing</mark></span>
-        <span><mark class="legend-warning">Remaining warning</mark></span>
       </div>
       <p id="status" class="status" aria-live="polite"></p>
     </section>
@@ -119,7 +123,10 @@
         <details id="advancedSettings" class="advanced-settings" open>
           <summary><h2 id="cleanupSettingsLabel">Advanced settings</h2><span>Cleanup toggles for power users</span></summary>
           <label class="advanced-filter-label" for="advancedSettingsSearch">Search settings</label>
-          <input id="advancedSettingsSearch" class="advanced-settings-search" type="search" placeholder="Search names, help text, or tags..." autocomplete="off">
+          <div class="advanced-search-wrap">
+            <input id="advancedSettingsSearch" class="advanced-settings-search" type="search" placeholder="Search names, help text, or tags..." autocomplete="off">
+            <button id="advancedSettingsClear" class="advanced-search-clear" type="button" aria-label="Clear settings search">×</button>
+          </div>
           <p id="advancedSettingsSearchStatus" class="advanced-filter-status" aria-live="polite"></p>
         <details open>
           <summary>Clipboard intake</summary>
@@ -189,20 +196,6 @@
         </details>
       </section>
 
-
-      <section class="panel user-tests-panel" aria-labelledby="userTestsLabel">
-        <div class="debug-heading">
-          <div>
-            <h2 id="userTestsLabel">Try common sanitizer tests</h2>
-            <p class="panel-subtitle">Run quick, visible examples for smart quotes, nested lists, emoji removal, and hidden characters without leaving this page.</p>
-          </div>
-          <button id="runUserTestsButton" type="button" class="primary-button">Run examples</button>
-        </div>
-        <div id="userTestAnimation" class="user-test-animation" aria-hidden="true">
-          <span></span><span></span><span></span><span></span>
-        </div>
-        <ul id="userTestResults" class="user-test-results" aria-live="polite"></ul>
-      </section>
 
       <section class="panel inspector-panel" aria-labelledby="statsLabel">
         <h2 id="statsLabel">Inspector</h2>
