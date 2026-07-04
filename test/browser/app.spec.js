@@ -14,6 +14,15 @@ test('shows browser compatibility status', async ({ page }) => {
   await expect(page.locator('#compatibilityList')).toContainText('ClipboardItem support:');
 });
 
+test('toggles page theme', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', /light|dark/);
+  await page.locator('#themeToggle').check();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.locator('#themeToggle').uncheck();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
+
 test('uses destination-specific style selectors', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#destinationStyleLabel')).toHaveText('Destination text style');
@@ -52,19 +61,18 @@ test('shows invisible characters in input and output previews', async ({ page })
 });
 
 
-test('offers compact diff view beside the output preview', async ({ page }) => {
+test('toggles compact diff view beside the output preview', async ({ page }) => {
   await page.goto('/');
   await page.locator('#inputEditor').fill('Hello — world');
 
-  await expect(page.locator('#diffViewMode')).toHaveValue('compact');
+  await expect(page.locator('#diffViewToggle')).toBeChecked();
   await expect(page.locator('#outputEditor')).toContainText('Hello -- world');
   await expect(page.locator('#outputEditor .char-change')).toContainText(' -- ');
-  await expect(page.locator('#outputEditor')).not.toContainText('changed line');
+  await expect(page.locator('#outputEditor')).not.toContainText('character changes');
 
-  await page.locator('#diffViewMode').selectOption('diagnostic');
-  await expect(page.locator('#outputEditor')).toContainText('Full diagnostic diff');
-  await expect(page.locator('#outputEditor .diff-remove')).toContainText('Hello — world');
-  await expect(page.locator('#outputEditor .diff-add')).toContainText('Hello -- world');
+  await page.locator('#diffViewToggle').uncheck();
+  await expect(page.locator('#outputEditor .char-change')).toHaveCount(0);
+  await expect(page.locator('#outputEditor')).toContainText('Hello -- world');
 });
 
 test('links to tests and debugging page with runnable checks', async ({ page }) => {
@@ -86,7 +94,7 @@ test('compact diff preserves HTML list provenance for Gmail', async ({ page }) =
     editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
   });
 
-  await expect(page.locator('#outputEditor')).toContainText('Unordered list preserved: 2 items.');
-  await expect(page.locator('#outputEditor .diff-note')).not.toContainText('hyphen lines');
+  await expect(page.locator('#outputEditor')).not.toContainText('Unordered list preserved: 2 items.');
+  await expect(page.locator('#outputEditor .diff-note')).toHaveCount(0);
   await expect(page.locator('#outputEditor li').first()).toHaveText('Approximately 38 box lunches');
 });

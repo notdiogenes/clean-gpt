@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,11 +14,58 @@
       <p class="lede">Paste a draft, inspect what the clipboard actually contained, choose the destination, then copy clean text or structured HTML shaped for that destination.</p>
     </div>
     <nav class="site-nav" aria-label="Primary">
+      <label class="pill-toggle theme-toggle"><input id="themeToggle" type="checkbox"> Dark mode</label>
       <a href="tests.html">Tests & debugging</a>
     </nav>
   </header>
 
   <main class="app-shell">
+    <section class="panel top-settings" aria-labelledby="controlsLabel">
+      <div class="settings-group destination-card" aria-labelledby="destinationLabel">
+        <label class="field-label inline-label" for="destinationSelect" id="destinationLabel">Destination profile</label>
+        <select id="destinationSelect">
+          <option value="gmail">Gmail</option>
+          <option value="googleDocs">Google Docs</option>
+          <option value="word">Microsoft Word</option>
+          <option value="markdown">Markdown</option>
+          <option value="outlook">Outlook</option>
+          <option value="slack">Slack / Teams</option>
+          <option value="cms">CMS / web forms</option>
+          <option value="code">Code comments</option>
+          <option value="plain">Plain text / forms</option>
+          <option value="strictAscii">Strict ASCII</option>
+        </select>
+        <p id="destinationNote" class="destination-note"></p>
+      </div>
+
+      <div class="settings-group">
+        <h2 id="controlsLabel">Character policy</h2>
+        <label class="field-label" for="presetSelect">Cleanup preset</label>
+        <select id="presetSelect">
+          <option value="standard">Comprehensive cleanup</option>
+          <option value="lightCleanup">Light cleanup</option>
+          <option value="strictPlainText">Strict plain text</option>
+        </select>
+      </div>
+
+      <fieldset id="destinationStyleControls" class="destination-style-controls settings-group" aria-labelledby="destinationStyleLabel">
+        <legend id="destinationStyleLabel">Destination text style</legend>
+        <div class="control-grid two-up">
+          <label>
+            <span>Font</span>
+            <select id="destinationFontSelect">
+            </select>
+          </label>
+          <label>
+            <span>Size</span>
+            <select id="destinationSizeSelect">
+            </select>
+          </label>
+        </div>
+        <p id="destinationStyleNote" class="destination-note compact-note">Saved locally and applied to the selected destination preview and rich-copy HTML where available.</p>
+      </fieldset>
+    </section>
+
     <section class="panel editor-panel" aria-labelledby="inputLabel">
       <div class="panel-heading editor-heading">
         <h2 id="inputLabel">Original clipboard content</h2>
@@ -46,60 +93,14 @@
       </div>
       <div id="outputEditor" class="rich-editor destination-output gmail-compose" role="region" aria-live="polite" aria-label="Destination-ready output" data-placeholder="Sanitized output appears here..."></div>
       <div class="editor-local-options" aria-label="Output view options">
-        <label class="field-label inline-label" for="diffViewMode">Diff view</label>
-        <select id="diffViewMode" class="compact-select">
-          <option value="off">Off</option>
-          <option value="compact" selected>Compact changes</option>
-          <option value="diagnostic">Full diagnostic diff</option>
-        </select>
+        <label class="pill-toggle"><input id="diffViewToggle" type="checkbox" checked> Diff view</label>
       </div>
       <p id="status" class="status" aria-live="polite"></p>
     </section>
 
     <aside class="side-rail">
-      <section class="panel controls-panel" aria-labelledby="controlsLabel">
-        <h2 id="controlsLabel">Character policy</h2>
-
-        <div class="destination-card" aria-labelledby="destinationLabel">
-          <label class="field-label inline-label" for="destinationSelect" id="destinationLabel">Destination profile</label>
-          <select id="destinationSelect">
-            <option value="gmail">Gmail</option>
-            <option value="googleDocs">Google Docs</option>
-            <option value="word">Microsoft Word</option>
-            <option value="markdown">Markdown</option>
-            <option value="outlook">Outlook</option>
-            <option value="slack">Slack / Teams</option>
-            <option value="cms">CMS / web forms</option>
-            <option value="code">Code comments</option>
-            <option value="plain">Plain text / forms</option>
-            <option value="strictAscii">Strict ASCII</option>
-          </select>
-          <p id="destinationNote" class="destination-note"></p>
-          <fieldset id="destinationStyleControls" class="destination-style-controls" aria-labelledby="destinationStyleLabel">
-            <legend id="destinationStyleLabel">Destination text style</legend>
-            <div class="control-grid two-up">
-              <label>
-                <span>Font</span>
-                <select id="destinationFontSelect">
-                </select>
-              </label>
-              <label>
-                <span>Size</span>
-                <select id="destinationSizeSelect">
-                </select>
-              </label>
-            </div>
-            <p id="destinationStyleNote" class="destination-note compact-note">Saved locally and applied to the selected destination preview and rich-copy HTML where available.</p>
-          </fieldset>
-        </div>
-
-        <label class="field-label" for="presetSelect">Cleanup preset</label>
-        <select id="presetSelect">
-          <option value="standard">Comprehensive cleanup</option>
-          <option value="lightCleanup">Light cleanup</option>
-          <option value="strictPlainText">Strict plain text</option>
-        </select>
-
+      <section class="panel controls-panel" aria-labelledby="cleanupSettingsLabel">
+        <h2 id="cleanupSettingsLabel">Cleanup settings</h2>
         <details open>
           <summary>Clipboard intake</summary>
           <div class="control-stack">
@@ -107,7 +108,6 @@
             <label><input type="checkbox" data-option="preferHtmlPaste"> Prefer clipboard HTML when available</label>
           </div>
         </details>
-
         <details open>
           <summary>Source cleanup</summary>
           <div class="control-stack">
@@ -121,7 +121,6 @@
             <label><input type="checkbox" data-option="convertTabs"> Convert tabs to spaces</label>
           </div>
         </details>
-
         <details open>
           <summary>Punctuation cleanup</summary>
           <div class="control-stack">
@@ -131,7 +130,6 @@
             <label><input type="checkbox" data-option="normalizeEllipsis"> Normalize ellipsis and dot leaders</label>
           </div>
         </details>
-
         <details open>
           <summary>Compatibility cleanup</summary>
           <div class="control-stack">
@@ -142,7 +140,6 @@
             <label><input type="checkbox" data-option="removeEmoji"> Remove emoji and pictographic symbols</label>
           </div>
         </details>
-
         <details open>
           <summary>Destination typography</summary>
           <div class="control-stack">
@@ -154,7 +151,6 @@
             <label><input type="checkbox" data-option="measurementPrimes"> Convert typed feet/inches to prime marks</label>
           </div>
         </details>
-
         <details open>
           <summary>List output</summary>
           <div class="control-stack">
@@ -162,7 +158,6 @@
             <label><input type="checkbox" data-option="gmailListsAsHyphenLines"> Flatten Gmail lists to plain hyphen lines</label>
           </div>
         </details>
-
         <details open>
           <summary>Strict ASCII</summary>
           <div class="control-stack">
