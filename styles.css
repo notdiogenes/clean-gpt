@@ -1068,3 +1068,112 @@ button[hidden] { display: none !important; }
   text-align: center;
   font-weight: 500;
 }
+
+/* shadcn-inspired redesign: tokenized surfaces, cards, rings, and refined controls. */
+:root {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --primary: 221 83% 53%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted-token: 215 20% 65%;
+  --muted-foreground: 215 16% 47%;
+  --accent-token: 262 83% 58%;
+  --destructive: 0 84% 60%;
+  --border-token: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+  --radius: 0.9rem;
+
+  --bg: hsl(220 50% 97%);
+  --panel: hsl(var(--card));
+  --ink: hsl(var(--card-foreground));
+  --muted: hsl(var(--muted-foreground));
+  --border: hsl(var(--border-token));
+  --accent: hsl(var(--primary));
+  --accent-ink: hsl(var(--primary-foreground));
+  --soft: hsl(var(--secondary));
+  --focus: hsl(var(--ring));
+  --danger: hsl(var(--destructive));
+  --editor-bg: hsl(0 0% 100% / 0.86);
+  --card-bg: hsl(220 50% 98%);
+  --highlight: #fde68a;
+  --highlight-border: #d97706;
+}
+
+:root[data-theme="dark"] {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 13%;
+  --card-foreground: 210 40% 98%;
+  --secondary: 217 33% 18%;
+  --secondary-foreground: 210 40% 98%;
+  --muted-token: 215 20% 65%;
+  --muted-foreground: 215 20% 74%;
+  --border-token: 217 33% 24%;
+  --input: 217 33% 24%;
+  --bg: hsl(222 47% 7%);
+  --panel: hsl(var(--card) / 0.84);
+  --ink: hsl(var(--card-foreground));
+  --muted: hsl(var(--muted-foreground));
+  --border: hsl(var(--border-token));
+  --soft: hsl(var(--secondary));
+  --editor-bg: hsl(222 47% 10% / 0.78);
+  --card-bg: hsl(222 47% 12% / 0.82);
+  --highlight: #92400e;
+  --highlight-border: #fbbf24;
+}
+
+body {
+  position: relative;
+  background:
+    radial-gradient(circle at 10% -10%, hsl(221 83% 70% / 0.28), transparent 34rem),
+    radial-gradient(circle at 88% 8%, hsl(262 83% 70% / 0.22), transparent 30rem),
+    linear-gradient(180deg, hsl(220 50% 98%), var(--bg) 38rem);
+  letter-spacing: -0.01em;
+}
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 8% -12%, hsl(221 83% 46% / 0.30), transparent 32rem),
+    radial-gradient(circle at 88% 4%, hsl(262 83% 50% / 0.25), transparent 30rem),
+    linear-gradient(180deg, hsl(222 47% 8%), var(--bg) 36rem);
+}
+.ambient-bg { position: fixed; inset: 0; pointer-events: none; background-image: linear-gradient(hsl(var(--foreground) / .04) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground) / .04) 1px, transparent 1px); background-size: 48px 48px; mask-image: linear-gradient(to bottom, black, transparent 58%); }
+.site-header { padding: 42px 20px 28px; align-items: center; }
+.eyebrow { display: inline-flex; width: fit-content; padding: 6px 10px; border: 1px solid hsl(var(--primary) / .22); border-radius: 999px; color: hsl(var(--primary)); background: hsl(var(--primary) / .08); font-weight: 750; letter-spacing: .12em; }
+h1 { max-width: 820px; font-size: clamp(3rem, 8vw, 6.8rem); font-weight: 850; letter-spacing: -0.08em; background: linear-gradient(135deg, var(--ink), hsl(var(--primary)) 52%, hsl(var(--accent-token))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { max-width: 820px; font-size: clamp(1rem, 1.5vw, 1.22rem); color: var(--muted); }
+.hero-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.hero-badges span, .destination-summary dd { border-color: hsl(var(--primary) / .18); background: hsl(var(--primary) / .08); color: hsl(var(--primary)); font-weight: 700; }
+.site-nav a, .pill-toggle, .primary-button, .ghost-button, select, .advanced-settings-search { min-height: 40px; border-radius: calc(var(--radius) - 2px); box-shadow: 0 1px 2px hsl(222 47% 11% / .04); }
+.panel, .settings-card, .controls-panel:has(.advanced-settings:not([open])) .advanced-settings > summary {
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, hsl(var(--card) / .92), hsl(var(--card) / .78));
+  border: 1px solid hsl(var(--border-token) / .78);
+  box-shadow: 0 20px 55px hsl(222 47% 11% / .08), 0 1px 2px hsl(222 47% 11% / .06);
+  backdrop-filter: blur(18px);
+}
+.top-settings { background: linear-gradient(135deg, hsl(var(--card) / .88), hsl(var(--primary) / .06)); }
+.settings-card { box-shadow: inset 0 1px 0 hsl(0 0% 100% / .45); }
+h2 { font-size: 1rem; letter-spacing: -0.03em; }
+h3 { letter-spacing: -0.02em; }
+select, .advanced-settings-search, .rich-editor { border-color: hsl(var(--input)); background: var(--editor-bg); }
+.rich-editor { border-radius: calc(var(--radius) + 2px); box-shadow: inset 0 1px 2px hsl(222 47% 11% / .05); }
+.primary-button { border-color: transparent; background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent-token))); box-shadow: 0 10px 24px hsl(var(--primary) / .28); font-weight: 800; }
+.ghost-button, .site-nav a, .pill-toggle { background: hsl(var(--card) / .72); color: var(--ink); }
+button:hover, .site-nav a:hover, .pill-toggle:hover { transform: translateY(-1px); filter: none; }
+.workflow-list li, .test-result, .user-test-results li { border-color: hsl(var(--border-token) / .74); background: hsl(var(--card) / .62); box-shadow: inset 0 1px 0 hsl(0 0% 100% / .34); }
+.step-number { background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent-token))); box-shadow: 0 8px 20px hsl(var(--primary) / .26); }
+.control-stack label { border-radius: calc(var(--radius) - 4px); background: hsl(var(--card) / .72); transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+.control-stack label:hover { transform: translateY(-1px); background: hsl(var(--primary) / .06); }
+.control-stack label:has(input:checked), .pill-toggle:has(input:checked) { color: hsl(var(--primary)); background: hsl(var(--primary) / .12); border-color: hsl(var(--primary) / .35); box-shadow: inset 0 0 0 1px hsl(var(--primary) / .08); }
+:root[data-theme="dark"] .control-stack label:has(input:checked), :root[data-theme="dark"] .pill-toggle:has(input:checked) { color: hsl(214 100% 82%); background: hsl(var(--primary) / .18); border-color: hsl(var(--primary) / .42); }
+.stats-list li { border-bottom-color: hsl(var(--border-token) / .72); }
+.char-change { border-radius: 6px; }
+.source-change { background: hsl(0 84% 60% / .12); border-color: hsl(0 84% 60% / .36); color: hsl(0 72% 42%); }
+.site-footer { padding-bottom: 42px; }
+@media (min-width: 1161px) { .how-panel { grid-column: span 1; } .top-settings { grid-column: span 1; } }
