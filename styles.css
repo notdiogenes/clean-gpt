@@ -116,46 +116,8 @@ h3 {
 .input-actions { justify-content: flex-start; }
 .output-actions { justify-content: flex-end; }
 
-.editor-panel textarea {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  resize: none;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  background: #fffefb;
-  color: var(--ink);
-  font-size: 0.95rem;
-  line-height: 1.55;
-}
 
-#inputText {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-}
-
-#outputText.gmail-compose {
-  font-family: Verdana, Geneva, sans-serif;
-  font-size: 10pt;
-  line-height: normal;
-  letter-spacing: normal;
-}
-
-#outputText.document-output {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 12pt;
-  line-height: 1.45;
-}
-
-#outputText.plain-output,
-#outputText.strict-output {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.92rem;
-  line-height: 1.55;
-}
-
-textarea:focus, button:focus, select:focus, a:focus, summary:focus {
+button:focus, select:focus, a:focus, summary:focus, .rich-editor:focus {
   outline: 3px solid color-mix(in srgb, var(--focus), transparent 70%);
   outline-offset: 2px;
 }
@@ -236,6 +198,39 @@ select {
   color: var(--muted);
   font-size: 0.86rem;
   line-height: 1.4;
+}
+
+
+.gmail-style-controls {
+  margin: 12px 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfaf6;
+}
+
+.gmail-style-controls[hidden] { display: none; }
+
+.control-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.control-grid.two-up {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.control-grid label span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.compact-note {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
 }
 
 details {
@@ -355,8 +350,8 @@ button, select, textarea, .rich-editor { font: inherit; }
 }
 
 .destination-output.gmail-compose {
-  font-family: Verdana, Geneva, sans-serif;
-  font-size: 10pt;
+  font-family: var(--gmail-font-family, Verdana, Geneva, sans-serif);
+  font-size: var(--gmail-font-size, 10pt);
   line-height: normal;
   letter-spacing: normal;
 }
@@ -368,7 +363,8 @@ button, select, textarea, .rich-editor { font: inherit; }
 }
 
 .destination-output.plain-output,
-.destination-output.strict-output {
+.destination-output.strict-output,
+.destination-output.markdown-output {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 0.92rem;
   line-height: 1.55;
@@ -435,15 +431,15 @@ button, select, textarea, .rich-editor { font: inherit; }
 }
 
 .destination-output.gmail-compose {
-  font-family: Verdana, Geneva, sans-serif;
-  font-size: 10pt;
+  font-family: var(--gmail-font-family, Verdana, Geneva, sans-serif);
+  font-size: var(--gmail-font-size, 10pt);
   line-height: normal;
 }
 
 .destination-output.gmail-compose .gmail_default,
 .destination-output.gmail-compose .gmail-line {
-  font-family: verdana, sans-serif;
-  font-size: 10pt;
+  font-family: var(--gmail-font-family, verdana, sans-serif);
+  font-size: var(--gmail-font-size, 10pt);
   line-height: normal;
   margin: 0;
   min-height: 1.2em;
@@ -455,12 +451,14 @@ button, select, textarea, .rich-editor { font: inherit; }
 }
 
 .destination-output.plain-output .editor-paragraph,
-.destination-output.strict-output .editor-paragraph {
+.destination-output.strict-output .editor-paragraph,
+.destination-output.markdown-output .editor-paragraph {
   margin: 0;
   white-space: pre-wrap;
 }
 
 .destination-output.plain-output .editor-blank,
-.destination-output.strict-output .editor-blank {
+.destination-output.strict-output .editor-blank,
+.destination-output.markdown-output .editor-blank {
   min-height: 1.55em;
 }

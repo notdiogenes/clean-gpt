@@ -1,6 +1,6 @@
 # Copy Sanitizer
 
-A static GitHub Pages app for cleaning copied text and preparing it for a target destination such as Gmail, Google Docs, Microsoft Word, forms, or strict ASCII workflows.
+A static GitHub Pages app for cleaning copied text and preparing it for a target destination such as Gmail, Google Docs, Microsoft Word, Markdown/chat, Outlook, CMS/forms, code comments, or strict ASCII workflows.
 
 The app runs fully in the browser. It does not send text to a server.
 
@@ -39,7 +39,7 @@ The visible preview is not a raw-code view. The primary copy button writes the s
 
 ### Gmail
 
-Visible output uses keyboard-safe punctuation:
+Visible output uses keyboard-safe punctuation and the locally saved Gmail compose-style font/size preset:
 
 - straight quotes
 - straight apostrophes
@@ -47,10 +47,10 @@ Visible output uses keyboard-safe punctuation:
 - `...` instead of Unicode ellipsis
 - normal spaces only
 
-Primary copy writes Gmail-shaped `text/html`:
+Primary copy writes Gmail-shaped `text/html` using the selected Gmail font and size preset:
 
 ```html
-<div><div class="gmail_default" style="font-family: verdana, sans-serif;">Paragraph one</div><div class="gmail_default" style="font-family: verdana, sans-serif;"><br></div><div class="gmail_default" style="font-family: verdana, sans-serif;">Paragraph two<br></div><br clear="all"></div>
+<div><div class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;">Paragraph one</div><div class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;"><br></div><div class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;">Paragraph two<br></div><br clear="all"></div>
 ```
 
 The app does not intentionally insert zero-width spaces, spans, font tags, color styles, background-color styles, line-height styles, or extra wrappers.
@@ -58,10 +58,15 @@ The app does not intentionally insert zero-width spaces, spans, font tags, color
 Detected lists are preserved for Gmail as semantic list HTML by default:
 
 ```html
-<ul style="font-family: verdana, sans-serif;"><li class="gmail_default" style="font-family: verdana, sans-serif;">First item</li><li class="gmail_default" style="font-family: verdana, sans-serif;">Second item</li></ul>
+<ul style="font-family: arial, sans-serif; font-size: 13px;"><li class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;">First item</li><li class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;">Second item</li></ul>
 ```
 
-An advanced option can flatten Gmail lists to plain hyphen lines when a deliberately plain fallback is needed.
+An advanced option can flatten Gmail lists to plain hyphen lines when a deliberately plain fallback is needed. The Gmail font and size controls mirror Gmail compose presets, are saved locally, and are applied to both the preview and copied HTML.
+
+Gmail style controls use Gmail-like compose presets:
+
+- fonts: Sans Serif, Serif, Fixed Width, Wide, Narrow, Comic Sans MS, Garamond, Georgia, Tahoma, Trebuchet MS, Verdana
+- sizes: Small, Normal, Large, Huge
 
 ### Google Docs
 
@@ -96,7 +101,7 @@ The app detects list structure during paste:
 
 1. If clipboard HTML contains `<ul>`, `<ol>`, or `<li>`, it stores list structure in the internal document model.
 2. If only plain text is available, it detects lines beginning with markers such as `*`, `-`, `•`, and numbered items such as `1.`.
-3. Each destination decides how lists are rendered and copied. Gmail, Google Docs, and Microsoft Word preserve semantic lists by default; Plain text and Strict ASCII flatten them to plain text.
+3. Each destination decides how lists are rendered and copied. Gmail, Google Docs, Microsoft Word, and Outlook preserve semantic lists by default; Markdown/chat, CMS, code comments, Plain text, and Strict ASCII flatten them to plain text.
 
 This replaces the old blanket rule of converting bullet characters to hyphens.
 
@@ -136,6 +141,7 @@ The Inspector reports:
 - detected list count
 - detected list-item count
 - primary copy formats for the selected destination
+- browser Clipboard API compatibility
 
 ## Deployment
 
