@@ -5,7 +5,7 @@ test('loads and switches destination profiles', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Copy Sanitizer' })).toBeVisible();
   await page.locator('#inputEditor').fill('Hello — world');
   await page.locator('#destinationSelect').selectOption('markdown');
-  await expect(page.locator('#destinationCopyButton')).toHaveText('Copy Markdown');
+  await expect(page.locator('#destinationCopyButton')).toHaveText('Copy text');
   await expect(page.locator('#outputEditor')).toContainText('Hello -- world');
 });
 
@@ -45,19 +45,9 @@ test('persists Gmail Verdana style distinctly from Wide', async ({ page }) => {
   await expect(page.locator('#destinationFontSelect option:checked')).toHaveText('Verdana');
 });
 
-test('shows invisible characters in input and output previews', async ({ page }) => {
+test('removes the show invisible characters input option', async ({ page }) => {
   await page.goto('/');
-  const sample = 'A\u00a0B\u200bC\u00adD';
-  await page.locator('#inputEditor').fill(sample);
-  await page.locator('[data-option="removeHidden"]').uncheck();
-  await page.locator('[data-option="normalizeSpaces"]').uncheck();
-  await page.getByLabel('Show invisible characters').check();
-
-  await expect(page.locator('#inputEditor')).toContainText('A⍽B[ZWSP]C[SHY]D');
-  await expect(page.locator('#outputEditor')).toContainText('A⍽B[ZWSP]C[SHY]D');
-
-  await page.getByLabel('Show invisible characters').uncheck();
-  await expect(page.locator('#inputEditor')).toContainText(sample);
+  await expect(page.getByLabel('Show invisible characters')).toHaveCount(0);
 });
 
 
@@ -80,7 +70,7 @@ test('links to tests and debugging page with runnable checks', async ({ page }) 
   await page.getByRole('link', { name: 'Tests & debugging' }).click();
   await expect(page).toHaveURL(/\/tests\.html$/);
   await expect(page.getByRole('heading', { name: 'Tests and Debugging' })).toBeVisible();
-  await expect(page.locator('#testSummary')).toHaveText(/7\/7 tests passing/);
+  await expect(page.locator('#testSummary')).toHaveText(/11\/11 tests passing/);
   await expect(page.locator('#debugDiagnostics')).toContainText('Clipboard API:');
 
   await page.getByRole('button', { name: 'Run tests' }).click();
