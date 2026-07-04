@@ -105,23 +105,12 @@ h3 {
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
 }
 
-.panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
+.panel-heading {
+  min-height: 74px;
+  margin-bottom: 12px;
 }
 
-.editor-panel > .panel-header {
-  min-height: 96px;
-}
-
-.output-header {
-  margin-bottom: 20px;
-}
-
-.panel-header h2 {
+.panel-heading h2 {
   margin-bottom: 0;
 }
 
@@ -133,18 +122,21 @@ h3 {
   max-width: 520px;
 }
 
-.button-row {
+.editor-actions {
+  min-height: 44px;
   display: flex;
+  align-items: flex-start;
   gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
+  margin-bottom: 16px;
+}
+
+.input-actions,
+.output-actions {
+  justify-content: flex-end;
 }
 
 .output-actions {
-  justify-content: flex-end;
-  align-self: flex-start;
-  margin: 0;
-  padding-top: 2px;
+  flex-wrap: wrap;
 }
 
 .primary-button,
@@ -381,14 +373,15 @@ input[type="checkbox"] {
     grid-template-columns: 1fr;
   }
 
-  .panel-header {
-    flex-direction: column;
-  }
-
-  .editor-panel > .panel-header {
+  .panel-heading {
     min-height: 0;
   }
 
+  .editor-actions {
+    min-height: 0;
+  }
+
+  .input-actions,
   .output-actions {
     justify-content: flex-start;
   }

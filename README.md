@@ -70,12 +70,13 @@ Default strict conversions include:
 
 The editor area is intentionally uniform:
 
-- the input and output textareas sit side by side with matched header spacing
+- the input and output textareas sit side by side with matched heading rows and matched action rows
+- input actions and output copy actions are separated from the title/description area so buttons do not change textarea alignment
 - destination selection lives in the Character Policy rail, not above the output textarea
 - the destination help text has reserved space so changing profiles does not shift the editor layout
 - all Character Policy sections are expanded by default, including Compatibility Cleanup and Strict ASCII
 
-The output textarea always shows the exact visible text for the selected destination. The primary copy button may use a richer clipboard payload when the destination requires it, such as Gmail HTML.
+The output textarea always shows the exact visible text for the selected destination. The primary copy button may use a richer clipboard payload when the destination requires it, such as Gmail HTML. The secondary copy button copies the visible textarea text as literal `text/plain`.
 
 ## Character policy categories
 

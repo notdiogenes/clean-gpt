@@ -17,26 +17,24 @@
 
   <main class="app-shell">
     <section class="panel editor-panel" aria-labelledby="inputLabel">
-      <div class="panel-header">
-        <div>
-          <h2 id="inputLabel">Original text</h2>
-          <p class="panel-subtitle">Paste anything here. The cleaner works from text only and reports every character class it changes.</p>
-        </div>
+      <div class="panel-heading">
+        <h2 id="inputLabel">Original text</h2>
+        <p class="panel-subtitle">Paste text here. The cleaner works from text only and reports every character class it changes.</p>
+      </div>
+      <div class="editor-actions input-actions" aria-label="Input actions">
         <button id="clearButton" type="button" class="ghost-button">Clear</button>
       </div>
       <textarea id="inputText" spellcheck="true" placeholder="Paste text here..."></textarea>
     </section>
 
     <section class="panel editor-panel output-panel" aria-labelledby="outputLabel">
-      <div class="panel-header output-header">
-        <div>
-          <h2 id="outputLabel">Destination output</h2>
-          <p class="panel-subtitle">The textarea shows the visible characters for the selected destination. Use the copy buttons to choose destination-specific or literal textarea output.</p>
-        </div>
-        <div class="button-row output-actions" aria-label="Copy actions">
-          <button id="destinationCopyButton" type="button" class="primary-button">Copy for Gmail</button>
-          <button id="copyVisibleButton" type="button" class="ghost-button">Copy textarea text</button>
-        </div>
+      <div class="panel-heading">
+        <h2 id="outputLabel">Destination output</h2>
+        <p class="panel-subtitle">Choose a destination profile, then copy with destination-specific formatting or as visible text.</p>
+      </div>
+      <div class="editor-actions output-actions" aria-label="Copy actions">
+        <button id="destinationCopyButton" type="button" class="primary-button">Copy for Gmail</button>
+        <button id="copyVisibleButton" type="button" class="ghost-button">Copy visible text</button>
       </div>
 
       <textarea id="outputText" class="destination-output" readonly spellcheck="false" aria-label="Destination-ready output" placeholder="Sanitized output appears here..."></textarea>

@@ -1063,7 +1063,7 @@
 
     copyVisible.addEventListener("click", async () => {
       await copyPlain(output.value);
-      setStatus("Copied textarea text as text/plain.");
+      setStatus("Copied visible text as text/plain.");
     });
 
     copyDestination.addEventListener("click", async () => {
