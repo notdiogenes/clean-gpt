@@ -3,22 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Plain Text Sanitizer</title>
+  <title>Destination Copy Sanitizer</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="site-header">
     <div>
-      <p class="eyebrow">Static copy/paste cleanup tool</p>
-      <h1>Plain Text Sanitizer</h1>
-      <p class="lede">Paste text, clean the source artifacts, choose a destination, then copy output shaped for that destination.</p>
+      <p class="eyebrow">Destination-aware copy cleanup</p>
+      <h1>Copy Sanitizer</h1>
+      <p class="lede">Paste a draft, strip hidden/source artifacts, choose where it will be pasted, then copy text shaped for that destination.</p>
     </div>
   </header>
 
   <main class="app-shell">
     <section class="panel editor-panel" aria-labelledby="inputLabel">
       <div class="panel-header">
-        <h2 id="inputLabel">Original text</h2>
+        <div>
+          <h2 id="inputLabel">Original text</h2>
+          <p class="panel-subtitle">Paste anything here. The cleaner works from text only and reports every character class it changes.</p>
+        </div>
         <button id="clearButton" type="button" class="ghost-button">Clear</button>
       </div>
       <textarea id="inputText" spellcheck="true" placeholder="Paste text here..."></textarea>
@@ -28,11 +31,7 @@
       <div class="panel-header output-header">
         <div>
           <h2 id="outputLabel">Destination output</h2>
-          <p class="panel-subtitle">The textarea shows the exact characters that will be copied for the selected destination.</p>
-        </div>
-        <div class="button-row">
-          <button id="copyButton" type="button" class="ghost-button">Copy visible text</button>
-          <button id="destinationCopyButton" type="button" class="primary-button">Copy for Gmail</button>
+          <p class="panel-subtitle">The textarea shows the visible characters for the selected destination. The primary copy button may use a destination-specific clipboard payload.</p>
         </div>
       </div>
 
@@ -43,61 +42,106 @@
           <option value="googleDocs">Google Docs</option>
           <option value="word">Microsoft Word</option>
           <option value="plain">Plain text / forms</option>
+          <option value="strictAscii">Strict ASCII</option>
         </select>
         <p id="destinationNote" class="destination-note"></p>
       </div>
 
-      <textarea id="outputText" class="destination-output" readonly spellcheck="false" aria-label="Destination-ready output" placeholder="Sanitized output appears here..."></textarea>
+      <div class="button-row output-actions" aria-label="Copy actions">
+        <button id="destinationCopyButton" type="button" class="primary-button">Copy for Gmail</button>
+        <button id="copyVisibleButton" type="button" class="ghost-button">Copy textarea text</button>
+      </div>
 
-      <p class="preview-note">Gmail uses a Gmail-shaped HTML clipboard payload. Google Docs, Word, and Plain text copy the visible textarea text as text/plain so the target app can apply its own current style.</p>
+      <textarea id="outputText" class="destination-output" readonly spellcheck="false" aria-label="Destination-ready output" placeholder="Sanitized output appears here..."></textarea>
       <p id="status" class="status" aria-live="polite"></p>
     </section>
 
-    <aside class="panel controls-panel" aria-labelledby="controlsLabel">
-      <h2 id="controlsLabel">Cleanup controls</h2>
+    <aside class="side-rail">
+      <section class="panel controls-panel" aria-labelledby="controlsLabel">
+        <h2 id="controlsLabel">Character policy</h2>
 
-      <label class="field-label" for="presetSelect">Base cleanup preset</label>
-      <select id="presetSelect">
-        <option value="gmailSafe">Gmail Safe</option>
-        <option value="strictPlainText">Strict Plain Text</option>
-        <option value="lightCleanup">Light Cleanup</option>
-      </select>
+        <label class="field-label" for="presetSelect">Cleanup preset</label>
+        <select id="presetSelect">
+          <option value="standard">Comprehensive cleanup</option>
+          <option value="lightCleanup">Light cleanup</option>
+          <option value="strictPlainText">Strict plain text</option>
+        </select>
 
-      <fieldset>
-        <legend>Cleanup rules</legend>
-        <label><input type="checkbox" data-option="removeHidden"> Remove hidden characters</label>
-        <label><input type="checkbox" data-option="normalizeLineEndings"> Normalize line endings</label>
-        <label><input type="checkbox" data-option="normalizeSpaces"> Normalize unusual spaces</label>
-        <label><input type="checkbox" data-option="trimTrailingSpaces"> Trim trailing spaces</label>
-        <label><input type="checkbox" data-option="limitBlankLines"> Limit extra blank lines</label>
-        <label><input type="checkbox" data-option="normalizeQuotes"> Normalize source quotes and apostrophes</label>
-        <label><input type="checkbox" data-option="normalizeDashes"> Normalize source dashes</label>
-        <label><input type="checkbox" data-option="normalizeEllipsis"> Normalize source ellipses</label>
-        <label><input type="checkbox" data-option="convertBullets"> Convert line bullets to hyphens</label>
-        <label><input type="checkbox" data-option="collapseRepeatedSpaces"> Collapse repeated spaces</label>
-        <label><input type="checkbox" data-option="convertTabs"> Convert tabs to spaces</label>
-        <label><input type="checkbox" data-option="removeEmoji"> Remove emoji and pictographic symbols</label>
-        <label><input type="checkbox" data-option="strictAscii"> Strict ASCII only</label>
-      </fieldset>
+        <details open>
+          <summary>Source cleanup</summary>
+          <div class="control-stack">
+            <label><input type="checkbox" data-option="removeHidden"> Remove hidden and directional characters</label>
+            <label><input type="checkbox" data-option="normalizeLineEndings"> Normalize line endings</label>
+            <label><input type="checkbox" data-option="normalizeSeparators"> Normalize Unicode line/paragraph separators</label>
+            <label><input type="checkbox" data-option="normalizeSpaces"> Normalize unusual spaces</label>
+            <label><input type="checkbox" data-option="trimTrailingSpaces"> Trim trailing spaces</label>
+            <label><input type="checkbox" data-option="limitBlankLines"> Limit extra blank lines</label>
+            <label><input type="checkbox" data-option="collapseRepeatedSpaces"> Collapse repeated spaces</label>
+            <label><input type="checkbox" data-option="convertTabs"> Convert tabs to spaces</label>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Punctuation cleanup</summary>
+          <div class="control-stack">
+            <label><input type="checkbox" data-option="normalizeQuotes"> Normalize quote-like characters</label>
+            <label><input type="checkbox" data-option="preservePrimeMarks"> Preserve prime marks in measurements</label>
+            <label><input type="checkbox" data-option="normalizeDashes"> Normalize dash variants</label>
+            <label><input type="checkbox" data-option="normalizeEllipsis"> Normalize ellipsis and dot leaders</label>
+            <label><input type="checkbox" data-option="convertBullets"> Convert line bullets to hyphens</label>
+          </div>
+        </details>
+
+        <details>
+          <summary>Compatibility cleanup</summary>
+          <div class="control-stack">
+            <label><input type="checkbox" data-option="normalizeFullwidth"> Normalize fullwidth ASCII forms</label>
+            <label><input type="checkbox" data-option="expandLigatures"> Expand ligatures</label>
+            <label><input type="checkbox" data-option="normalizeFractions"> Convert single-character fractions to text</label>
+            <label><input type="checkbox" data-option="normalizeSuperscriptsSubscripts"> Flatten superscripts and subscripts</label>
+            <label><input type="checkbox" data-option="removeEmoji"> Remove emoji and pictographic symbols</label>
+          </div>
+        </details>
+
+        <details open>
+          <summary>Destination typography</summary>
+          <div class="control-stack">
+            <label><input type="checkbox" data-option="smartQuotes"> Use smart quotes for document destinations</label>
+            <label><input type="checkbox" data-option="smartDashes"> Use typographic dashes for document destinations</label>
+            <label><input type="checkbox" data-option="numericRangesToEnDash"> Convert numeric ranges to en dash</label>
+            <label><input type="checkbox" data-option="smartEllipsis"> Use ellipsis character for document destinations</label>
+            <label><input type="checkbox" data-option="smartFractions"> Convert common typed fractions for document destinations</label>
+          </div>
+        </details>
+
+        <details>
+          <summary>Strict ASCII</summary>
+          <div class="control-stack">
+            <label><input type="checkbox" data-option="strictAscii"> Strict ASCII output</label>
+            <label><input type="checkbox" data-option="foldAccents"> Fold accented letters in strict mode</label>
+            <label><input type="checkbox" data-option="replaceSymbolsAscii"> Replace common symbols in strict mode</label>
+          </div>
+        </details>
+      </section>
+
+      <section class="panel inspector-panel" aria-labelledby="statsLabel">
+        <h2 id="statsLabel">Inspector</h2>
+        <ul id="statsList" class="stats-list"></ul>
+
+        <h3>Changes made</h3>
+        <ul id="changesList" class="plain-list compact changes-list"></ul>
+
+        <h3>Warnings</h3>
+        <ul id="warningsList" class="plain-list"></ul>
+
+        <h3>Remaining non-ASCII characters</h3>
+        <ul id="nonAsciiList" class="plain-list compact"></ul>
+      </section>
     </aside>
-
-    <section class="panel inspector-panel" aria-labelledby="statsLabel">
-      <h2 id="statsLabel">Inspector</h2>
-      <ul id="statsList" class="stats-list"></ul>
-
-      <h3>Changes made</h3>
-      <ul id="changesList" class="plain-list compact changes-list"></ul>
-
-      <h3>Warnings</h3>
-      <ul id="warningsList" class="plain-list"></ul>
-
-      <h3>Remaining non-ASCII characters</h3>
-      <ul id="nonAsciiList" class="plain-list compact"></ul>
-    </section>
   </main>
 
   <footer class="site-footer">
-    <p>This app runs in the browser and has no build step.</p>
+    <p>Static GitHub Pages app. Text is processed locally in the browser.</p>
   </footer>
 
   <script src="app.js"></script>

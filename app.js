@@ -4,64 +4,120 @@
   const DEFAULT_OPTIONS = Object.freeze({
     removeHidden: true,
     normalizeLineEndings: true,
+    normalizeSeparators: true,
     normalizeSpaces: true,
     trimTrailingSpaces: true,
     limitBlankLines: true,
+    collapseRepeatedSpaces: false,
+    convertTabs: false,
+
     normalizeQuotes: true,
+    preservePrimeMarks: true,
     normalizeDashes: true,
     normalizeEllipsis: true,
     convertBullets: true,
-    collapseRepeatedSpaces: false,
-    convertTabs: false,
+
+    normalizeFullwidth: true,
+    expandLigatures: true,
+    normalizeFractions: false,
+    normalizeSuperscriptsSubscripts: false,
     removeEmoji: false,
-    strictAscii: false
+
+    smartQuotes: false,
+    smartDashes: false,
+    numericRangesToEnDash: false,
+    smartEllipsis: false,
+    smartFractions: false,
+
+    strictAscii: false,
+    foldAccents: true,
+    replaceSymbolsAscii: true
   });
 
   const PRESETS = Object.freeze({
-    gmailSafe: {
+    standard: {
       removeHidden: true,
       normalizeLineEndings: true,
+      normalizeSeparators: true,
       normalizeSpaces: true,
       trimTrailingSpaces: true,
       limitBlankLines: true,
-      normalizeQuotes: true,
-      normalizeDashes: true,
-      normalizeEllipsis: true,
-      convertBullets: true,
       collapseRepeatedSpaces: false,
       convertTabs: false,
-      removeEmoji: false,
-      strictAscii: false
-    },
-    strictPlainText: {
-      removeHidden: true,
-      normalizeLineEndings: true,
-      normalizeSpaces: true,
-      trimTrailingSpaces: true,
-      limitBlankLines: true,
       normalizeQuotes: true,
+      preservePrimeMarks: true,
       normalizeDashes: true,
       normalizeEllipsis: true,
       convertBullets: true,
-      collapseRepeatedSpaces: true,
-      convertTabs: true,
-      removeEmoji: true,
-      strictAscii: true
+      normalizeFullwidth: true,
+      expandLigatures: true,
+      normalizeFractions: false,
+      normalizeSuperscriptsSubscripts: false,
+      removeEmoji: false,
+      smartQuotes: false,
+      smartDashes: false,
+      numericRangesToEnDash: false,
+      smartEllipsis: false,
+      smartFractions: false,
+      strictAscii: false,
+      foldAccents: true,
+      replaceSymbolsAscii: true
     },
     lightCleanup: {
       removeHidden: true,
       normalizeLineEndings: true,
+      normalizeSeparators: true,
       normalizeSpaces: true,
       trimTrailingSpaces: true,
       limitBlankLines: false,
+      collapseRepeatedSpaces: false,
+      convertTabs: false,
       normalizeQuotes: false,
+      preservePrimeMarks: true,
       normalizeDashes: false,
       normalizeEllipsis: false,
       convertBullets: false,
-      collapseRepeatedSpaces: false,
-      convertTabs: false,
+      normalizeFullwidth: false,
+      expandLigatures: false,
+      normalizeFractions: false,
+      normalizeSuperscriptsSubscripts: false,
       removeEmoji: false,
-      strictAscii: false
+      smartQuotes: false,
+      smartDashes: false,
+      numericRangesToEnDash: false,
+      smartEllipsis: false,
+      smartFractions: false,
+      strictAscii: false,
+      foldAccents: true,
+      replaceSymbolsAscii: true
+    },
+    strictPlainText: {
+      removeHidden: true,
+      normalizeLineEndings: true,
+      normalizeSeparators: true,
+      normalizeSpaces: true,
+      trimTrailingSpaces: true,
+      limitBlankLines: true,
+      collapseRepeatedSpaces: true,
+      convertTabs: true,
+      normalizeQuotes: true,
+      preservePrimeMarks: false,
+      normalizeDashes: true,
+      normalizeEllipsis: true,
+      convertBullets: true,
+      normalizeFullwidth: true,
+      expandLigatures: true,
+      normalizeFractions: true,
+      normalizeSuperscriptsSubscripts: true,
+      removeEmoji: true,
+      smartQuotes: false,
+      smartDashes: false,
+      numericRangesToEnDash: false,
+      smartEllipsis: false,
+      smartFractions: false,
+      strictAscii: true,
+      foldAccents: true,
+      replaceSymbolsAscii: true
     }
   });
 
@@ -69,48 +125,186 @@
     gmail: {
       label: "Gmail",
       copyLabel: "Copy for Gmail",
-      typography: "keyboard",
       copyMode: "gmailHtml",
-      note: "Keeps keyboard quotes/apostrophes and copies Gmail-shaped Verdana HTML."
+      note: "Keyboard punctuation with Gmail-shaped Verdana HTML for paragraph/font behavior. No hidden characters are intentionally added.",
+      overrides: {
+        smartQuotes: false,
+        smartDashes: false,
+        numericRangesToEnDash: false,
+        smartEllipsis: false,
+        smartFractions: false,
+        strictAscii: false,
+        normalizeFractions: false,
+        normalizeSuperscriptsSubscripts: false
+      }
     },
     googleDocs: {
       label: "Google Docs",
       copyLabel: "Copy for Google Docs",
-      typography: "smartDocument",
       copyMode: "plain",
-      note: "Converts cleaned keyboard punctuation into smart document punctuation, then copies plain text so Docs can inherit the current document style."
+      note: "Document typography: smart quotes, em dashes, ellipses, and numeric en dashes. Copied as text/plain so Docs can inherit the current document style.",
+      overrides: {
+        smartQuotes: true,
+        smartDashes: true,
+        numericRangesToEnDash: true,
+        smartEllipsis: true,
+        smartFractions: false,
+        strictAscii: false
+      }
     },
     word: {
       label: "Microsoft Word",
       copyLabel: "Copy for Word",
-      typography: "smartDocument",
       copyMode: "plain",
-      note: "Converts cleaned keyboard punctuation into smart document punctuation, then copies plain text so Word can inherit the current document style."
+      note: "Document typography: smart quotes, em dashes, ellipses, and numeric en dashes. Copied as text/plain so Word can inherit the current document style.",
+      overrides: {
+        smartQuotes: true,
+        smartDashes: true,
+        numericRangesToEnDash: true,
+        smartEllipsis: true,
+        smartFractions: false,
+        strictAscii: false
+      }
     },
     plain: {
       label: "Plain text / forms",
       copyLabel: "Copy plain text",
-      typography: "keyboard",
       copyMode: "plain",
-      note: "Keeps keyboard-safe punctuation and copies only text/plain."
+      note: "Keyboard-safe punctuation, normalized spacing, and text/plain clipboard output for forms, CMS fields, terminals, and generic editors.",
+      overrides: {
+        smartQuotes: false,
+        smartDashes: false,
+        numericRangesToEnDash: false,
+        smartEllipsis: false,
+        smartFractions: false,
+        strictAscii: false
+      }
+    },
+    strictAscii: {
+      label: "Strict ASCII",
+      copyLabel: "Copy strict ASCII",
+      copyMode: "plain",
+      note: "Aggressive ASCII output: no smart punctuation, hidden characters, emoji, accents, ligatures, single-character fractions, or typographic symbols.",
+      overrides: {
+        smartQuotes: false,
+        smartDashes: false,
+        numericRangesToEnDash: false,
+        smartEllipsis: false,
+        smartFractions: false,
+        strictAscii: true,
+        foldAccents: true,
+        replaceSymbolsAscii: true,
+        removeEmoji: true,
+        normalizeFractions: true,
+        normalizeSuperscriptsSubscripts: true,
+        preservePrimeMarks: false
+      }
     }
   });
 
-  const RULES = Object.freeze({
+  const REGEX = Object.freeze({
     hiddenChars: /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFE00-\uFE0F\uFEFF\uFFF9-\uFFFB]|[\u{E0000}-\u{E007F}]/gu,
-    unusualSpaces: /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g,
-    // Quote targets intentionally match plain keyboard characters:
-    // double quote U+0022 and apostrophe U+0027.
-    quoteLikeSingle: /[\u2018\u2019\u201A\u201B\u2032\u2035\u02BC\u02BB\u02BD\u055A\u275B\u275C\uFF07]/g,
-    quoteLikeDouble: /[\u201C\u201D\u201E\u201F\u2033\u2036\u275D\u275E\u301D\u301E\u301F\u00AB\u00BB\uFF02]/g,
-    emDashLikeWithSurroundingSpaces: /[ \t]*[\u2014\u2015][ \t]*/g,
-    emDashLike: /[\u2014\u2015]/g,
-    enDashLike: /[\u2010\u2011\u2012\u2013\u2212]/g,
-    ellipsis: /\u2026/g,
-    bulletsAtLineStart: /^(\s*)([\u2022\u2023\u25E6\u2043\u2219])\s+/gm,
+    unicodeSeparators: /\u2028|\u2029/g,
+    unusualSpaces: /[\u00A0\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]/g,
     emoji: /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/gu,
     combiningMarks: /[\u0300-\u036f]/g,
     nonAscii: /[^\x00-\x7F]/g
+  });
+
+  const SINGLE_QUOTE_LIKE = new Set(Array.from("‘’‚‛‹›′‵ʹʼʻˈ＇´`ʽ՚❛❜"));
+  const DOUBLE_QUOTE_LIKE = new Set(Array.from("“”„‟«»″‶〝〞〟＂❝❞"));
+  const PRIME_MARKS = new Set(Array.from("′″‴‵‶‷"));
+  const EM_DASH_LIKE = new Set(Array.from("—―"));
+  const EN_DASH_LIKE = new Set(Array.from("‐‑‒–−﹘﹣－"));
+  const DOT_LEADER_MAP = Object.freeze({ "…": "...", "․": ".", "‥": ".." });
+
+  const FULLWIDTH_EXTRA_MAP = Object.freeze({
+    "　": " "
+  });
+
+  const LIGATURE_MAP = Object.freeze({
+    "ﬀ": "ff",
+    "ﬁ": "fi",
+    "ﬂ": "fl",
+    "ﬃ": "ffi",
+    "ﬄ": "ffl",
+    "ﬅ": "st",
+    "ﬆ": "st"
+  });
+
+  const FRACTION_TO_ASCII = Object.freeze({
+    "¼": "1/4",
+    "½": "1/2",
+    "¾": "3/4",
+    "⅐": "1/7",
+    "⅑": "1/9",
+    "⅒": "1/10",
+    "⅓": "1/3",
+    "⅔": "2/3",
+    "⅕": "1/5",
+    "⅖": "2/5",
+    "⅗": "3/5",
+    "⅘": "4/5",
+    "⅙": "1/6",
+    "⅚": "5/6",
+    "⅛": "1/8",
+    "⅜": "3/8",
+    "⅝": "5/8",
+    "⅞": "7/8"
+  });
+
+  const ASCII_TO_FRACTION = Object.freeze({
+    "1/4": "¼",
+    "1/2": "½",
+    "3/4": "¾",
+    "1/3": "⅓",
+    "2/3": "⅔",
+    "1/5": "⅕",
+    "2/5": "⅖",
+    "3/5": "⅗",
+    "4/5": "⅘",
+    "1/6": "⅙",
+    "5/6": "⅚",
+    "1/8": "⅛",
+    "3/8": "⅜",
+    "5/8": "⅝",
+    "7/8": "⅞"
+  });
+
+  const SUPER_SUB_MAP = Object.freeze({
+    "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+    "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9",
+    "⁺": "+", "⁻": "-", "⁼": "=", "⁽": "(", "⁾": ")", "ⁿ": "n", "ⁱ": "i",
+    "₊": "+", "₋": "-", "₌": "=", "₍": "(", "₎": ")", "ₐ": "a", "ₑ": "e", "ₕ": "h", "ᵢ": "i", "ⱼ": "j", "ₖ": "k", "ₗ": "l", "ₘ": "m", "ₙ": "n", "ₒ": "o", "ₚ": "p", "ᵣ": "r", "ₛ": "s", "ₜ": "t", "ᵤ": "u", "ᵥ": "v", "ₓ": "x"
+  });
+
+  const SYMBOL_ASCII_MAP = Object.freeze({
+    "©": "(c)",
+    "®": "(R)",
+    "™": "TM",
+    "℠": "SM",
+    "№": "No.",
+    "§": "Section",
+    "¶": "Paragraph",
+    "†": "*",
+    "‡": "**",
+    "•": "-",
+    "‣": "-",
+    "◦": "-",
+    "⁃": "-",
+    "‰": " per mille",
+    "‱": " per ten thousand",
+    "°": " degrees",
+    "×": "x",
+    "÷": "/",
+    "±": "+/-",
+    "≤": "<=",
+    "≥": ">=",
+    "≠": "!=",
+    "≈": "~",
+    "→": "->",
+    "←": "<-",
+    "↔": "<->"
   });
 
   const CODE_POINT_NAMES = Object.freeze({
@@ -118,14 +312,25 @@
     "U+000A": "LINE FEED",
     "U+000D": "CARRIAGE RETURN",
     "U+0020": "SPACE",
+    "U+0021": "EXCLAMATION MARK",
     "U+0022": "QUOTATION MARK",
     "U+0027": "APOSTROPHE",
+    "U+0028": "LEFT PARENTHESIS",
+    "U+0029": "RIGHT PARENTHESIS",
     "U+002D": "HYPHEN-MINUS",
     "U+002E": "FULL STOP",
+    "U+002F": "SOLIDUS",
     "U+00A0": "NO-BREAK SPACE",
+    "U+00A9": "COPYRIGHT SIGN",
     "U+00AB": "LEFT-POINTING DOUBLE ANGLE QUOTATION MARK",
     "U+00AD": "SOFT HYPHEN",
+    "U+00AE": "REGISTERED SIGN",
+    "U+00B0": "DEGREE SIGN",
+    "U+00B4": "ACUTE ACCENT",
     "U+00BB": "RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK",
+    "U+00BC": "VULGAR FRACTION ONE QUARTER",
+    "U+00BD": "VULGAR FRACTION ONE HALF",
+    "U+00BE": "VULGAR FRACTION THREE QUARTERS",
     "U+034F": "COMBINING GRAPHEME JOINER",
     "U+061C": "ARABIC LETTER MARK",
     "U+1680": "OGHAM SPACE MARK",
@@ -165,17 +370,25 @@
     "U+201F": "DOUBLE HIGH-REVERSED-9 QUOTATION MARK",
     "U+2022": "BULLET",
     "U+2023": "TRIANGULAR BULLET",
+    "U+2024": "ONE DOT LEADER",
+    "U+2025": "TWO DOT LEADER",
     "U+2026": "HORIZONTAL ELLIPSIS",
+    "U+2028": "LINE SEPARATOR",
+    "U+2029": "PARAGRAPH SEPARATOR",
     "U+202A": "LEFT-TO-RIGHT EMBEDDING",
     "U+202B": "RIGHT-TO-LEFT EMBEDDING",
     "U+202C": "POP DIRECTIONAL FORMATTING",
     "U+202D": "LEFT-TO-RIGHT OVERRIDE",
     "U+202E": "RIGHT-TO-LEFT OVERRIDE",
     "U+202F": "NARROW NO-BREAK SPACE",
+    "U+2030": "PER MILLE SIGN",
+    "U+2031": "PER TEN THOUSAND SIGN",
     "U+2032": "PRIME",
     "U+2033": "DOUBLE PRIME",
+    "U+2034": "TRIPLE PRIME",
     "U+2035": "REVERSED PRIME",
     "U+2036": "REVERSED DOUBLE PRIME",
+    "U+2037": "REVERSED TRIPLE PRIME",
     "U+2043": "HYPHEN BULLET",
     "U+205F": "MEDIUM MATHEMATICAL SPACE",
     "U+2060": "WORD JOINER",
@@ -183,6 +396,9 @@
     "U+2062": "INVISIBLE TIMES",
     "U+2063": "INVISIBLE SEPARATOR",
     "U+2064": "INVISIBLE PLUS",
+    "U+2122": "TRADE MARK SIGN",
+    "U+2100": "ACCOUNT OF",
+    "U+2116": "NUMERO SIGN",
     "U+2212": "MINUS SIGN",
     "U+2219": "BULLET OPERATOR",
     "U+25E6": "WHITE BULLET",
@@ -194,841 +410,684 @@
     "U+301D": "REVERSED DOUBLE PRIME QUOTATION MARK",
     "U+301E": "DOUBLE PRIME QUOTATION MARK",
     "U+301F": "LOW DOUBLE PRIME QUOTATION MARK",
+    "U+FB00": "LATIN SMALL LIGATURE FF",
+    "U+FB01": "LATIN SMALL LIGATURE FI",
+    "U+FB02": "LATIN SMALL LIGATURE FL",
+    "U+FB03": "LATIN SMALL LIGATURE FFI",
+    "U+FB04": "LATIN SMALL LIGATURE FFL",
+    "U+FB05": "LATIN SMALL LIGATURE LONG S T",
+    "U+FB06": "LATIN SMALL LIGATURE ST",
     "U+FE00": "VARIATION SELECTOR-1",
     "U+FE0F": "VARIATION SELECTOR-16",
     "U+FEFF": "ZERO WIDTH NO-BREAK SPACE",
     "U+FF02": "FULLWIDTH QUOTATION MARK",
-    "U+FF07": "FULLWIDTH APOSTROPHE"
+    "U+FF07": "FULLWIDTH APOSTROPHE",
+    "U+FF0D": "FULLWIDTH HYPHEN-MINUS"
   });
 
-  function makeStats() {
+  function cp(char) {
+    const value = char.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
+    return `U+${value}`;
+  }
+
+  function nameFor(char) {
+    return CODE_POINT_NAMES[cp(char)] || "UNKNOWN CHARACTER";
+  }
+
+  function charLabel(text) {
+    if (text === "") return "removed";
+    return Array.from(text).map(char => `${cp(char)} ${nameFor(char)}`).join(" + ");
+  }
+
+  function makeState() {
     return {
-      lineEndingReplacements: 0,
-      hiddenCharactersRemoved: 0,
-      unusualSpacesNormalized: 0,
-      tabsConverted: 0,
-      quoteReplacements: 0,
-      dashReplacements: 0,
-      ellipsisReplacements: 0,
-      bulletReplacements: 0,
-      trailingSpacesRemoved: 0,
-      blankLineRunsReduced: 0,
-      repeatedSpacesCollapsed: 0,
-      emojiRemoved: 0,
-      strictAsciiCharactersChanged: 0
+      changes: new Map(),
+      warnings: [],
+      stats: {
+        inputCharacters: 0,
+        outputCharacters: 0,
+        sourceChanges: 0,
+        destinationChanges: 0,
+        hiddenRemoved: 0,
+        spacesNormalized: 0,
+        punctuationChanged: 0,
+        strictChanged: 0,
+        remainingNonAscii: 0
+      }
     };
   }
 
-  function countMatches(text, regex) {
-    const flags = regex.flags.includes("g") ? regex.flags : regex.flags + "g";
-    const clone = new RegExp(regex.source, flags);
-    const matches = text.match(clone);
-    return matches ? matches.length : 0;
-  }
-
-  function replaceWithCount(text, regex, replacement, statName, stats, changeLabel, changes) {
-    const count = countMatches(text, regex);
-    if (count === 0) return text;
-    stats[statName] += count;
-    changes.push({ type: changeLabel, count });
-    return text.replace(regex, replacement);
-  }
-
-  function countTrailingSpaces(text) {
-    const matches = text.match(/[ \t]+$/gm);
-    if (!matches) return 0;
-    return matches.reduce((total, match) => total + match.length, 0);
-  }
-
-  function countBlankLineRuns(text) {
-    const matches = text.match(/\n{3,}/g);
-    return matches ? matches.length : 0;
-  }
-
-  function countRepeatedSpaceRuns(text) {
-    const matches = text.match(/ {2,}/g);
-    return matches ? matches.length : 0;
-  }
-
-  function cloneGlobalRegex(regex) {
-    const flags = regex.flags.includes("g") ? regex.flags : regex.flags + "g";
-    return new RegExp(regex.source, flags);
-  }
-
-  function getCodePointLabel(char) {
-    const codePoint = char.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
-    return `U+${codePoint}`;
-  }
-
-  function getCodePointName(char) {
-    const code = getCodePointLabel(char);
-    if (CODE_POINT_NAMES[code]) return CODE_POINT_NAMES[code];
-
-    if (/^[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]$/u.test(char)) {
-      return "emoji or pictographic symbol";
-    }
-
-    if (/^[\u0300-\u036f]$/u.test(char)) {
-      return "combining mark";
-    }
-
-    return "non-ASCII character";
-  }
-
-  function codePointSequenceLabel(text) {
-    if (text === "") return "removed";
-    return Array.from(text).map((char) => `${getCodePointLabel(char)} ${getCodePointName(char)}`).join(" + ");
-  }
-
-  function addChangeDetail(detailMap, category, originalText, replacementText, count) {
-    const key = `${category}\u0000${originalText}\u0000${replacementText}`;
-    const existing = detailMap.get(key);
+  function addChange(state, category, original, replacement, count = 1) {
+    if (count <= 0) return;
+    const key = `${category}\u0000${original}\u0000${replacement}`;
+    const existing = state.changes.get(key);
     if (existing) {
-      existing.count += count || 1;
-      return;
+      existing.count += count;
+    } else {
+      state.changes.set(key, { category, original, replacement, count });
     }
+    if (category === "Destination typography") state.stats.destinationChanges += count;
+    else state.stats.sourceChanges += count;
 
-    detailMap.set(key, {
-      category,
-      originalText,
-      originalLabel: codePointSequenceLabel(originalText),
-      replacementText,
-      replacementLabel: codePointSequenceLabel(replacementText),
-      count: count || 1
+    if (category === "Hidden cleanup") state.stats.hiddenRemoved += count;
+    if (category === "Space cleanup") state.stats.spacesNormalized += count;
+    if (category === "Quote cleanup" || category === "Dash cleanup" || category === "Ellipsis cleanup" || category === "Bullet cleanup" || category === "Destination typography") state.stats.punctuationChanged += count;
+    if (category === "Strict ASCII" || category === "Compatibility cleanup") state.stats.strictChanged += count;
+  }
+
+  function replaceEach(text, regex, replacer) {
+    return text.replace(regex, (...args) => {
+      const match = args[0];
+      return replacer(match, args);
     });
   }
 
-  function addRegexCharacterDetails(text, regex, replacementText, category, detailMap) {
-    const clone = cloneGlobalRegex(regex);
-    for (const match of text.matchAll(clone)) {
-      for (const char of match[0]) {
-        addChangeDetail(detailMap, category, char, replacementText, 1);
-      }
-    }
+  function normalizeLineEndings(text, state) {
+    let count = 0;
+    const output = text.replace(/\r\n|\r/g, match => {
+      count += 1;
+      addChange(state, "Line cleanup", match, "\n");
+      return "\n";
+    });
+    return output;
   }
 
-  function addLineEndingDetails(text, detailMap) {
-    const crlfCount = countMatches(text, /\r\n/g);
-    const crOnlyCount = countMatches(text.replace(/\r\n/g, ""), /\r/g);
-    if (crlfCount > 0) {
-      addChangeDetail(detailMap, "Line endings normalized", "\r\n", "\n", crlfCount);
-    }
-    if (crOnlyCount > 0) {
-      addChangeDetail(detailMap, "Line endings normalized", "\r", "\n", crOnlyCount);
-    }
+  function normalizeSeparators(text, state) {
+    return text.replace(REGEX.unicodeSeparators, match => {
+      const replacement = match === "\u2029" ? "\n\n" : "\n";
+      addChange(state, "Line cleanup", match, replacement);
+      return replacement;
+    });
   }
 
-  function addBulletDetails(text, detailMap) {
-    const clone = cloneGlobalRegex(RULES.bulletsAtLineStart);
-    for (const match of text.matchAll(clone)) {
-      addChangeDetail(detailMap, "Line-start bullets converted", match[2], "-", 1);
-    }
+  function normalizeSpaces(text, state) {
+    return text.replace(REGEX.unusualSpaces, match => {
+      addChange(state, "Space cleanup", match, " ");
+      return " ";
+    });
   }
 
-  function addTrimmedBlankLineDetail(detailMap) {
-    addChangeDetail(detailMap, "Leading or trailing blank lines trimmed", "leading/trailing blank line", "removed", 1);
+  function removeHidden(text, state) {
+    return text.replace(REGEX.hiddenChars, match => {
+      addChange(state, "Hidden cleanup", match, "");
+      return "";
+    });
   }
 
-  function getRemainingWarnings(text) {
-    const suspicious = [];
-    const nonAscii = new Map();
+  function convertTabs(text, state) {
+    return text.replace(/\t/g, match => {
+      addChange(state, "Space cleanup", match, "    ");
+      return "    ";
+    });
+  }
 
+  function trimTrailingSpaces(text, state) {
+    return text.replace(/[ \t]+$/gm, match => {
+      addChange(state, "Space cleanup", match, "");
+      return "";
+    });
+  }
+
+  function limitBlankLines(text, state) {
+    return text.replace(/\n{3,}/g, match => {
+      addChange(state, "Line cleanup", match, "\n\n");
+      return "\n\n";
+    });
+  }
+
+  function collapseRepeatedSpaces(text, state) {
+    return text.replace(/ {2,}/g, match => {
+      addChange(state, "Space cleanup", match, " ");
+      return " ";
+    });
+  }
+
+  function normalizeFullwidth(text, state) {
+    let output = "";
     for (const char of text) {
       const code = char.codePointAt(0);
-      if (code > 127) {
-        const key = `${getCodePointLabel(char)} ${char}`;
-        nonAscii.set(key, (nonAscii.get(key) || 0) + 1);
+      if (FULLWIDTH_EXTRA_MAP[char]) {
+        addChange(state, "Compatibility cleanup", char, FULLWIDTH_EXTRA_MAP[char]);
+        output += FULLWIDTH_EXTRA_MAP[char];
+      } else if (code >= 0xFF01 && code <= 0xFF5E) {
+        const replacement = String.fromCodePoint(code - 0xFEE0);
+        addChange(state, "Compatibility cleanup", char, replacement);
+        output += replacement;
+      } else {
+        output += char;
       }
     }
-
-    const hiddenCount = countMatches(text, RULES.hiddenChars);
-    if (hiddenCount > 0) {
-      suspicious.push(`${hiddenCount} hidden or formatting character(s) remain`);
-    }
-
-    if (nonAscii.size > 0) {
-      suspicious.push(`${nonAscii.size} type(s) of non-ASCII character remain`);
-    }
-
-    return {
-      warnings: suspicious,
-      remainingNonAscii: Array.from(nonAscii.entries()).map(([label, count]) => ({ label, count }))
-    };
+    return output;
   }
 
-  function sanitize(input, userOptions) {
-    const options = Object.assign({}, DEFAULT_OPTIONS, userOptions || {});
-    let text = String(input == null ? "" : input);
-    const changes = [];
-    const detailMap = new Map();
-    const stats = makeStats();
+  function expandLigatures(text, state) {
+    return Array.from(text).map(char => {
+      if (LIGATURE_MAP[char]) {
+        addChange(state, "Compatibility cleanup", char, LIGATURE_MAP[char]);
+        return LIGATURE_MAP[char];
+      }
+      return char;
+    }).join("");
+  }
 
-    if (options.normalizeLineEndings) {
-      const crlfCount = countMatches(text, /\r\n/g);
-      const crCount = countMatches(text.replace(/\r\n/g, ""), /\r/g);
-      const total = crlfCount + crCount;
-      if (total > 0) {
-        stats.lineEndingReplacements += total;
-        changes.push({ type: "Line endings normalized", count: total });
-        addLineEndingDetails(text, detailMap);
-        text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  function normalizeFractions(text, state) {
+    return Array.from(text).map(char => {
+      if (FRACTION_TO_ASCII[char]) {
+        addChange(state, "Compatibility cleanup", char, FRACTION_TO_ASCII[char]);
+        return FRACTION_TO_ASCII[char];
+      }
+      return char;
+    }).join("");
+  }
+
+  function normalizeSuperscriptsSubscripts(text, state) {
+    return Array.from(text).map(char => {
+      if (SUPER_SUB_MAP[char]) {
+        addChange(state, "Compatibility cleanup", char, SUPER_SUB_MAP[char]);
+        return SUPER_SUB_MAP[char];
+      }
+      return char;
+    }).join("");
+  }
+
+  function normalizeQuoteLikes(text, state, options) {
+    let output = "";
+    for (const char of text) {
+      if (PRIME_MARKS.has(char) && options.preservePrimeMarks) {
+        output += char;
+      } else if (SINGLE_QUOTE_LIKE.has(char)) {
+        addChange(state, "Quote cleanup", char, "'");
+        output += "'";
+      } else if (DOUBLE_QUOTE_LIKE.has(char)) {
+        addChange(state, "Quote cleanup", char, '"');
+        output += '"';
+      } else {
+        output += char;
       }
     }
+    return output;
+  }
 
-    if (options.removeHidden) {
-      if (countMatches(text, RULES.hiddenChars) > 0) {
-        addRegexCharacterDetails(text, RULES.hiddenChars, "", "Hidden or formatting characters removed", detailMap);
-      }
-      text = replaceWithCount(
-        text,
-        RULES.hiddenChars,
-        "",
-        "hiddenCharactersRemoved",
-        stats,
-        "Hidden or formatting characters removed",
-        changes
-      );
-    }
-
-    if (options.normalizeSpaces) {
-      if (countMatches(text, RULES.unusualSpaces) > 0) {
-        addRegexCharacterDetails(text, RULES.unusualSpaces, " ", "Unusual spaces normalized", detailMap);
-      }
-      text = replaceWithCount(
-        text,
-        RULES.unusualSpaces,
-        " ",
-        "unusualSpacesNormalized",
-        stats,
-        "Unusual spaces normalized",
-        changes
-      );
-    }
-
-    if (options.convertTabs) {
-      text = replaceWithCount(
-        text,
-        /\t/g,
-        "  ",
-        "tabsConverted",
-        stats,
-        "Tabs converted to two spaces",
-        changes
-      );
-    }
-
-    if (options.normalizeQuotes) {
-      const singleQuoteCount = countMatches(text, RULES.quoteLikeSingle);
-      const doubleQuoteCount = countMatches(text, RULES.quoteLikeDouble);
-      if (singleQuoteCount + doubleQuoteCount > 0) {
-        stats.quoteReplacements += singleQuoteCount + doubleQuoteCount;
-        changes.push({ type: "Quote-like characters normalized to keyboard quotes", count: singleQuoteCount + doubleQuoteCount });
-        addRegexCharacterDetails(text, RULES.quoteLikeSingle, "'", "Quote-like characters normalized", detailMap);
-        addRegexCharacterDetails(text, RULES.quoteLikeDouble, '"', "Quote-like characters normalized", detailMap);
-        text = text.replace(RULES.quoteLikeSingle, "'").replace(RULES.quoteLikeDouble, '"');
+  function normalizeDashes(text, state) {
+    let output = "";
+    for (const char of text) {
+      if (EM_DASH_LIKE.has(char)) {
+        addChange(state, "Dash cleanup", char, " -- ");
+        output += " -- ";
+      } else if (EN_DASH_LIKE.has(char)) {
+        addChange(state, "Dash cleanup", char, "-");
+        output += "-";
+      } else {
+        output += char;
       }
     }
+    output = output.replace(/ {2,}-- {2,}| ?-- ?/g, match => {
+      const replacement = " -- ";
+      if (match !== replacement) addChange(state, "Dash cleanup", match, replacement);
+      return replacement;
+    });
+    output = output.replace(/[ \t]+\n/g, match => {
+      addChange(state, "Space cleanup", match, "\n");
+      return "\n";
+    });
+    return output;
+  }
 
-    if (options.normalizeDashes) {
-      const emDashCount = countMatches(text, RULES.emDashLikeWithSurroundingSpaces);
-      const enDashCount = countMatches(text, RULES.enDashLike);
-      if (emDashCount + enDashCount > 0) {
-        stats.dashReplacements += emDashCount + enDashCount;
-        changes.push({ type: "Dash characters normalized", count: emDashCount + enDashCount });
-        addRegexCharacterDetails(text, RULES.emDashLike, " -- ", "Dash characters normalized", detailMap);
-        addRegexCharacterDetails(text, RULES.enDashLike, "-", "Dash characters normalized", detailMap);
-        text = text
-          .replace(RULES.emDashLikeWithSurroundingSpaces, " -- ")
-          .replace(RULES.enDashLike, "-");
+  function normalizeEllipsis(text, state) {
+    return Array.from(text).map(char => {
+      if (DOT_LEADER_MAP[char]) {
+        addChange(state, "Ellipsis cleanup", char, DOT_LEADER_MAP[char]);
+        return DOT_LEADER_MAP[char];
       }
+      return char;
+    }).join("");
+  }
+
+  function convertBullets(text, state) {
+    return text.replace(/^(\s*)([•‣◦⁃∙])\s+/gm, (match, leading, bullet) => {
+      const replacement = `${leading}- `;
+      addChange(state, "Bullet cleanup", bullet, "-");
+      return replacement;
+    });
+  }
+
+  function removeEmoji(text, state) {
+    return text.replace(REGEX.emoji, match => {
+      addChange(state, "Strict ASCII", match, "");
+      return "";
+    });
+  }
+
+  function smartenQuotes(text, state) {
+    let output = "";
+    let doubleOpen = true;
+    let singleOpen = true;
+    const chars = Array.from(text);
+
+    function previousVisible(index) {
+      for (let i = output.length - 1; i >= 0; i -= 1) {
+        const ch = output[i];
+        if (!/\s/.test(ch)) return ch;
+      }
+      return "";
     }
 
-    if (options.normalizeEllipsis) {
-      if (countMatches(text, RULES.ellipsis) > 0) {
-        addRegexCharacterDetails(text, RULES.ellipsis, "...", "Ellipsis characters normalized", detailMap);
-      }
-      text = replaceWithCount(
-        text,
-        RULES.ellipsis,
-        "...",
-        "ellipsisReplacements",
-        stats,
-        "Ellipsis characters normalized",
-        changes
-      );
-    }
+    for (let i = 0; i < chars.length; i += 1) {
+      const char = chars[i];
+      const prev = i === 0 ? "" : chars[i - 1];
+      const next = i + 1 < chars.length ? chars[i + 1] : "";
+      const priorVisible = previousVisible(i);
 
-    if (options.convertBullets) {
-      const count = countMatches(text, RULES.bulletsAtLineStart);
-      if (count > 0) {
-        stats.bulletReplacements += count;
-        changes.push({ type: "Line-start bullets converted to hyphens", count });
-        addBulletDetails(text, detailMap);
-        text = text.replace(RULES.bulletsAtLineStart, "$1- ");
-      }
-    }
-
-    if (options.removeEmoji) {
-      if (countMatches(text, RULES.emoji) > 0) {
-        addRegexCharacterDetails(text, RULES.emoji, "", "Emoji and pictographic symbols removed", detailMap);
-      }
-      text = replaceWithCount(
-        text,
-        RULES.emoji,
-        "",
-        "emojiRemoved",
-        stats,
-        "Emoji and pictographic symbols removed",
-        changes
-      );
-    }
-
-    if (options.strictAscii) {
-      const before = text;
-      text = text.normalize("NFKD").replace(RULES.combiningMarks, "");
-      const nonAsciiCount = countMatches(text, RULES.nonAscii);
-      if (nonAsciiCount > 0 || before !== text) {
-        const changedByNormalization = before === text ? 0 : 1;
-        stats.strictAsciiCharactersChanged += nonAsciiCount + changedByNormalization;
-        changes.push({ type: "Strict ASCII cleanup applied", count: nonAsciiCount + changedByNormalization });
-        if (nonAsciiCount > 0) {
-          addRegexCharacterDetails(text, RULES.nonAscii, "", "Strict ASCII characters removed", detailMap);
+      if (char === '"') {
+        const isOpening = !priorVisible || /[\s([{<\n\r\t\u2014\u2013-]/.test(priorVisible) || doubleOpen;
+        const replacement = isOpening ? "“" : "”";
+        addChange(state, "Destination typography", char, replacement);
+        output += replacement;
+        doubleOpen = !isOpening;
+      } else if (char === "'") {
+        const betweenWordChars = /[A-Za-z0-9]/.test(prev) && /[A-Za-z0-9]/.test(next);
+        const leadingDecade = !/[A-Za-z0-9]/.test(prev) && /[0-9]/.test(next);
+        if (betweenWordChars || leadingDecade || (/[A-Za-z0-9]/.test(prev) && !/[A-Za-z0-9]/.test(next))) {
+          addChange(state, "Destination typography", char, "’");
+          output += "’";
+          singleOpen = true;
+        } else {
+          const isOpening = !priorVisible || /[\s([{<\n\r\t\u2014\u2013-]/.test(priorVisible) || singleOpen;
+          const replacement = isOpening ? "‘" : "’";
+          addChange(state, "Destination typography", char, replacement);
+          output += replacement;
+          singleOpen = !isOpening;
         }
-        text = text.replace(RULES.nonAscii, "");
+      } else {
+        output += char;
       }
     }
+    return output;
+  }
 
-    if (options.trimTrailingSpaces) {
-      const count = countTrailingSpaces(text);
-      if (count > 0) {
-        stats.trailingSpacesRemoved += count;
-        changes.push({ type: "Trailing spaces removed", count });
-        text = text.replace(/[ \t]+$/gm, "");
-      }
+  function smartenDashes(text, state, options) {
+    let output = text;
+    if (options.numericRangesToEnDash) {
+      output = output.replace(/\b(\d{1,4})\s*-\s*(\d{1,4})\b/g, (match, start, end) => {
+        const replacement = `${start}–${end}`;
+        if (match !== replacement) addChange(state, "Destination typography", match, replacement);
+        return replacement;
+      });
     }
+    output = output.replace(/\s*--\s*/g, match => {
+      addChange(state, "Destination typography", match, "—");
+      return "—";
+    });
+    return output;
+  }
 
-    if (options.collapseRepeatedSpaces) {
-      const count = countRepeatedSpaceRuns(text);
-      if (count > 0) {
-        stats.repeatedSpacesCollapsed += count;
-        changes.push({ type: "Repeated spaces collapsed", count });
-        text = text.replace(/ {2,}/g, " ");
+  function smartenEllipsis(text, state) {
+    return text.replace(/\.\.\./g, match => {
+      addChange(state, "Destination typography", match, "…");
+      return "…";
+    });
+  }
+
+  function smartenFractions(text, state) {
+    return text.replace(/\b(1\/4|1\/2|3\/4|1\/3|2\/3|1\/5|2\/5|3\/5|4\/5|1\/6|5\/6|1\/8|3\/8|5\/8|7\/8)\b/g, match => {
+      const replacement = ASCII_TO_FRACTION[match];
+      addChange(state, "Destination typography", match, replacement);
+      return replacement;
+    });
+  }
+
+  function replaceSymbolsAscii(text, state) {
+    return Array.from(text).map(char => {
+      if (SYMBOL_ASCII_MAP[char]) {
+        addChange(state, "Strict ASCII", char, SYMBOL_ASCII_MAP[char]);
+        return SYMBOL_ASCII_MAP[char];
       }
-    }
+      return char;
+    }).join("");
+  }
 
-    if (options.limitBlankLines) {
-      const count = countBlankLineRuns(text);
-      if (count > 0) {
-        stats.blankLineRunsReduced += count;
-        changes.push({ type: "Extra blank lines reduced", count });
-        text = text.replace(/\n{3,}/g, "\n\n");
-      }
+  function strictAscii(text, state, options) {
+    let output = text;
+    if (options.foldAccents) {
+      const normalized = output.normalize("NFKD");
+      output = normalized.replace(REGEX.combiningMarks, mark => {
+        addChange(state, "Strict ASCII", mark, "");
+        return "";
+      });
     }
-
-    if (options.limitBlankLines || options.trimTrailingSpaces) {
-      const trimmed = text.replace(/^\n+|\n+$/g, "");
-      if (trimmed !== text) {
-        text = trimmed;
-        changes.push({ type: "Leading or trailing blank lines trimmed", count: 1 });
-      }
+    if (options.replaceSymbolsAscii) {
+      output = replaceSymbolsAscii(output, state);
     }
+    output = output.replace(REGEX.nonAscii, match => {
+      addChange(state, "Strict ASCII", match, "");
+      return "";
+    });
+    return output;
+  }
 
-    const diagnostics = getRemainingWarnings(text);
+  function applySourceCleanup(inputText, options, state) {
+    let text = inputText;
+    state.stats.inputCharacters = Array.from(inputText).length;
+
+    if (options.normalizeLineEndings) text = normalizeLineEndings(text, state);
+    if (options.normalizeSeparators) text = normalizeSeparators(text, state);
+    if (options.removeHidden) text = removeHidden(text, state);
+    if (options.normalizeFullwidth) text = normalizeFullwidth(text, state);
+    if (options.normalizeSpaces) text = normalizeSpaces(text, state);
+    if (options.convertTabs) text = convertTabs(text, state);
+    if (options.expandLigatures) text = expandLigatures(text, state);
+    if (options.normalizeFractions) text = normalizeFractions(text, state);
+    if (options.normalizeSuperscriptsSubscripts) text = normalizeSuperscriptsSubscripts(text, state);
+    if (options.normalizeQuotes) text = normalizeQuoteLikes(text, state, options);
+    if (options.normalizeDashes) text = normalizeDashes(text, state);
+    if (options.normalizeEllipsis) text = normalizeEllipsis(text, state);
+    if (options.convertBullets) text = convertBullets(text, state);
+    if (options.removeEmoji) text = removeEmoji(text, state);
+    if (options.collapseRepeatedSpaces) text = collapseRepeatedSpaces(text, state);
+    if (options.trimTrailingSpaces) text = trimTrailingSpaces(text, state);
+    if (options.limitBlankLines) text = limitBlankLines(text, state);
+
+    return text.trim();
+  }
+
+  function applyDestinationTypography(cleanText, options, state) {
+    let text = cleanText;
+    if (options.smartDashes || options.numericRangesToEnDash) text = smartenDashes(text, state, options);
+    if (options.smartEllipsis) text = smartenEllipsis(text, state);
+    if (options.smartFractions) text = smartenFractions(text, state);
+    if (options.smartQuotes) text = smartenQuotes(text, state);
+    if (options.strictAscii) text = strictAscii(text, state, options);
+    state.stats.outputCharacters = Array.from(text).length;
+    state.stats.remainingNonAscii = collectNonAscii(text).length;
+    return text;
+  }
+
+  function sanitize(inputText, options) {
+    const state = makeState();
+    const cleanText = applySourceCleanup(inputText, options, state);
+    const outputText = applyDestinationTypography(cleanText, options, state);
+    const nonAscii = collectNonAscii(outputText);
+
+    if (nonAscii.length > 0 && options.strictAscii) {
+      state.warnings.push("Strict ASCII is enabled, but non-ASCII characters remain. Check the remaining-character list.");
+    }
+    if (!options.removeHidden) {
+      state.warnings.push("Hidden-character removal is disabled.");
+    }
+    if (options.smartFractions) {
+      state.warnings.push("Smart fraction conversion can change plain numeric strings into typographic fraction characters.");
+    }
 
     return {
-      cleanText: text,
-      changes,
-      changeDetails: Array.from(detailMap.values()),
-      stats,
-      warnings: diagnostics.warnings,
-      remainingNonAscii: diagnostics.remainingNonAscii,
-      options
+      cleanText,
+      outputText,
+      stats: state.stats,
+      changes: Array.from(state.changes.values()).sort((a, b) => a.category.localeCompare(b.category) || a.original.localeCompare(b.original)),
+      warnings: state.warnings,
+      nonAscii
     };
   }
 
-  function getPresetOptions(name) {
-    return Object.assign({}, PRESETS[name] || PRESETS.gmailSafe);
-  }
-
-  function normalizeToLf(text) {
-    return String(text == null ? "" : text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  }
-
-  function toWindowsClipboardLineEndings(text) {
-    return normalizeToLf(text).replace(/\n/g, "\r\n");
+  function collectNonAscii(text) {
+    const map = new Map();
+    for (const char of text) {
+      if (/[^\x00-\x7F]/.test(char)) {
+        const key = `${char}\u0000${cp(char)}`;
+        const existing = map.get(key);
+        if (existing) existing.count += 1;
+        else map.set(key, { char, code: cp(char), name: nameFor(char), count: 1 });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
   }
 
   function escapeHtml(text) {
-    return String(text == null ? "" : text)
+    return text
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;");
   }
 
-  function textToGmailHtml(text) {
-    const normalized = normalizeToLf(text);
-    const lines = normalized.length ? normalized.split("\n") : [""];
-    const gmailDefaultStyle = "font-family: verdana, sans-serif;";
-    const lastNonEmptyIndex = lines.reduce((last, line, index) => line === "" ? last : index, -1);
+  function buildGmailHtml(text) {
+    const style = 'class="gmail_default" style="font-family: verdana, sans-serif;"';
+    const lines = text.split("\n");
+    let lastNonEmpty = -1;
+    lines.forEach((line, index) => {
+      if (line.length > 0) lastNonEmpty = index;
+    });
 
     const body = lines.map((line, index) => {
-      if (line === "") {
-        return `<div class="gmail_default" style="${gmailDefaultStyle}"><br></div>`;
+      if (line.length === 0) {
+        return `<div ${style}><br></div>`;
       }
-
-      const suffix = index === lastNonEmptyIndex ? "<br>" : "";
-      return `<div class="gmail_default" style="${gmailDefaultStyle}">${escapeHtml(line)}${suffix}</div>`;
+      const br = index === lastNonEmpty ? "<br>" : "";
+      return `<div ${style}>${escapeHtml(line)}${br}</div>`;
     }).join("");
 
     return `<div>${body}<br clear="all"></div>`;
   }
 
-  function applyCurlyQuotes(text, detailMap) {
-    let output = "";
-
-    function previousVisibleCharacter() {
-      for (let index = output.length - 1; index >= 0; index -= 1) {
-        const char = output[index];
-        if (!/\s/.test(char)) return char;
-      }
-      return "";
+  async function copyPlain(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
     }
-
-    for (let index = 0; index < text.length; index += 1) {
-      const char = text[index];
-      const previous = index > 0 ? text[index - 1] : "";
-      const next = index + 1 < text.length ? text[index + 1] : "";
-
-      if (char === '"') {
-        const opening = !previous || /[\s([{<\u2014\u2013-]/.test(previous);
-        const replacement = opening ? "“" : "”";
-        addChangeDetail(detailMap, "Destination typography", char, replacement, 1);
-        output += replacement;
-        continue;
-      }
-
-      if (char === "'") {
-        let replacement;
-        if (/^[A-Za-z0-9]$/.test(previous) && /^[A-Za-z0-9]$/.test(next)) {
-          replacement = "’";
-        } else if (!previous && /^[0-9]$/.test(next)) {
-          replacement = "’";
-        } else {
-          replacement = (!previous || /[\s([{<\u2014\u2013-]/.test(previous)) ? "‘" : "’";
-        }
-        addChangeDetail(detailMap, "Destination typography", char, replacement, 1);
-        output += replacement;
-        continue;
-      }
-
-      output += char;
-    }
-
-    return output;
+    fallbackCopyText(text);
   }
 
-  function applyDestinationTypography(text, destinationName) {
-    const destination = DESTINATIONS[destinationName] || DESTINATIONS.gmail;
-    let output = String(text == null ? "" : text);
-    const detailMap = new Map();
-
-    if (destination.typography !== "smartDocument") {
-      return {
-        text: output,
-        changeDetails: [],
-        stats: { destinationTypographyChanges: 0 }
-      };
+  async function copyGmailHtml(text) {
+    const html = buildGmailHtml(text);
+    if (navigator.clipboard && navigator.clipboard.write && global.ClipboardItem) {
+      const item = new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" })
+      });
+      await navigator.clipboard.write([item]);
+      return;
     }
+    fallbackCopyHtml(html);
+  }
 
-    output = output.replace(/ {1,}-- {1,}/g, (match) => {
-      addChangeDetail(detailMap, "Destination typography", match, "—", 1);
-      return "—";
+  function fallbackCopyText(text) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+  }
+
+  function fallbackCopyHtml(html) {
+    const div = document.createElement("div");
+    div.contentEditable = "true";
+    div.innerHTML = html;
+    div.style.position = "fixed";
+    div.style.left = "-9999px";
+    div.style.top = "0";
+    document.body.appendChild(div);
+    const range = document.createRange();
+    range.selectNodeContents(div);
+    const selection = global.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand("copy");
+    selection.removeAllRanges();
+    document.body.removeChild(div);
+  }
+
+  function mergeOptions(base, overrides) {
+    return Object.assign({}, DEFAULT_OPTIONS, base || {}, overrides || {});
+  }
+
+  function optionElements() {
+    return Array.from(document.querySelectorAll("[data-option]"));
+  }
+
+  function readOptions() {
+    const options = Object.assign({}, DEFAULT_OPTIONS);
+    optionElements().forEach(input => {
+      options[input.dataset.option] = input.checked;
     });
+    return options;
+  }
 
-    output = output.replace(/\.\.\./g, (match) => {
-      addChangeDetail(detailMap, "Destination typography", match, "…", 1);
-      return "…";
+  function writeOptions(options) {
+    optionElements().forEach(input => {
+      if (Object.prototype.hasOwnProperty.call(options, input.dataset.option)) {
+        input.checked = Boolean(options[input.dataset.option]);
+      }
     });
-
-    output = applyCurlyQuotes(output, detailMap);
-
-    const changeDetails = Array.from(detailMap.values());
-    const total = changeDetails.reduce((sum, detail) => sum + detail.count, 0);
-
-    return {
-      text: output,
-      changeDetails,
-      stats: { destinationTypographyChanges: total }
-    };
   }
 
-  function buildDestinationOutput(cleanText, destinationName) {
-    const destination = DESTINATIONS[destinationName] || DESTINATIONS.gmail;
-    const typography = applyDestinationTypography(cleanText, destinationName);
-
-    return {
-      destination,
-      text: typography.text,
-      changeDetails: typography.changeDetails,
-      stats: typography.stats
-    };
+  function currentDestination() {
+    const select = document.getElementById("destinationSelect");
+    return DESTINATIONS[select.value] || DESTINATIONS.gmail;
   }
 
-  function copyPlainText(text) {
-    return navigator.clipboard.writeText(text);
+  function applyPreset(presetName) {
+    const destinationKey = document.getElementById("destinationSelect").value;
+    const preset = PRESETS[presetName] || PRESETS.standard;
+    const destination = DESTINATIONS[destinationKey] || DESTINATIONS.gmail;
+    writeOptions(mergeOptions(preset, destination.overrides));
   }
 
-  function fallbackCopyPlainText(text, statusElement, successMessage) {
-    const hidden = document.createElement("textarea");
-    hidden.value = text;
-    hidden.setAttribute("readonly", "");
-    hidden.setAttribute("aria-hidden", "true");
-    hidden.style.position = "fixed";
-    hidden.style.left = "-9999px";
-    hidden.style.top = "0";
-    document.body.appendChild(hidden);
-    hidden.focus();
-    hidden.select();
-
-    let copied = false;
-    function onCopy(event) {
-      if (!event.clipboardData) return;
-      event.clipboardData.setData("text/plain", text);
-      event.preventDefault();
-      copied = true;
-    }
-
-    document.addEventListener("copy", onCopy);
-    try {
-      document.execCommand("copy");
-    } finally {
-      document.removeEventListener("copy", onCopy);
-      document.body.removeChild(hidden);
-    }
-
-    if (statusElement) {
-      statusElement.textContent = copied ? successMessage : "Select the output and copy manually.";
-    }
-    return copied;
+  function renderStats(result) {
+    const statsList = document.getElementById("statsList");
+    const stats = [
+      [result.stats.inputCharacters, "input chars"],
+      [result.stats.outputCharacters, "output chars"],
+      [result.stats.sourceChanges, "source changes"],
+      [result.stats.destinationChanges, "destination changes"],
+      [result.stats.hiddenRemoved, "hidden removed"],
+      [result.stats.remainingNonAscii, "non-ASCII left"]
+    ];
+    statsList.innerHTML = stats.map(([number, label]) => `<li><span class="stat-number">${number}</span><span class="stat-label">${label}</span></li>`).join("");
   }
 
-  function fallbackCopyGmailHtml(htmlText) {
-    if (typeof document === "undefined") {
-      throw new Error("Fallback Gmail HTML copy is not available.");
+  function renderChanges(result) {
+    const changesList = document.getElementById("changesList");
+    if (result.changes.length === 0) {
+      changesList.innerHTML = "<li>No character changes.</li>";
+      return;
     }
-
-    const trigger = document.createElement("button");
-    trigger.type = "button";
-    trigger.setAttribute("aria-hidden", "true");
-    trigger.style.position = "fixed";
-    trigger.style.left = "-9999px";
-    trigger.style.top = "0";
-    trigger.style.width = "1px";
-    trigger.style.height = "1px";
-    trigger.style.opacity = "0";
-    document.body.appendChild(trigger);
-    trigger.focus();
-
-    let copied = false;
-
-    function onCopy(event) {
-      if (!event.clipboardData) return;
-      event.clipboardData.clearData();
-      event.clipboardData.setData("text/html", htmlText);
-      event.preventDefault();
-      copied = true;
-    }
-
-    document.addEventListener("copy", onCopy);
-    try {
-      copied = document.execCommand("copy") || copied;
-    } finally {
-      document.removeEventListener("copy", onCopy);
-      document.body.removeChild(trigger);
-    }
-
-    return copied;
-  }
-
-  async function copyGmailHtmlWithClipboardApi(htmlText) {
-    if (!navigator.clipboard || !navigator.clipboard.write || typeof ClipboardItem === "undefined") {
-      throw new Error("HTML clipboard write is not available in this browser context.");
-    }
-
-    const item = new ClipboardItem({
-      "text/html": new Blob([htmlText], { type: "text/html" })
+    const items = result.changes.slice(0, 80).map(change => {
+      const original = charLabel(change.original);
+      const replacement = change.replacement === "" ? "removed" : charLabel(change.replacement);
+      return `<li><strong>${change.category}</strong>: <span class="codepoint">${escapeHtml(original)}</span> → <span class="codepoint">${escapeHtml(replacement)}</span> <span class="stat-label">×${change.count}</span></li>`;
     });
-
-    return navigator.clipboard.write([item]);
+    if (result.changes.length > 80) items.push(`<li>${result.changes.length - 80} more change types omitted.</li>`);
+    changesList.innerHTML = items.join("");
   }
 
-  function bindDom() {
+  function renderWarnings(result) {
+    const warningsList = document.getElementById("warningsList");
+    if (result.warnings.length === 0) {
+      warningsList.innerHTML = "<li>No warnings.</li>";
+      return;
+    }
+    warningsList.innerHTML = result.warnings.map(warning => `<li>${escapeHtml(warning)}</li>`).join("");
+  }
+
+  function renderNonAscii(result) {
+    const list = document.getElementById("nonAsciiList");
+    if (result.nonAscii.length === 0) {
+      list.innerHTML = "<li>None.</li>";
+      return;
+    }
+    list.innerHTML = result.nonAscii.slice(0, 80).map(item => `<li><span class="codepoint">${escapeHtml(item.char)} ${item.code} ${item.name}</span> <span class="stat-label">×${item.count}</span></li>`).join("");
+  }
+
+  function updateDestinationUi() {
+    const destination = currentDestination();
+    document.getElementById("destinationCopyButton").textContent = destination.copyLabel;
+    document.getElementById("destinationNote").textContent = destination.note;
+  }
+
+  function run() {
+    const input = document.getElementById("inputText").value;
+    const result = sanitize(input, readOptions());
+    document.getElementById("outputText").value = result.outputText;
+    renderStats(result);
+    renderChanges(result);
+    renderWarnings(result);
+    renderNonAscii(result);
+    return result;
+  }
+
+  function setStatus(message) {
+    const status = document.getElementById("status");
+    status.textContent = message;
+    if (message) {
+      global.clearTimeout(setStatus.timer);
+      setStatus.timer = global.setTimeout(() => {
+        status.textContent = "";
+      }, 2500);
+    }
+  }
+
+  function init() {
     const input = document.getElementById("inputText");
     const output = document.getElementById("outputText");
-    const copyButton = document.getElementById("copyButton");
-    const destinationCopyButton = document.getElementById("destinationCopyButton");
-    const clearButton = document.getElementById("clearButton");
-    const presetSelect = document.getElementById("presetSelect");
-    const destinationSelect = document.getElementById("destinationSelect");
-    const destinationNote = document.getElementById("destinationNote");
-    const status = document.getElementById("status");
-    const statsList = document.getElementById("statsList");
-    const warningsList = document.getElementById("warningsList");
-    const changesList = document.getElementById("changesList");
-    const nonAsciiList = document.getElementById("nonAsciiList");
-    const optionInputs = Array.from(document.querySelectorAll("[data-option]"));
+    const clear = document.getElementById("clearButton");
+    const copyVisible = document.getElementById("copyVisibleButton");
+    const copyDestination = document.getElementById("destinationCopyButton");
+    const preset = document.getElementById("presetSelect");
+    const destination = document.getElementById("destinationSelect");
 
-    let latestSanitized = null;
-    let latestDestinationOutput = null;
+    writeOptions(mergeOptions(PRESETS.standard, DESTINATIONS.gmail.overrides));
+    updateDestinationUi();
+    run();
 
-    if (!input || !output) return;
+    input.addEventListener("input", run);
+    optionElements().forEach(checkbox => checkbox.addEventListener("change", run));
 
-    function currentDestinationName() {
-      return destinationSelect ? destinationSelect.value : "gmail";
-    }
-
-    function optionsFromUi() {
-      const options = {};
-      optionInputs.forEach((el) => {
-        options[el.dataset.option] = el.checked;
-      });
-      return options;
-    }
-
-    function applyPreset(name) {
-      const options = getPresetOptions(name);
-      optionInputs.forEach((el) => {
-        el.checked = Boolean(options[el.dataset.option]);
-      });
-      update();
-    }
-
-    function renderStats(result, destinationOutput) {
-      if (!statsList) return;
-      statsList.innerHTML = "";
-      const entries = [
-        ["Characters in", input.value.length],
-        ["Characters out", destinationOutput.text.length],
-        ["Hidden removed", result.stats.hiddenCharactersRemoved],
-        ["Spaces normalized", result.stats.unusualSpacesNormalized],
-        ["Quotes normalized", result.stats.quoteReplacements],
-        ["Dashes normalized", result.stats.dashReplacements],
-        ["Ellipses normalized", result.stats.ellipsisReplacements],
-        ["Bullets converted", result.stats.bulletReplacements],
-        ["Trailing spaces removed", result.stats.trailingSpacesRemoved],
-        ["Blank-line runs reduced", result.stats.blankLineRunsReduced],
-        ["Destination typography changes", destinationOutput.stats.destinationTypographyChanges]
-      ];
-
-      entries.forEach(([label, value]) => {
-        const item = document.createElement("li");
-        item.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
-        statsList.appendChild(item);
-      });
-    }
-
-    function renderChangeDetails(result, destinationOutput) {
-      if (!changesList) return;
-      changesList.innerHTML = "";
-
-      const details = [];
-      if (result.changeDetails) details.push(...result.changeDetails);
-      if (destinationOutput.changeDetails) details.push(...destinationOutput.changeDetails);
-
-      if (details.length === 0) {
-        const item = document.createElement("li");
-        item.textContent = "No replacements made.";
-        changesList.appendChild(item);
-        return;
-      }
-
-      details.forEach((detail) => {
-        const item = document.createElement("li");
-        const category = document.createElement("span");
-        const mapping = document.createElement("strong");
-        const count = document.createElement("em");
-
-        category.textContent = detail.category;
-        mapping.textContent = `${detail.originalLabel} -> ${detail.replacementLabel}`;
-        count.textContent = `x ${detail.count}`;
-
-        item.appendChild(category);
-        item.appendChild(mapping);
-        item.appendChild(count);
-        changesList.appendChild(item);
-      });
-    }
-
-    function renderWarnings(result) {
-      if (!warningsList || !nonAsciiList) return;
-      warningsList.innerHTML = "";
-      nonAsciiList.innerHTML = "";
-
-      if (result.warnings.length === 0) {
-        const item = document.createElement("li");
-        item.textContent = "No remaining suspicious characters found.";
-        warningsList.appendChild(item);
-      } else {
-        result.warnings.forEach((warning) => {
-          const item = document.createElement("li");
-          item.textContent = warning;
-          warningsList.appendChild(item);
-        });
-      }
-
-      if (result.remainingNonAscii.length === 0) {
-        const item = document.createElement("li");
-        item.textContent = "None";
-        nonAsciiList.appendChild(item);
-      } else {
-        result.remainingNonAscii.slice(0, 20).forEach((entry) => {
-          const item = document.createElement("li");
-          item.textContent = `${entry.label} x ${entry.count}`;
-          nonAsciiList.appendChild(item);
-        });
-      }
-    }
-
-    function renderDestinationUi(destinationOutput) {
-      const destination = destinationOutput.destination;
-      output.value = destinationOutput.text;
-      output.dataset.destination = destination.label;
-
-      if (destinationCopyButton) {
-        destinationCopyButton.textContent = destination.copyLabel;
-      }
-
-      if (destinationNote) {
-        destinationNote.textContent = destination.note;
-      }
-    }
-
-    function update() {
-      latestSanitized = sanitize(input.value, optionsFromUi());
-      latestDestinationOutput = buildDestinationOutput(latestSanitized.cleanText, currentDestinationName());
-      renderDestinationUi(latestDestinationOutput);
-      renderStats(latestSanitized, latestDestinationOutput);
-      renderChangeDetails(latestSanitized, latestDestinationOutput);
-      renderWarnings(latestSanitized);
-      if (status) status.textContent = "";
-    }
-
-    function insertPlainTextAtCursor(target, text) {
-      const start = target.selectionStart;
-      const end = target.selectionEnd;
-      const before = target.value.slice(0, start);
-      const after = target.value.slice(end);
-      target.value = before + text + after;
-      const cursor = start + text.length;
-      target.selectionStart = cursor;
-      target.selectionEnd = cursor;
-      target.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-
-    input.addEventListener("paste", (event) => {
-      const clipboard = event.clipboardData || global.clipboardData;
-      if (!clipboard) return;
-      const plain = clipboard.getData("text/plain");
-      if (plain) {
-        event.preventDefault();
-        insertPlainTextAtCursor(input, plain);
-      }
+    preset.addEventListener("change", () => {
+      applyPreset(preset.value);
+      run();
     });
 
-    input.addEventListener("input", update);
-    optionInputs.forEach((el) => el.addEventListener("change", update));
+    destination.addEventListener("change", () => {
+      applyPreset(preset.value);
+      updateDestinationUi();
+      run();
+    });
 
-    if (presetSelect) {
-      presetSelect.addEventListener("change", () => applyPreset(presetSelect.value));
-    }
+    clear.addEventListener("click", () => {
+      input.value = "";
+      run();
+      input.focus();
+    });
 
-    if (destinationSelect) {
-      destinationSelect.addEventListener("change", update);
-    }
+    copyVisible.addEventListener("click", async () => {
+      await copyPlain(output.value);
+      setStatus("Copied textarea text as text/plain.");
+    });
 
-    async function copyTextWithFallback(text, successMessage) {
-      try {
-        await copyPlainText(text);
-        if (status) status.textContent = successMessage;
-      } catch (error) {
-        fallbackCopyPlainText(text, status, successMessage);
+    copyDestination.addEventListener("click", async () => {
+      const dest = currentDestination();
+      if (dest.copyMode === "gmailHtml") {
+        await copyGmailHtml(output.value);
+        setStatus("Copied Gmail-compatible HTML.");
+      } else {
+        await copyPlain(output.value);
+        setStatus(`Copied for ${dest.label} as text/plain.`);
       }
-    }
-
-    async function copyGmailHtml(text) {
-      const htmlText = textToGmailHtml(text);
-
-      try {
-        await copyGmailHtmlWithClipboardApi(htmlText);
-        if (status) status.textContent = "Copied Gmail-compatible Verdana HTML.";
-      } catch (apiError) {
-        try {
-          const copied = fallbackCopyGmailHtml(htmlText);
-          if (!copied) throw new Error("Fallback Gmail HTML copy failed.");
-          if (status) status.textContent = "Copied Gmail-compatible Verdana HTML.";
-        } catch (fallbackError) {
-          if (status) status.textContent = "Gmail HTML copy was not available in this browser context.";
-        }
-      }
-    }
-
-    if (copyButton) {
-      copyButton.addEventListener("click", async () => {
-        update();
-        await copyTextWithFallback(latestDestinationOutput.text, "Copied visible textarea text.");
-      });
-    }
-
-    if (destinationCopyButton) {
-      destinationCopyButton.addEventListener("click", async () => {
-        update();
-        const destination = latestDestinationOutput.destination;
-
-        if (destination.copyMode === "gmailHtml") {
-          await copyGmailHtml(latestDestinationOutput.text);
-          return;
-        }
-
-        await copyTextWithFallback(latestDestinationOutput.text, `Copied ${destination.label} text.`);
-      });
-    }
-
-    if (clearButton) {
-      clearButton.addEventListener("click", () => {
-        input.value = "";
-        update();
-        input.focus();
-      });
-    }
-
-    applyPreset("gmailSafe");
+    });
   }
 
-  const API = {
+  global.CopySanitizer = {
     sanitize,
-    DEFAULT_OPTIONS,
+    buildGmailHtml,
     PRESETS,
-    DESTINATIONS,
-    getPresetOptions,
-    normalizeToLf,
-    toWindowsClipboardLineEndings,
-    escapeHtml,
-    textToGmailHtml,
-    applyDestinationTypography,
-    buildDestinationOutput
+    DESTINATIONS
   };
 
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = API;
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
   } else {
-    global.TextSanitizer = API;
+    init();
   }
-
-  if (typeof document !== "undefined") {
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", bindDom);
-    } else {
-      bindDom();
-    }
-  }
-})(typeof window !== "undefined" ? window : globalThis);
+})(window);
