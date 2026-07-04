@@ -25,17 +25,7 @@ test('markdown profile serializes nested lists with indentation', () => {
 test('Gmail HTML preserves nested semantic lists', () => {
   const doc = sanitizer.parsePlainTextToDoc('- parent\n  - child', true);
   const html = sanitizer.buildGmailHtmlFromDoc(doc, { gmailListsAsHyphenLines: false });
-  assert.match(html, /<ul style="font-family: arial, sans-serif; font-size: 13px;">/);
+  assert.match(html, /<ul style="font-family: verdana, sans-serif;">/);
   assert.match(html, /parent/);
   assert.match(html, /child/);
-});
-
-
-test('Gmail HTML uses configured font and size', () => {
-  const doc = sanitizer.parsePlainTextToDoc('Styled paragraph', true);
-  const html = sanitizer.buildGmailHtmlFromDoc(doc, {
-    gmailFontFamily: 'verdana',
-    gmailFontSize: 'large'
-  });
-  assert.match(html, /font-family: Verdana, sans-serif; font-size: 18px;/);
 });

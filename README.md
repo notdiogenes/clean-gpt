@@ -39,7 +39,7 @@ The visible preview is not a raw-code view. The primary copy button writes the s
 
 ### Gmail
 
-Visible output uses keyboard-safe punctuation and the locally saved Gmail compose-style font/size preset:
+Visible output uses keyboard-safe punctuation and the locally saved Gmail font/size preference:
 
 - straight quotes
 - straight apostrophes
@@ -47,10 +47,10 @@ Visible output uses keyboard-safe punctuation and the locally saved Gmail compos
 - `...` instead of Unicode ellipsis
 - normal spaces only
 
-Primary copy writes Gmail-shaped `text/html` using the selected Gmail font and size preset:
+Primary copy writes Gmail-shaped `text/html` using the selected Gmail font/size:
 
 ```html
-<div><div class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;">Paragraph one</div><div class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;"><br></div><div class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;">Paragraph two<br></div><br clear="all"></div>
+<div><div class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;">Paragraph one</div><div class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;"><br></div><div class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;">Paragraph two<br></div><br clear="all"></div>
 ```
 
 The app does not intentionally insert zero-width spaces, spans, font tags, color styles, background-color styles, line-height styles, or extra wrappers.
@@ -58,15 +58,10 @@ The app does not intentionally insert zero-width spaces, spans, font tags, color
 Detected lists are preserved for Gmail as semantic list HTML by default:
 
 ```html
-<ul style="font-family: arial, sans-serif; font-size: 13px;"><li class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;">First item</li><li class="gmail_default" style="font-family: arial, sans-serif; font-size: 13px;">Second item</li></ul>
+<ul style="font-family: verdana, sans-serif; font-size: 10pt;"><li class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;">First item</li><li class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;">Second item</li></ul>
 ```
 
-An advanced option can flatten Gmail lists to plain hyphen lines when a deliberately plain fallback is needed. The Gmail font and size controls mirror Gmail compose presets, are saved locally, and are applied to both the preview and copied HTML.
-
-Gmail style controls use Gmail-like compose presets:
-
-- fonts: Sans Serif, Serif, Fixed Width, Wide, Narrow, Comic Sans MS, Garamond, Georgia, Tahoma, Trebuchet MS, Verdana
-- sizes: Small, Normal, Large, Huge
+An advanced option can flatten Gmail lists to plain hyphen lines when a deliberately plain fallback is needed. The Gmail font and size controls are saved locally and applied to both the preview and copied HTML.
 
 ### Google Docs
 
