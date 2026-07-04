@@ -250,7 +250,7 @@
   const DESTINATIONS = Object.freeze({
     gmail: {
       label: "Gmail",
-      copyLabel: "Copy output",
+      copyLabel: "Copy HTML",
       note: "Keyboard punctuation in paragraph text. The primary copy action writes Gmail-shaped HTML and preserves detected lists as semantic HTML lists.",
       outputClass: "gmail-compose",
       overrides: {
@@ -265,7 +265,7 @@
     },
     googleDocs: {
       label: "Google Docs",
-      copyLabel: "Copy output",
+      copyLabel: "Copy HTML",
       note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
@@ -280,7 +280,7 @@
     },
     word: {
       label: "Microsoft Word",
-      copyLabel: "Copy output",
+      copyLabel: "Copy HTML",
       note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
@@ -296,7 +296,7 @@
 
     markdown: {
       label: "Markdown",
-      copyLabel: "Copy Markdown",
+      copyLabel: "Copy text",
       note: "Plain Markdown for GitHub, issues, and technical notes. Lists serialize as Markdown markers.",
       outputClass: "markdown-output",
       copyMode: "markdown",
@@ -312,7 +312,7 @@
     },
     outlook: {
       label: "Outlook",
-      copyLabel: "Copy for Outlook",
+      copyLabel: "Copy HTML",
       note: "Conservative rich HTML for Outlook. Preserves semantic paragraphs and lists with a plain-text fallback.",
       outputClass: "document-output",
       copyMode: "documentHtml",
@@ -328,7 +328,7 @@
     },
     slack: {
       label: "Slack / Teams",
-      copyLabel: "Copy for Slack / Teams",
+      copyLabel: "Copy text",
       note: "Markdown-like plain text for chat tools. Avoids rich clipboard HTML.",
       outputClass: "markdown-output",
       copyMode: "markdown",
@@ -344,7 +344,7 @@
     },
     cms: {
       label: "CMS / web forms",
-      copyLabel: "Copy for CMS",
+      copyLabel: "Copy text",
       note: "Plain text for CMS fields and web forms, with conservative character cleanup and preserved paragraph spacing.",
       outputClass: "plain-output",
       copyMode: "plain",
@@ -360,7 +360,7 @@
     },
     code: {
       label: "Code comments",
-      copyLabel: "Copy for code",
+      copyLabel: "Copy text",
       note: "Code-safe plain text. Normalizes punctuation to keyboard-safe characters and removes hidden Unicode.",
       outputClass: "strict-output",
       copyMode: "plain",
@@ -378,7 +378,7 @@
     },
     plain: {
       label: "Plain text / forms",
-      copyLabel: "Copy output",
+      copyLabel: "Copy text",
       note: "Keyboard-safe visible characters only. Good for forms, CMS fields, terminals, and places where rich text is a liability.",
       outputClass: "plain-output",
       overrides: {
@@ -393,7 +393,7 @@
     },
     strictAscii: {
       label: "Strict ASCII",
-      copyLabel: "Copy output",
+      copyLabel: "Copy text",
       note: "Aggressive compatibility mode. Removes or replaces non-ASCII characters after cleanup.",
       outputClass: "strict-output",
       overrides: {
@@ -1715,7 +1715,6 @@
     const destinationStyleNote = document.getElementById("destinationStyleNote");
     const destinationSummary = document.getElementById("destinationSummary");
     const presetDescription = document.getElementById("presetDescription");
-    const presetChangeSummary = document.getElementById("presetChangeSummary");
     const sampleSelect = document.getElementById("sampleSelect");
     const diffLegend = document.getElementById("diffLegend");
     const presetSelect = document.getElementById("presetSelect");
@@ -1728,6 +1727,11 @@
     const nonAsciiList = document.getElementById("nonAsciiList");
     const compatibilityList = document.getElementById("compatibilityList");
     const diffViewToggle = document.getElementById("diffViewToggle");
+    const advancedSettingsSearch = document.getElementById("advancedSettingsSearch");
+    const advancedSettingsSearchStatus = document.getElementById("advancedSettingsSearchStatus");
+    const runUserTestsButton = document.getElementById("runUserTestsButton");
+    const userTestResults = document.getElementById("userTestResults");
+    const userTestAnimation = document.getElementById("userTestAnimation");
     const themeToggle = document.getElementById("themeToggle");
     const optionInputs = Array.from(document.querySelectorAll("[data-option]"));
 
@@ -1871,7 +1875,7 @@
           destinationSummary.append(dt, dd);
         });
       }
-      if (destinationCopyButton) destinationCopyButton.textContent = `${profile.copyLabel} (${details.format})`;
+      if (destinationCopyButton) destinationCopyButton.textContent = profile.copyLabel;
       outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output", "markdown-output", "diff-output", "compact-diff-output");
       outputEditor.classList.add(profile.outputClass);
     }
@@ -2273,13 +2277,99 @@
       const before = currentOptionsFromUi(destinationSelect.value, presetSelect, optionInputs);
       const next = Object.assign({}, OPTION_DEFAULTS, preset, profile.overrides);
       applyOptionsToUi(next);
-      const changed = Object.keys(next).filter((key) => before[key] !== next[key]);
-      const enabled = changed.filter((key) => next[key] === true).length;
-      const disabled = changed.filter((key) => next[key] === false).length;
       if (presetDescription) presetDescription.textContent = PRESET_DESCRIPTIONS[presetSelect.value] || "";
-      if (presetChangeSummary) presetChangeSummary.textContent = `This preset enabled ${enabled} options and disabled ${disabled} options.`;
       refreshStyleControls();
       update();
+    }
+
+    const OPTION_TAGS = Object.freeze({
+      detectLists: "clipboard lists html plain text structure nested",
+      preferHtmlPaste: "clipboard html rich paste intake",
+      removeHidden: "hidden invisible zero width directional unicode marks",
+      normalizeLineEndings: "line breaks crlf newline",
+      normalizeSeparators: "unicode separators paragraphs lines",
+      normalizeSpaces: "spaces nbsp thin no-break whitespace",
+      trimTrailingSpaces: "spaces line endings trailing whitespace",
+      limitBlankLines: "blank lines paragraphs spacing",
+      collapseRepeatedSpaces: "spaces whitespace repeated",
+      convertTabs: "tabs indentation spaces",
+      normalizeQuotes: "quotes smart curly keyboard punctuation",
+      preservePrimeMarks: "prime feet inches measurements quotes",
+      normalizeDashes: "dash hyphen en em punctuation",
+      normalizeEllipsis: "ellipsis dots leaders punctuation",
+      normalizeFullwidth: "fullwidth ascii compatibility",
+      expandLigatures: "ligatures typography compatibility",
+      normalizeFractions: "fractions unicode compatibility",
+      normalizeSuperscriptsSubscripts: "superscript subscript math compatibility",
+      removeEmoji: "emoji pictographic symbols removal",
+      smartQuotes: "quotes smart typography documents",
+      smartDashes: "dash em typography documents",
+      numericRangesToEnDash: "ranges numbers en dash typography",
+      smartEllipsis: "ellipsis typography documents",
+      smartFractions: "fractions typography documents",
+      measurementPrimes: "feet inches prime measurements typography",
+      structuredListsForDocs: "lists html docs word outlook semantic",
+      gmailListsAsHyphenLines: "gmail lists hyphen plain text",
+      strictAscii: "ascii strict non-ascii compatibility",
+      foldAccents: "accents ascii diacritics",
+      replaceSymbolsAscii: "symbols ascii arrows copyright trademark",
+      showInvisibles: "hidden invisible preview diagnostics"
+    });
+
+    function filterAdvancedSettings() {
+      if (!advancedSettingsSearch) return;
+      const query = advancedSettingsSearch.value.trim().toLowerCase();
+      let visible = 0;
+      optionInputs.forEach((input) => {
+        const label = input.closest("label");
+        if (!label) return;
+        const key = input.dataset.option || "";
+        const haystack = [key, label.textContent, OPTION_EXAMPLES[key], OPTION_TAGS[key]].join(" ").toLowerCase();
+        const match = !query || haystack.includes(query);
+        label.classList.toggle("setting-filter-hidden", !match);
+        if (match) visible += 1;
+      });
+      Array.from(document.querySelectorAll(".advanced-settings details")).forEach((group) => {
+        if (group.id === "advancedSettings") return;
+        const hasMatch = Boolean(group.querySelector("label:not(.setting-filter-hidden)"));
+        group.classList.toggle("setting-filter-hidden", !hasMatch && Boolean(query));
+        if (query && hasMatch) group.open = true;
+      });
+      if (advancedSettingsSearchStatus) advancedSettingsSearchStatus.textContent = query ? `${visible} matching settings` : "";
+    }
+
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+    }
+
+    function runUserExamples() {
+      if (!userTestResults) return;
+      const examples = [
+        { name: "Smart quotes and dashes", input: "“Hello” — 1–5...", options: { normalizeQuotes: true, normalizeDashes: true, normalizeEllipsis: true } },
+        { name: "Nested lists", input: "- parent\n  - child\n- sibling", doc: true, destination: "markdown" },
+        { name: "Emoji removal", input: "Launch 🚀 and smile 😀", options: { removeEmoji: true } },
+        { name: "Hidden characters", input: "Zero\u200Bwidth\u200E mark", options: { removeHidden: true } }
+      ];
+      userTestAnimation?.classList.remove("running");
+      void userTestAnimation?.offsetWidth;
+      userTestAnimation?.classList.add("running");
+      userTestResults.innerHTML = "";
+      examples.forEach((example, index) => {
+        window.setTimeout(() => {
+          const li = document.createElement("li");
+          let output;
+          if (example.doc) {
+            const doc = parsePlainTextToDoc(example.input, true);
+            output = docToPlainText(sanitizeDoc(doc, buildOptions(example.destination || "plain")).doc, example.destination || "plain");
+          } else {
+            output = sanitize(example.input, Object.assign({}, example.options)).cleanText;
+          }
+          li.innerHTML = `<strong>${escapeHtml(example.name)}</strong><span>${escapeHtml(example.input)}</span><code>${escapeHtml(output)}</code>`;
+          userTestResults.appendChild(li);
+          if (index === examples.length - 1) window.setTimeout(() => userTestAnimation?.classList.remove("running"), 900);
+        }, index * 180);
+      });
     }
 
     function parseClipboardEvent(event) {
@@ -2341,6 +2431,8 @@
       update();
     });
     if (diffViewToggle) diffViewToggle.addEventListener("change", update);
+    if (advancedSettingsSearch) advancedSettingsSearch.addEventListener("input", filterAdvancedSettings);
+    if (runUserTestsButton) runUserTestsButton.addEventListener("click", runUserExamples);
     if (themeToggle) themeToggle.addEventListener("change", () => applyTheme(themeToggle.checked));
     presetSelect.addEventListener("change", applyPresetAndProfile);
     destinationSelect.addEventListener("change", applyPresetAndProfile);
@@ -2437,6 +2529,7 @@
     applyTheme(loadThemePreference() === "dark");
     refreshStyleControls();
     applyPresetAndProfile();
+    filterAdvancedSettings();
   }
 
   const API = {

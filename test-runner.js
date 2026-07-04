@@ -45,8 +45,8 @@
     {
       name: "Destination profiles expose expected copy labels",
       run(api) {
-        equal(api.DESTINATIONS.gmail.copyLabel, "Copy output");
-        equal(api.DESTINATIONS.markdown.copyLabel, "Copy Markdown");
+        equal(api.DESTINATIONS.gmail.copyLabel, "Copy HTML");
+        equal(api.DESTINATIONS.markdown.copyLabel, "Copy text");
         ok(Object.keys(api.DESTINATIONS).length >= 10, "expected destination profiles to be registered");
       }
     },
