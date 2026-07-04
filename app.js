@@ -251,7 +251,7 @@
     gmail: {
       label: "Gmail",
       copyLabel: "Copy HTML",
-      note: "Copies rich HTML with semantic lists and a plain-text fallback.",
+      note: "Keyboard punctuation in paragraph text. The primary copy action writes Gmail-shaped HTML and preserves detected lists as semantic HTML lists.",
       outputClass: "gmail-compose",
       overrides: {
         smartQuotes: false,
@@ -266,7 +266,7 @@
     googleDocs: {
       label: "Google Docs",
       copyLabel: "Copy HTML",
-      note: "Copies rich HTML with semantic lists and a plain-text fallback.",
+      note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
         smartQuotes: true,
@@ -281,7 +281,7 @@
     word: {
       label: "Microsoft Word",
       copyLabel: "Copy HTML",
-      note: "Copies rich HTML with semantic lists and a plain-text fallback.",
+      note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
         smartQuotes: true,
@@ -313,7 +313,7 @@
     outlook: {
       label: "Outlook",
       copyLabel: "Copy HTML",
-      note: "Copies rich HTML with semantic lists and a plain-text fallback.",
+      note: "Conservative rich HTML for Outlook. Preserves semantic paragraphs and lists with a plain-text fallback.",
       outputClass: "document-output",
       copyMode: "documentHtml",
       overrides: {
@@ -414,7 +414,7 @@
 
 
   const PRESET_DESCRIPTIONS = Object.freeze({
-    standard: "Best default for punctuation, spacing, lists, and compatibility cleanup.",
+    standard: "Best default. Normalizes common punctuation, spacing, lists, and compatibility characters.",
     lightCleanup: "Minimal cleanup. Preserves more original punctuation and formatting.",
     strictPlainText: "Removes rich formatting and aggressively normalizes output for safe plain text."
   });
@@ -1792,7 +1792,7 @@
           sizes: GMAIL_SIZE_OPTIONS,
           defaultFont: "Verdana, sans-serif",
           defaultSize: "13px",
-          note: "Applies to preview and rich-copy HTML."
+          note: "Matches Gmail's named compose choices: font family plus Small, Normal, Large, or Huge size."
         };
       }
       if (destination === "googleDocs" || destination === "word" || destination === "outlook") {
@@ -1801,7 +1801,7 @@
           sizes: DOCUMENT_SIZE_OPTIONS,
           defaultFont: "Arial, sans-serif",
           defaultSize: "11pt",
-          note: "Applies to preview and rich-copy HTML."
+          note: "Uses document-style fonts and Google Docs-style text size presets for the preview and rich-copy HTML."
         };
       }
       return {
@@ -1809,7 +1809,7 @@
         sizes: PLAIN_SIZE_OPTIONS,
         defaultFont: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
         defaultSize: "0.92rem",
-        note: "Preview only. Plain-text copies do not include font or size."
+        note: "Applies to the preview. Plain-text copy keeps text unstyled because the clipboard format does not carry fonts or sizes."
       };
     }
 
@@ -1856,7 +1856,7 @@
       populateSelect(destinationFontSelect, config.fonts, saved.fontFamily || config.defaultFont);
       populateSelect(destinationSizeSelect, config.sizes, saved.fontSize || config.defaultSize);
       const detail = DESTINATION_DETAILS[destination] || DESTINATION_DETAILS.gmail;
-      if (destinationStyleNote) destinationStyleNote.textContent = detail.font === "preview-only" ? "Preview only. Plain-text copies do not include font or size." : config.note;
+      if (destinationStyleNote) destinationStyleNote.textContent = detail.font === "preview-only" ? "This destination copies plain text. Font and size only affect the preview." : config.note;
       const disabled = false;
       if (destinationFontSelect) destinationFontSelect.disabled = disabled;
       if (destinationSizeSelect) destinationSizeSelect.disabled = disabled;
@@ -1868,7 +1868,7 @@
       const details = DESTINATION_DETAILS[destinationSelect.value] || DESTINATION_DETAILS.gmail;
       if (destinationSummary) {
         destinationSummary.innerHTML = "";
-        [["Copies", details.format], ["Lists", details.list], ["Typography", details.typography], ["Style", details.font], ["Fallback", details.fallback]].forEach(([term, desc]) => {
+        [["Output format", details.format], ["List behavior", details.list], ["Typography", details.typography], ["Font/size", details.font], ["Fallback", details.fallback]].forEach(([term, desc]) => {
           const dt = document.createElement("dt");
           const dd = document.createElement("dd");
           dt.textContent = term;
