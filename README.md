@@ -22,6 +22,19 @@ clipboard paste
   -> copy using destination-specific clipboard formats
 ```
 
+
+## Preview policy
+
+The input panel is a structural preview of the parsed clipboard payload. It renders paragraphs and semantic lists from clipboard HTML when available instead of flattening them into textarea text.
+
+The output panel is also structural:
+
+- Gmail shows Verdana-style Gmail paragraph lines and Gmail-safe list lines.
+- Google Docs and Microsoft Word show document-style typography and semantic lists.
+- Plain text and Strict ASCII show the plain-text serialization.
+
+The visible preview is not a raw-code view. The primary copy button writes the selected destination payload; Copy visible text writes the plain visible-text fallback.
+
 ## Destination profiles
 
 ### Gmail

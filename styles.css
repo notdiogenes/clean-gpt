@@ -392,3 +392,75 @@ button, select, textarea, .rich-editor { font: inherit; }
   color: var(--muted);
   font-size: 0.86rem;
 }
+
+/* Structured editor refinements: show parsed clipboard/destination structure, not flattened textarea text. */
+.rich-editor {
+  white-space: normal;
+}
+
+.editor-paragraph {
+  white-space: pre-wrap;
+  min-height: 1.35em;
+  margin: 0 0 0.7em;
+}
+
+.editor-blank {
+  min-height: 1.35em;
+  margin: 0;
+}
+
+.source-editor {
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.source-editor .editor-paragraph,
+.source-editor .editor-blank {
+  max-width: 72ch;
+}
+
+.source-editor ul,
+.source-editor ol,
+.destination-output ul,
+.destination-output ol {
+  margin: 0.35em 0 0.85em 1.35em;
+  padding-left: 1.2em;
+  white-space: normal;
+}
+
+.source-editor li,
+.destination-output li {
+  margin: 0.25em 0;
+  padding-left: 0.15em;
+}
+
+.destination-output.gmail-compose {
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 10pt;
+  line-height: normal;
+}
+
+.destination-output.gmail-compose .gmail_default,
+.destination-output.gmail-compose .gmail-line {
+  font-family: verdana, sans-serif;
+  font-size: 10pt;
+  line-height: normal;
+  margin: 0;
+  min-height: 1.2em;
+  white-space: pre-wrap;
+}
+
+.destination-output.document-output .editor-paragraph {
+  margin: 0 0 0.85em;
+}
+
+.destination-output.plain-output .editor-paragraph,
+.destination-output.strict-output .editor-paragraph {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.destination-output.plain-output .editor-blank,
+.destination-output.strict-output .editor-blank {
+  min-height: 1.55em;
+}

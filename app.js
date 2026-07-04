@@ -921,14 +921,15 @@
     return { type: ordered ? "ol" : "ul", items };
   }
 
+
   function parseHtmlToDoc(html) {
     const parser = new DOMParser();
     const parsed = parser.parseFromString(String(html || ""), "text/html");
     const blocks = [];
 
-    function addParagraph(text) {
+    function addParagraph(text, sourceTag) {
       const normalized = normalizeBlockText(text).trim();
-      if (normalized) blocks.push({ type: "paragraph", text: normalized });
+      if (normalized) blocks.push({ type: "paragraph", text: normalized, sourceTag: sourceTag || "" });
     }
 
     function addBlank() {
@@ -936,10 +937,24 @@
       if (!last || last.type !== "blank") blocks.push({ type: "blank" });
     }
 
+    function nextElementSibling(node) {
+      let next = node.nextSibling;
+      while (next && next.nodeType !== 1) next = next.nextSibling;
+      return next;
+    }
+
+    function shouldAddParagraphBreakAfter(node) {
+      const tag = node.tagName;
+      if (!/^(P|BLOCKQUOTE|PRE|H[1-6])$/i.test(tag)) return false;
+      const next = nextElementSibling(node);
+      if (!next) return false;
+      return /^(P|DIV|BLOCKQUOTE|PRE|H[1-6])$/i.test(next.tagName || "");
+    }
+
     function walk(parent) {
       Array.from(parent.childNodes || []).forEach((node) => {
         if (node.nodeType === 3) {
-          addParagraph(node.nodeValue || "");
+          addParagraph(node.nodeValue || "", "text");
           return;
         }
         if (node.nodeType !== 1) return;
@@ -951,6 +966,8 @@
         if (tag === "UL" || tag === "OL") {
           const listBlock = parseListElement(node, tag === "OL");
           if (listBlock.items.length) blocks.push(listBlock);
+          const next = nextElementSibling(node);
+          if (next && /^(P|DIV|BLOCKQUOTE|PRE|H[1-6])$/i.test(next.tagName || "")) addBlank();
           return;
         }
         const hasBlockChildren = Array.from(node.children || []).some(isBlockElement);
@@ -961,8 +978,9 @@
         }
         if (/^(DIV|P|LI|BLOCKQUOTE|PRE|H[1-6])$/i.test(tag)) {
           const text = cleanNodeText(node);
-          if (text) addParagraph(text);
+          if (text) addParagraph(text, tag.toLowerCase());
           else addBlank();
+          if (shouldAddParagraphBreakAfter(node)) addBlank();
           return;
         }
         walk(node);
@@ -1097,13 +1115,16 @@
     return htmlEscape(text).replace(/\n/g, "<br>");
   }
 
+
   function docBlocksAsGmailLines(doc, options) {
     const lines = [];
     (doc.blocks || []).forEach((block) => {
       if (block.type === "blank") {
         lines.push("");
       } else if (block.type === "paragraph") {
-        lines.push(block.text || "");
+        const text = block.text || "";
+        const split = text.split("\n");
+        split.forEach((line) => lines.push(line));
       } else if (block.type === "ul") {
         (block.items || []).forEach((item) => {
           const prefix = options.gmailListsAsHyphenLines === false ? "• " : "- ";
@@ -1116,6 +1137,7 @@
     return lines;
   }
 
+
   function buildGmailHtmlFromDoc(doc, options) {
     const lines = docBlocksAsGmailLines(doc, options);
     const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
@@ -1124,7 +1146,7 @@
       const prefix = '<div class="gmail_default" style="font-family: verdana, sans-serif;">';
       if (!line) return `${prefix}<br></div>`;
       const suffix = index === lastTextIndex ? "<br></div>" : "</div>";
-      return `${prefix}${htmlEscapeWithBreaks(line)}${suffix}`;
+      return `${prefix}${htmlEscape(line)}${suffix}`;
     });
     return `<div>${divs.join("")}<br clear="all"></div>`;
   }
@@ -1147,35 +1169,62 @@
     return parts.join("");
   }
 
+
   function renderDocFragment(doc, mode, destination, options) {
     const frag = document.createDocumentFragment();
-    function para(text, className) {
+    const isOutput = mode === "output";
+
+    function blockDiv(text, className) {
       const div = document.createElement("div");
       div.className = className || "editor-paragraph";
       div.textContent = text || "";
       if (!text) div.appendChild(document.createElement("br"));
       return div;
     }
+
+    function gmailDiv(text, isFinalText) {
+      const div = document.createElement("div");
+      div.className = "gmail_default editor-paragraph gmail-line";
+      div.setAttribute("style", "font-family: verdana, sans-serif;");
+      div.textContent = text || "";
+      if (!text || isFinalText) div.appendChild(document.createElement("br"));
+      return div;
+    }
+
+    function appendPlainTextList(block) {
+      (block.items || []).forEach((item, index) => {
+        const marker = block.type === "ol" ? `${index + 1}. ` : "- ";
+        frag.appendChild(blockDiv(`${marker}${item.text || ""}`, "editor-paragraph list-as-text"));
+      });
+    }
+
+    function appendSemanticList(block) {
+      const list = document.createElement(block.type);
+      list.className = "editor-list";
+      (block.items || []).forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = item.text || "";
+        list.appendChild(li);
+      });
+      frag.appendChild(list);
+    }
+
+    if (isOutput && destination === "gmail") {
+      const lines = docBlocksAsGmailLines(doc, options || {});
+      const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
+      const lastTextIndex = nonEmptyIndexes.length ? nonEmptyIndexes[nonEmptyIndexes.length - 1] : -1;
+      lines.forEach((line, index) => frag.appendChild(gmailDiv(line, index === lastTextIndex && line.trim())));
+      return frag;
+    }
+
     (doc.blocks || []).forEach((block) => {
       if (block.type === "blank") {
-        frag.appendChild(para("", "editor-blank"));
+        frag.appendChild(blockDiv("", "editor-blank"));
       } else if (block.type === "paragraph") {
-        frag.appendChild(para(block.text || "", "editor-paragraph"));
+        frag.appendChild(blockDiv(block.text || "", "editor-paragraph"));
       } else if (block.type === "ul" || block.type === "ol") {
-        if (destination === "gmail" || destination === "plain" || destination === "strictAscii") {
-          (block.items || []).forEach((item, index) => {
-            const marker = block.type === "ol" ? `${index + 1}. ` : "- ";
-            frag.appendChild(para(`${marker}${item.text || ""}`, "editor-paragraph list-as-text"));
-          });
-        } else {
-          const list = document.createElement(block.type);
-          (block.items || []).forEach((item) => {
-            const li = document.createElement("li");
-            li.textContent = item.text || "";
-            list.appendChild(li);
-          });
-          frag.appendChild(list);
-        }
+        if (isOutput && (destination === "plain" || destination === "strictAscii")) appendPlainTextList(block);
+        else appendSemanticList(block);
       }
     });
     return frag;
