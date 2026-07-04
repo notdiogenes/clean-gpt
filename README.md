@@ -122,6 +122,8 @@ The app can remove or normalize:
 - emoji and pictographic symbols
 - remaining non-ASCII characters in strict mode
 
+Enable **Show invisible characters in input/output previews** to render keyboard-safe markers such as `⍽` for non-breaking spaces, `[ZWSP]` for zero-width spaces, `[SHY]` for soft hyphens, `→` for tabs, `[LS]` for line separators, and `[PS]` for paragraph separators.
+
 ## Inspector
 
 The Inspector reports:

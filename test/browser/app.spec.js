@@ -17,12 +17,38 @@ test('shows browser compatibility status', async ({ page }) => {
 test('uses destination-specific style selectors', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#destinationStyleLabel')).toHaveText('Destination text style');
-  await expect(page.locator('#destinationFontSelect')).toContainText('Sans Serif');
+  await expect(page.locator('#destinationFontSelect option:checked')).toHaveText('Verdana');
   await expect(page.locator('#destinationSizeSelect')).toContainText('Normal');
 
   await page.locator('#destinationSelect').selectOption('googleDocs');
   await expect(page.locator('#destinationFontSelect')).toContainText('Arial');
   await expect(page.locator('#destinationSizeSelect')).toContainText('Heading 1 (20 pt)');
+});
+
+test('persists Gmail Verdana style distinctly from Wide', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#destinationFontSelect').selectOption({ label: 'Verdana' });
+  await expect(page.locator('#destinationFontSelect')).toHaveValue('Verdana, sans-serif');
+
+  await page.reload();
+  await expect(page.locator('#destinationFontSelect')).toHaveValue('Verdana, sans-serif');
+  await expect(page.locator('#destinationFontSelect')).toHaveText(/Verdana/);
+  await expect(page.locator('#destinationFontSelect option:checked')).toHaveText('Verdana');
+});
+
+test('shows invisible characters in input and output previews', async ({ page }) => {
+  await page.goto('/');
+  const sample = 'A\u00a0B\u200bC\u00adD';
+  await page.locator('#inputEditor').fill(sample);
+  await page.locator('[data-option="removeHidden"]').uncheck();
+  await page.locator('[data-option="normalizeSpaces"]').uncheck();
+  await page.locator('[data-option="showInvisibles"]').check();
+
+  await expect(page.locator('#inputEditor')).toContainText('A⍽B[ZWSP]C[SHY]D');
+  await expect(page.locator('#outputEditor')).toContainText('A⍽B[ZWSP]C[SHY]D');
+
+  await page.locator('[data-option="showInvisibles"]').uncheck();
+  await expect(page.locator('#inputEditor')).toContainText(sample);
 });
 
 test('links to tests and debugging page with runnable checks', async ({ page }) => {
