@@ -932,6 +932,19 @@
     return String(text).replace(REGEX.htmlSensitive, (char) => MAPS.html.get(char));
   }
 
+  function gmailStyleFromOptions(options) {
+    const mergedOptions = options || {};
+    const fontFamily = mergedOptions.gmailFontFamily || "verdana, sans-serif";
+    const fontSize = mergedOptions.gmailFontSize || "";
+    const declarations = [`font-family: ${fontFamily};`];
+    if (fontSize) declarations.push(`font-size: ${fontSize};`);
+    return {
+      fontFamily,
+      fontSize: fontSize || "10pt",
+      inline: declarations.join(" ")
+    };
+  }
+
   function buildGmailHtml(text) {
     const lines = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
     const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
@@ -1286,7 +1299,7 @@
     const items = block.items || [];
     items.forEach((item, index) => {
       const isFinalItem = isFinalContent && index === items.length - 1;
-      const nested = (item.children || []).map((child) => buildGmailListHtml(child, false)).join("");
+      const nested = (item.children || []).map((child) => buildGmailListHtml(child, false, options)).join("");
       parts.push(`<li class="gmail_default" style="font-family: verdana, sans-serif;">${htmlEscapeWithBreaks(item.text || "")}${nested}${isFinalItem ? "<br>" : ""}</li>`);
     });
     parts.push(`</${tag}>`);
