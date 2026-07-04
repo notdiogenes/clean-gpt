@@ -319,3 +319,76 @@ input[type="checkbox"] { margin-top: 0.3em; }
   .editor-actions { flex-wrap: wrap; align-content: start; }
   .primary-button, .ghost-button { width: 100%; }
 }
+
+/* Rich editor replacement for the old textarea-only UI. */
+button, select, textarea, .rich-editor { font: inherit; }
+
+.rich-editor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fffefb;
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rich-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #8a877f;
+}
+
+.rich-editor:focus {
+  outline: 3px solid color-mix(in srgb, var(--focus), transparent 70%);
+  outline-offset: 2px;
+}
+
+.source-editor {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.destination-output.gmail-compose {
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 10pt;
+  line-height: normal;
+  letter-spacing: normal;
+}
+
+.destination-output.document-output {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 12pt;
+  line-height: 1.45;
+}
+
+.destination-output.plain-output,
+.destination-output.strict-output {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.editor-paragraph { min-height: 1.35em; }
+.editor-blank { min-height: 1.35em; }
+.rich-editor ul,
+.rich-editor ol {
+  margin: 0.35em 0 0.35em 1.4em;
+  padding-left: 1.2em;
+  white-space: normal;
+}
+.rich-editor li { margin: 0.15em 0; }
+.list-as-text { white-space: pre-wrap; }
+.inline-status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.86rem;
+}

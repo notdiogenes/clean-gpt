@@ -1,147 +1,133 @@
 # Copy Sanitizer
 
-A static GitHub Pages app for destination-aware copy/paste cleanup.
+A static GitHub Pages app for cleaning copied text and preparing it for a target destination such as Gmail, Google Docs, Microsoft Word, forms, or strict ASCII workflows.
 
-The app takes pasted text, removes hidden/source artifacts, applies a destination profile, and produces output shaped for the place where the text will be pasted.
+The app runs fully in the browser. It does not send text to a server.
+
+## Current model
+
+The app now uses controlled textarea-like `contenteditable` panels instead of plain `<textarea>` fields.
+
+Why: a textarea can only show plain text. Clipboard data often includes both `text/html` and `text/plain`, and list structure may be present only in the HTML version. The app intercepts paste, reads `text/html` first when available, parses paragraphs and lists into an internal document model, and then renders the parsed result back into the input panel so the user can see what the clipboard actually contained.
+
+Pipeline:
+
+```text
+clipboard paste
+  -> read text/html when available
+  -> fall back to text/plain
+  -> parse paragraphs, blank lines, unordered lists, and ordered lists
+  -> sanitize text inside each block
+  -> render destination preview
+  -> copy using destination-specific clipboard formats
+```
 
 ## Destination profiles
 
 ### Gmail
 
-Gmail mode keeps keyboard-style visible punctuation and uses a Gmail-compatible rendered HTML clipboard payload for paragraph and font behavior.
+Visible output uses keyboard-safe punctuation:
 
-Visible character policy:
+- straight quotes
+- straight apostrophes
+- ` -- ` instead of em dash
+- `...` instead of Unicode ellipsis
+- normal spaces only
 
-- double quotes: `U+0022 QUOTATION MARK`
-- apostrophes: `U+0027 APOSTROPHE`
-- em-dash-like interruption: `space + -- + space`
-- ellipsis: three full stops, `...`
-- list bullets: hyphen lines, when enabled
-- no intentionally inserted zero-width spaces
-
-Primary copy policy:
-
-- writes `text/html` to the clipboard
-- generated HTML shape:
+Primary copy writes Gmail-shaped `text/html`:
 
 ```html
 <div><div class="gmail_default" style="font-family: verdana, sans-serif;">Paragraph one</div><div class="gmail_default" style="font-family: verdana, sans-serif;"><br></div><div class="gmail_default" style="font-family: verdana, sans-serif;">Paragraph two<br></div><br clear="all"></div>
 ```
 
-The visible textarea remains plain text; the Gmail copy button generates the rendered HTML payload directly from that text.
+The app does not intentionally insert zero-width spaces, spans, font tags, color styles, background-color styles, line-height styles, or extra wrappers.
+
+Detected lists are rendered for Gmail as plain list lines by default:
+
+```text
+- First item
+- Second item
+```
 
 ### Google Docs
 
-Google Docs mode uses document typography and copies `text/plain` so Docs can inherit the current document style.
+Visible output uses document-style typography:
 
-Default destination typography:
+- curly quotes
+- curly apostrophes
+- em dashes
+- numeric en dashes
+- ellipsis characters
+- measurement primes when enabled
 
-- paired double quotes become `U+201C` and `U+201D`
-- apostrophes and closing single quotes become `U+2019`
-- opening single quotes become `U+2018`
-- ` -- ` becomes `U+2014 EM DASH`
-- numeric ranges such as `5-10` become `5–10`
-- `...` becomes `U+2026 HORIZONTAL ELLIPSIS`
-- typed feet/inches can become prime marks when enabled
+Primary copy writes `text/html` plus `text/plain`. HTML copy preserves semantic lists using `<ul>`, `<ol>`, and `<li>`.
 
 ### Microsoft Word
 
-Word mode currently uses the same document typography as Google Docs and copies `text/plain` so Word can inherit the active document style instead of browser styles.
-
-The profile is kept separate so Word-specific clipboard behavior can diverge later if needed.
+Word uses the same document typography profile as Google Docs by default. Primary copy writes `text/html` plus `text/plain`, so Word can receive semantic lists and then apply its paste behavior.
 
 ### Plain text / forms
 
-Plain mode keeps keyboard-safe visible characters and copies `text/plain`.
+Copies `text/plain` only. Lists use plain hyphen or numbered lines.
 
 ### Strict ASCII
 
-Strict ASCII mode aggressively removes or replaces non-ASCII characters.
+Aggressively replaces or removes non-ASCII characters. Lists use plain hyphen or numbered lines.
 
-Default strict conversions include:
+## List policy
 
-- accent folding through compatibility decomposition
-- ligature expansion
-- single-character fractions converted to text fractions
-- superscript and subscript characters flattened
-- common symbols replaced with ASCII equivalents when available
-- emoji removed
-- remaining non-ASCII characters removed
+Bullets are no longer treated as a global character replacement.
 
-## Character policy categories
+The app detects list structure during paste:
 
-The UI is organized around character classes rather than one-off replacements.
+1. If clipboard HTML contains `<ul>`, `<ol>`, or `<li>`, it stores list structure in the internal document model.
+2. If only plain text is available, it detects lines beginning with markers such as `*`, `-`, `•`, and numbered items such as `1.`.
+3. Each destination decides how lists are rendered and copied.
 
-### Source cleanup
+This replaces the old blanket rule of converting bullet characters to hyphens.
 
-- hidden and directional characters
-- line endings
-- Unicode line/paragraph separators
+## Character cleanup
+
+The app can remove or normalize:
+
+- hidden Unicode characters
+- zero-width spaces
+- word joiners
+- soft hyphens
+- directional marks
 - unusual spaces
-- trailing spaces
-- repeated blank lines
-- repeated spaces
-- tabs
-
-### Punctuation cleanup
-
-- smart quotes and apostrophe-like marks
-- prime marks
-- em dash, en dash, non-breaking hyphen, figure dash, minus sign, and fullwidth hyphen forms
+- mixed line endings
+- Unicode line and paragraph separators
+- quote-like characters
+- dash variants
 - ellipsis and dot leaders
-- bullets at the beginning of list lines
-
-### Compatibility cleanup
-
 - fullwidth ASCII forms
 - ligatures
 - single-character fractions
 - superscripts and subscripts
 - emoji and pictographic symbols
-
-### Destination typography
-
-- smart quotes
-- typographic dashes
-- numeric en dashes
-- ellipsis character
-- typed fractions
-- measurement prime marks
-
-### Strict ASCII
-
-- accent folding
-- common symbol replacements
-- removal of remaining non-ASCII characters
+- remaining non-ASCII characters in strict mode
 
 ## Inspector
 
 The Inspector reports:
 
-- input character count
-- output character count
-- source cleanup changes
+- character counts
+- source changes
 - destination typography changes
 - hidden characters removed
 - remaining non-ASCII characters
-- exact code-point-level replacement records
-- warnings
+- clipboard source used
+- whether clipboard HTML was available
+- detected list count
+- detected list-item count
+- primary copy formats for the selected destination
 
-Example change record:
+## Deployment
 
-```text
-Source: U+201C LEFT DOUBLE QUOTATION MARK -> U+0022 QUOTATION MARK ×1 (Quote-like character normalized)
-```
+The project is static. Deploy the repository root to GitHub Pages.
 
-## UI layout
-
-The editor cards use fixed matching rows for the header, action row, textarea, and status line. The input and output panels therefore line up at the top, at the textarea start, and at the bottom.
-
-Destination selection lives in the Character Policy rail. Its help text has reserved height so changing profiles does not shift the editor layout.
-
-All Character Policy sections are expanded by default, including Compatibility Cleanup and Strict ASCII.
-
-## Files
+Required root files:
 
 ```text
 index.html
@@ -150,13 +136,3 @@ app.js
 README.md
 .nojekyll
 ```
-
-No build step is required.
-
-## GitHub Pages deployment
-
-Upload the files to the repository root and enable GitHub Pages from GitHub Actions or from the repository root, depending on your Pages configuration.
-
-## Privacy
-
-The app runs locally in the browser. It does not send text to a server.

@@ -172,7 +172,7 @@
     preservePrimeMarks: true,
     normalizeDashes: true,
     normalizeEllipsis: true,
-    convertBullets: true,
+    convertBullets: false,
     normalizeFullwidth: true,
     expandLigatures: true,
     normalizeFractions: true,
@@ -186,14 +186,18 @@
     measurementPrimes: false,
     strictAscii: false,
     foldAccents: true,
-    replaceSymbolsAscii: true
+    replaceSymbolsAscii: true,
+    detectLists: true,
+    preferHtmlPaste: true,
+    structuredListsForDocs: true,
+    gmailListsAsHyphenLines: true
   });
 
   const DESTINATIONS = Object.freeze({
     gmail: {
       label: "Gmail",
-      copyLabel: "Copy Gmail HTML",
-      note: "Keyboard punctuation in the visible output. The primary copy action writes Gmail-shaped rendered HTML with Verdana paragraph divs.",
+      copyLabel: "Copy for Gmail",
+      note: "Keyboard punctuation in the visible output. The primary copy action writes Gmail-shaped HTML; detected lists become plain hyphen lines inside Gmail divs.",
       outputClass: "gmail-compose",
       overrides: {
         smartQuotes: false,
@@ -207,8 +211,8 @@
     },
     googleDocs: {
       label: "Google Docs",
-      copyLabel: "Copy for Docs",
-      note: "Document typography in visible text: smart quotes, em dashes, numeric en dashes, and ellipses. Copies as text/plain so Docs can inherit the document style.",
+      copyLabel: "Copy for Google Docs",
+      note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
         smartQuotes: true,
@@ -223,7 +227,7 @@
     word: {
       label: "Microsoft Word",
       copyLabel: "Copy for Word",
-      note: "Document typography in visible text. Copies as text/plain so Word can inherit the active document style instead of carrying browser styles.",
+      note: "Document typography in visible text. The primary copy action writes semantic HTML lists plus a plain-text fallback.",
       outputClass: "document-output",
       overrides: {
         smartQuotes: true,
@@ -285,7 +289,7 @@
       preservePrimeMarks: true,
       normalizeDashes: true,
       normalizeEllipsis: true,
-      convertBullets: true,
+      convertBullets: false,
       normalizeFullwidth: true,
       expandLigatures: true,
       normalizeFractions: true,
@@ -343,7 +347,7 @@
       preservePrimeMarks: false,
       normalizeDashes: true,
       normalizeEllipsis: true,
-      convertBullets: true,
+      convertBullets: false,
       normalizeFullwidth: true,
       expandLigatures: true,
       normalizeFractions: true,
@@ -857,6 +861,386 @@
     return `<div>${divs.join("")}<br clear="all"></div>`;
   }
 
+
+  function normalizeBlockText(text) {
+    return String(text == null ? "" : text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  }
+
+  function makeDoc(blocks, meta) {
+    return {
+      blocks: Array.isArray(blocks) ? blocks : [],
+      meta: Object.assign({ source: "manual", htmlAvailable: false, plainAvailable: false, lists: 0, listItems: 0 }, meta || {})
+    };
+  }
+
+  function blockText(block) {
+    if (!block) return "";
+    if (block.type === "ul" || block.type === "ol") return (block.items || []).map((item) => item.text || "").join("\n");
+    return block.text || "";
+  }
+
+  function countDocLists(blocks) {
+    let lists = 0;
+    let items = 0;
+    (blocks || []).forEach((block) => {
+      if (block.type === "ul" || block.type === "ol") {
+        lists += 1;
+        items += (block.items || []).length;
+      }
+    });
+    return { lists, items };
+  }
+
+  function isBlockElement(node) {
+    if (!node || node.nodeType !== 1) return false;
+    return /^(DIV|P|UL|OL|LI|BLOCKQUOTE|PRE|H[1-6]|TABLE|TR)$/i.test(node.tagName);
+  }
+
+  function cleanNodeText(node) {
+    return normalizeBlockText((node.textContent || "").replace(/\u00a0/g, " ")).replace(/[ \t]+\n/g, "\n").trim();
+  }
+
+  function directTextContent(node) {
+    let text = "";
+    Array.from(node.childNodes || []).forEach((child) => {
+      if (child.nodeType === 3) text += child.nodeValue || "";
+      if (child.nodeType === 1 && child.tagName === "BR") text += "\n";
+    });
+    return text;
+  }
+
+  function parseListElement(element, ordered) {
+    const items = [];
+    Array.from(element.children || []).forEach((child) => {
+      if (child.tagName !== "LI") return;
+      const clone = child.cloneNode(true);
+      Array.from(clone.querySelectorAll("ul,ol")).forEach((nested) => nested.remove());
+      const text = cleanNodeText(clone);
+      if (text) items.push({ text });
+    });
+    return { type: ordered ? "ol" : "ul", items };
+  }
+
+  function parseHtmlToDoc(html) {
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(String(html || ""), "text/html");
+    const blocks = [];
+
+    function addParagraph(text) {
+      const normalized = normalizeBlockText(text).trim();
+      if (normalized) blocks.push({ type: "paragraph", text: normalized });
+    }
+
+    function addBlank() {
+      const last = blocks[blocks.length - 1];
+      if (!last || last.type !== "blank") blocks.push({ type: "blank" });
+    }
+
+    function walk(parent) {
+      Array.from(parent.childNodes || []).forEach((node) => {
+        if (node.nodeType === 3) {
+          addParagraph(node.nodeValue || "");
+          return;
+        }
+        if (node.nodeType !== 1) return;
+        const tag = node.tagName;
+        if (tag === "BR") {
+          addBlank();
+          return;
+        }
+        if (tag === "UL" || tag === "OL") {
+          const listBlock = parseListElement(node, tag === "OL");
+          if (listBlock.items.length) blocks.push(listBlock);
+          return;
+        }
+        const hasBlockChildren = Array.from(node.children || []).some(isBlockElement);
+        const direct = directTextContent(node).replace(/\u00a0/g, " ").trim();
+        if (hasBlockChildren && !direct) {
+          walk(node);
+          return;
+        }
+        if (/^(DIV|P|LI|BLOCKQUOTE|PRE|H[1-6])$/i.test(tag)) {
+          const text = cleanNodeText(node);
+          if (text) addParagraph(text);
+          else addBlank();
+          return;
+        }
+        walk(node);
+      });
+    }
+
+    walk(parsed.body);
+    while (blocks.length && blocks[0].type === "blank") blocks.shift();
+    while (blocks.length && blocks[blocks.length - 1].type === "blank") blocks.pop();
+    const counts = countDocLists(blocks);
+    return makeDoc(blocks, { source: "html", htmlAvailable: true, lists: counts.lists, listItems: counts.items });
+  }
+
+  function parsePlainTextToDoc(text, detectLists) {
+    const normalized = normalizeBlockText(text);
+    const lines = normalized.split("\n");
+    const blocks = [];
+    let i = 0;
+
+    function addBlank() {
+      const last = blocks[blocks.length - 1];
+      if (!last || last.type !== "blank") blocks.push({ type: "blank" });
+    }
+
+    function markerForLine(line) {
+      const unordered = line.match(/^\s*[-*\u2022\u2023\u25E6\u2043\u2219]\s+(.+)$/u);
+      if (unordered) return { type: "ul", text: unordered[1] };
+      const ordered = line.match(/^\s*(\d+|[A-Za-z])[.)]\s+(.+)$/u);
+      if (ordered) return { type: "ol", text: ordered[2] };
+      return null;
+    }
+
+    while (i < lines.length) {
+      const line = lines[i];
+      if (!line.trim()) {
+        addBlank();
+        i += 1;
+        continue;
+      }
+
+      const marker = detectLists ? markerForLine(line) : null;
+      if (marker) {
+        const list = { type: marker.type, items: [] };
+        while (i < lines.length) {
+          const next = markerForLine(lines[i]);
+          if (!next || next.type !== marker.type) break;
+          list.items.push({ text: next.text.trim() });
+          i += 1;
+        }
+        blocks.push(list);
+        continue;
+      }
+
+      const paragraphLines = [line.trim()];
+      i += 1;
+      while (i < lines.length && lines[i].trim() && !(detectLists && markerForLine(lines[i]))) {
+        paragraphLines.push(lines[i].trim());
+        i += 1;
+      }
+      blocks.push({ type: "paragraph", text: paragraphLines.join("\n") });
+    }
+
+    while (blocks.length && blocks[0].type === "blank") blocks.shift();
+    while (blocks.length && blocks[blocks.length - 1].type === "blank") blocks.pop();
+    const counts = countDocLists(blocks);
+    return makeDoc(blocks, { source: "plain", plainAvailable: true, lists: counts.lists, listItems: counts.items });
+  }
+
+  function docToPlainText(doc, destination) {
+    const lines = [];
+    (doc.blocks || []).forEach((block) => {
+      if (block.type === "blank") {
+        lines.push("");
+      } else if (block.type === "paragraph") {
+        lines.push(block.text || "");
+      } else if (block.type === "ul") {
+        (block.items || []).forEach((item) => {
+          const marker = (destination === "googleDocs" || destination === "word") ? "•" : "-";
+          lines.push(`${marker} ${item.text || ""}`);
+        });
+      } else if (block.type === "ol") {
+        (block.items || []).forEach((item, index) => lines.push(`${index + 1}. ${item.text || ""}`));
+      }
+    });
+    return lines.join("\n");
+  }
+
+  function mergeStats(target, source) {
+    Object.keys(source || {}).forEach((key) => {
+      if (typeof source[key] === "number") target[key] = (target[key] || 0) + source[key];
+    });
+  }
+
+  function sanitizeTextPart(text, options, aggregateChanges, aggregateStats) {
+    const source = sanitizeSource(text, options);
+    let clean = applyDestinationTypography(source.text, options, source.changes, source.stats);
+    clean = applyStrictAscii(clean, options, source.changes, source.stats);
+    aggregateChanges.push(...source.changes);
+    mergeStats(aggregateStats, source.stats);
+    return clean;
+  }
+
+  function sanitizeDoc(doc, options) {
+    const stats = makeStats();
+    const changes = [];
+    const outBlocks = (doc.blocks || []).map((block) => {
+      if (block.type === "paragraph") return { type: "paragraph", text: sanitizeTextPart(block.text || "", options, changes, stats) };
+      if (block.type === "blank") return { type: "blank" };
+      if (block.type === "ul" || block.type === "ol") {
+        return {
+          type: block.type,
+          items: (block.items || []).map((item) => ({ text: sanitizeTextPart(item.text || "", options, changes, stats) }))
+        };
+      }
+      return { type: "paragraph", text: sanitizeTextPart(blockText(block), options, changes, stats) };
+    }).filter((block) => block.type === "blank" || block.type === "paragraph" || block.items?.length);
+    const outputDoc = makeDoc(outBlocks, Object.assign({}, doc.meta));
+    const visibleText = docToPlainText(outputDoc, options.destination || "gmail");
+    const diagnostics = getDiagnostics(visibleText);
+    return {
+      doc: outputDoc,
+      cleanText: visibleText,
+      changes,
+      stats,
+      warnings: diagnostics.warnings,
+      remainingNonAscii: diagnostics.remainingNonAscii,
+      options
+    };
+  }
+
+  function htmlEscapeWithBreaks(text) {
+    return htmlEscape(text).replace(/\n/g, "<br>");
+  }
+
+  function docBlocksAsGmailLines(doc, options) {
+    const lines = [];
+    (doc.blocks || []).forEach((block) => {
+      if (block.type === "blank") {
+        lines.push("");
+      } else if (block.type === "paragraph") {
+        lines.push(block.text || "");
+      } else if (block.type === "ul") {
+        (block.items || []).forEach((item) => {
+          const prefix = options.gmailListsAsHyphenLines === false ? "• " : "- ";
+          lines.push(`${prefix}${item.text || ""}`);
+        });
+      } else if (block.type === "ol") {
+        (block.items || []).forEach((item, index) => lines.push(`${index + 1}. ${item.text || ""}`));
+      }
+    });
+    return lines;
+  }
+
+  function buildGmailHtmlFromDoc(doc, options) {
+    const lines = docBlocksAsGmailLines(doc, options);
+    const nonEmptyIndexes = lines.map((line, index) => line.trim() ? index : -1).filter((index) => index >= 0);
+    const lastTextIndex = nonEmptyIndexes.length ? nonEmptyIndexes[nonEmptyIndexes.length - 1] : -1;
+    const divs = lines.map((line, index) => {
+      const prefix = '<div class="gmail_default" style="font-family: verdana, sans-serif;">';
+      if (!line) return `${prefix}<br></div>`;
+      const suffix = index === lastTextIndex ? "<br></div>" : "</div>";
+      return `${prefix}${htmlEscapeWithBreaks(line)}${suffix}`;
+    });
+    return `<div>${divs.join("")}<br clear="all"></div>`;
+  }
+
+  function buildDocumentHtmlFromDoc(doc) {
+    const parts = ["<div>"];
+    (doc.blocks || []).forEach((block) => {
+      if (block.type === "blank") {
+        parts.push("<p><br></p>");
+      } else if (block.type === "paragraph") {
+        parts.push(`<p>${htmlEscapeWithBreaks(block.text || "")}</p>`);
+      } else if (block.type === "ul" || block.type === "ol") {
+        const tag = block.type;
+        parts.push(`<${tag}>`);
+        (block.items || []).forEach((item) => parts.push(`<li>${htmlEscapeWithBreaks(item.text || "")}</li>`));
+        parts.push(`</${tag}>`);
+      }
+    });
+    parts.push("</div>");
+    return parts.join("");
+  }
+
+  function renderDocFragment(doc, mode, destination, options) {
+    const frag = document.createDocumentFragment();
+    function para(text, className) {
+      const div = document.createElement("div");
+      div.className = className || "editor-paragraph";
+      div.textContent = text || "";
+      if (!text) div.appendChild(document.createElement("br"));
+      return div;
+    }
+    (doc.blocks || []).forEach((block) => {
+      if (block.type === "blank") {
+        frag.appendChild(para("", "editor-blank"));
+      } else if (block.type === "paragraph") {
+        frag.appendChild(para(block.text || "", "editor-paragraph"));
+      } else if (block.type === "ul" || block.type === "ol") {
+        if (destination === "gmail" || destination === "plain" || destination === "strictAscii") {
+          (block.items || []).forEach((item, index) => {
+            const marker = block.type === "ol" ? `${index + 1}. ` : "- ";
+            frag.appendChild(para(`${marker}${item.text || ""}`, "editor-paragraph list-as-text"));
+          });
+        } else {
+          const list = document.createElement(block.type);
+          (block.items || []).forEach((item) => {
+            const li = document.createElement("li");
+            li.textContent = item.text || "";
+            list.appendChild(li);
+          });
+          frag.appendChild(list);
+        }
+      }
+    });
+    return frag;
+  }
+
+  function renderDocInto(editor, doc, mode, destination, options) {
+    editor.innerHTML = "";
+    editor.appendChild(renderDocFragment(doc, mode, destination, options || {}));
+  }
+
+  function parseEditorToDoc(editor) {
+    const blocks = [];
+    function addBlank() {
+      const last = blocks[blocks.length - 1];
+      if (!last || last.type !== "blank") blocks.push({ type: "blank" });
+    }
+    Array.from(editor.childNodes || []).forEach((node) => {
+      if (node.nodeType === 3) {
+        const text = normalizeBlockText(node.nodeValue || "").trim();
+        if (text) blocks.push({ type: "paragraph", text });
+        return;
+      }
+      if (node.nodeType !== 1) return;
+      const tag = node.tagName;
+      if (tag === "UL" || tag === "OL") {
+        const listBlock = parseListElement(node, tag === "OL");
+        if (listBlock.items.length) blocks.push(listBlock);
+        return;
+      }
+      if (tag === "BR") {
+        addBlank();
+        return;
+      }
+      const text = cleanNodeText(node);
+      if (!text) addBlank();
+      else blocks.push({ type: "paragraph", text });
+    });
+    const counts = countDocLists(blocks);
+    return makeDoc(blocks, { source: "editor", lists: counts.lists, listItems: counts.items });
+  }
+
+  function insertDocAtSelection(editor, doc) {
+    const fragment = renderDocFragment(doc, "input", "source", {});
+    const marker = document.createElement("span");
+    marker.setAttribute("data-caret-marker", "true");
+    marker.appendChild(document.createTextNode(""));
+    fragment.appendChild(marker);
+    const selection = global.getSelection ? global.getSelection() : null;
+    if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(fragment);
+    } else {
+      editor.appendChild(fragment);
+    }
+    const range = document.createRange();
+    range.setStartAfter(marker);
+    range.collapse(true);
+    marker.remove();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }
+
   function currentOptionsFromUi(destination, presetSelect, optionInputs) {
     const preset = PRESETS[presetSelect.value] || PRESETS.standard;
     const ui = {};
@@ -876,8 +1260,8 @@
   }
 
   function bindDom() {
-    const inputText = document.getElementById("inputText");
-    const outputText = document.getElementById("outputText");
+    const inputEditor = document.getElementById("inputEditor");
+    const outputEditor = document.getElementById("outputEditor");
     const clearButton = document.getElementById("clearButton");
     const destinationCopyButton = document.getElementById("destinationCopyButton");
     const copyVisibleButton = document.getElementById("copyVisibleButton");
@@ -885,18 +1269,26 @@
     const destinationNote = document.getElementById("destinationNote");
     const presetSelect = document.getElementById("presetSelect");
     const status = document.getElementById("status");
+    const pasteStatus = document.getElementById("pasteStatus");
     const statsList = document.getElementById("statsList");
+    const structureList = document.getElementById("structureList");
     const changesList = document.getElementById("changesList");
     const warningsList = document.getElementById("warningsList");
     const nonAsciiList = document.getElementById("nonAsciiList");
     const optionInputs = Array.from(document.querySelectorAll("[data-option]"));
 
-    if (!inputText || !outputText || !destinationSelect || !presetSelect) return;
+    if (!inputEditor || !outputEditor || !destinationSelect || !presetSelect) return;
 
     let lastResult = null;
+    let inputDoc = makeDoc([], { source: "manual" });
+    let suppressInputEvent = false;
 
     function setStatus(message) {
       if (status) status.textContent = message || "";
+    }
+
+    function setPasteStatus(message) {
+      if (pasteStatus) pasteStatus.textContent = message || "Ready for paste.";
     }
 
     function applyOptionsToUi(options) {
@@ -909,18 +1301,21 @@
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
       if (destinationNote) destinationNote.textContent = profile.note;
       if (destinationCopyButton) destinationCopyButton.textContent = profile.copyLabel;
-      outputText.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output");
-      outputText.classList.add(profile.outputClass);
+      outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output");
+      outputEditor.classList.add(profile.outputClass);
     }
 
     function getOptions() {
-      return currentOptionsFromUi(destinationSelect.value, presetSelect, optionInputs);
+      const options = currentOptionsFromUi(destinationSelect.value, presetSelect, optionInputs);
+      options.destination = destinationSelect.value;
+      return options;
     }
 
     function renderStats(result) {
       if (!statsList) return;
+      const inputChars = docToPlainText(inputDoc, "plain").length;
       const entries = [
-        ["Characters in", inputText.value.length],
+        ["Characters in", inputChars],
         ["Characters out", result.cleanText.length],
         ["Source changes", result.stats.sourceChanges],
         ["Destination changes", result.stats.destinationChanges],
@@ -929,7 +1324,8 @@
         ["Quotes changed", result.stats.quotesChanged],
         ["Dashes changed", result.stats.dashesChanged],
         ["Ellipses changed", result.stats.ellipsesChanged],
-        ["Bullets changed", result.stats.bulletsChanged],
+        ["Lists detected", result.doc.meta.lists || 0],
+        ["List items", result.doc.meta.listItems || 0],
         ["Compatibility changes", result.stats.fullwidthChanged + result.stats.ligaturesChanged + result.stats.fractionsChanged + result.stats.superSubChanged],
         ["Strict ASCII changes", result.stats.strictAsciiChanged]
       ];
@@ -945,12 +1341,33 @@
       });
     }
 
+    function renderStructure(result) {
+      if (!structureList) return;
+      structureList.innerHTML = "";
+      const destination = destinationSelect.value;
+      const profile = DESTINATIONS[destination] || DESTINATIONS.gmail;
+      const formats = destination === "gmail" ? "text/html" : ((destination === "googleDocs" || destination === "word") ? "text/html + text/plain" : "text/plain");
+      const entries = [
+        `Input source: ${inputDoc.meta.source || "manual"}`,
+        `Clipboard HTML seen: ${inputDoc.meta.htmlAvailable ? "yes" : "no"}`,
+        `Lists detected: ${result.doc.meta.lists || 0}`,
+        `List items detected: ${result.doc.meta.listItems || 0}`,
+        `Destination: ${profile.label}`,
+        `Primary copy formats: ${formats}`
+      ];
+      entries.forEach((entry) => {
+        const li = document.createElement("li");
+        li.textContent = entry;
+        structureList.appendChild(li);
+      });
+    }
+
     function renderChanges(result) {
       if (!changesList) return;
       changesList.innerHTML = "";
       if (!result.changes.length) {
         const li = document.createElement("li");
-        li.textContent = "No changes made.";
+        li.textContent = "No character changes made.";
         changesList.appendChild(li);
         return;
       }
@@ -999,10 +1416,12 @@
     }
 
     function update() {
+      if (!suppressInputEvent) inputDoc = parseEditorToDoc(inputEditor);
       refreshProfileUi();
-      lastResult = sanitize(inputText.value, getOptions());
-      outputText.value = lastResult.cleanText;
+      lastResult = sanitizeDoc(inputDoc, getOptions());
+      renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, getOptions());
       renderStats(lastResult);
+      renderStructure(lastResult);
       renderChanges(lastResult);
       renderWarnings(lastResult);
       setStatus("");
@@ -1011,57 +1430,72 @@
     function applyPresetAndProfile() {
       const preset = PRESETS[presetSelect.value] || PRESETS.standard;
       const profile = DESTINATIONS[destinationSelect.value] || DESTINATIONS.gmail;
-      applyOptionsToUi(Object.assign({}, preset, profile.overrides));
+      applyOptionsToUi(Object.assign({}, OPTION_DEFAULTS, preset, profile.overrides));
       update();
     }
 
-    function insertPlainTextAtCursor(target, text) {
-      const start = target.selectionStart || 0;
-      const end = target.selectionEnd || 0;
-      const before = target.value.slice(0, start);
-      const after = target.value.slice(end);
-      target.value = before + text + after;
-      const cursor = start + text.length;
-      target.selectionStart = cursor;
-      target.selectionEnd = cursor;
-      target.dispatchEvent(new Event("input", { bubbles: true }));
+    function parseClipboardEvent(event) {
+      const options = getOptions();
+      const clipboard = event.clipboardData || global.clipboardData;
+      if (!clipboard) return null;
+      const html = clipboard.getData("text/html");
+      const plain = clipboard.getData("text/plain");
+      let doc;
+      if (options.preferHtmlPaste && html) {
+        doc = parseHtmlToDoc(html);
+        doc.meta.plainAvailable = Boolean(plain);
+      } else {
+        doc = parsePlainTextToDoc(plain || "", options.detectLists);
+        doc.meta.htmlAvailable = Boolean(html);
+      }
+      doc.meta.plainAvailable = Boolean(plain);
+      if (!doc.blocks.length && plain) doc = parsePlainTextToDoc(plain, options.detectLists);
+      return doc;
     }
 
-    inputText.addEventListener("paste", (event) => {
-      const clipboard = event.clipboardData || global.clipboardData;
-      if (!clipboard) return;
-      const plain = clipboard.getData("text/plain");
-      if (plain) {
-        event.preventDefault();
-        insertPlainTextAtCursor(inputText, plain);
-      }
+    inputEditor.addEventListener("paste", (event) => {
+      const doc = parseClipboardEvent(event);
+      if (!doc) return;
+      event.preventDefault();
+      suppressInputEvent = true;
+      insertDocAtSelection(inputEditor, doc);
+      suppressInputEvent = false;
+      inputDoc = parseEditorToDoc(inputEditor);
+      inputDoc.meta = Object.assign({}, doc.meta, countDocLists(inputDoc.blocks));
+      setPasteStatus(doc.meta.source === "html" ? "Pasted from clipboard HTML." : "Pasted from clipboard plain text.");
+      update();
     });
 
-    inputText.addEventListener("input", update);
+    inputEditor.addEventListener("input", () => {
+      inputDoc = parseEditorToDoc(inputEditor);
+      inputDoc.meta.source = "editor";
+      setPasteStatus("Edited manually.");
+      update();
+    });
+
     optionInputs.forEach((input) => input.addEventListener("change", update));
     presetSelect.addEventListener("change", applyPresetAndProfile);
     destinationSelect.addEventListener("change", applyPresetAndProfile);
 
     if (clearButton) {
       clearButton.addEventListener("click", () => {
-        inputText.value = "";
+        inputDoc = makeDoc([], { source: "manual" });
+        inputEditor.innerHTML = "";
         update();
-        inputText.focus();
+        setPasteStatus("Ready for paste.");
+        inputEditor.focus();
       });
     }
 
     if (copyVisibleButton) {
       copyVisibleButton.addEventListener("click", async () => {
-        const result = sanitize(inputText.value, getOptions());
-        outputText.value = result.cleanText;
+        const result = sanitizeDoc(inputDoc, getOptions());
+        const visibleText = docToPlainText(result.doc, destinationSelect.value);
         try {
-          await navigator.clipboard.writeText(result.cleanText);
+          await navigator.clipboard.writeText(visibleText);
           setStatus("Copied visible text.");
         } catch (error) {
-          outputText.focus();
-          outputText.select();
-          document.execCommand("copy");
-          setStatus("Copied visible text.");
+          setStatus("Clipboard write failed; select the preview and copy manually.");
         }
       });
     }
@@ -1069,11 +1503,12 @@
     if (destinationCopyButton) {
       destinationCopyButton.addEventListener("click", async () => {
         const destination = destinationSelect.value;
-        const result = sanitize(inputText.value, getOptions());
-        outputText.value = result.cleanText;
+        const options = getOptions();
+        const result = sanitizeDoc(inputDoc, options);
+        const visibleText = docToPlainText(result.doc, destination);
 
         if (destination === "gmail") {
-          const html = buildGmailHtml(result.cleanText);
+          const html = buildGmailHtmlFromDoc(result.doc, options);
           try {
             if (!navigator.clipboard || !global.ClipboardItem) throw new Error("HTML clipboard unavailable");
             await navigator.clipboard.write([
@@ -1084,25 +1519,42 @@
             setStatus("Copied Gmail-compatible rendered HTML.");
           } catch (error) {
             try {
-              await navigator.clipboard.writeText(result.cleanText);
+              await navigator.clipboard.writeText(visibleText);
               setStatus("HTML clipboard unavailable; copied visible text instead.");
             } catch (fallbackError) {
-              outputText.focus();
-              outputText.select();
-              document.execCommand("copy");
-              setStatus("HTML clipboard unavailable; copied visible text instead.");
+              setStatus("Clipboard write failed; select the preview and copy manually.");
             }
           }
-        } else {
+          return;
+        }
+
+        if ((destination === "googleDocs" || destination === "word") && options.structuredListsForDocs) {
+          const html = buildDocumentHtmlFromDoc(result.doc);
           try {
-            await navigator.clipboard.writeText(result.cleanText);
-            setStatus(`Copied for ${DESTINATIONS[destination].label}.`);
+            if (!navigator.clipboard || !global.ClipboardItem) throw new Error("HTML clipboard unavailable");
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                "text/html": new Blob([html], { type: "text/html" }),
+                "text/plain": new Blob([visibleText], { type: "text/plain" })
+              })
+            ]);
+            setStatus(`Copied structured content for ${DESTINATIONS[destination].label}.`);
           } catch (error) {
-            outputText.focus();
-            outputText.select();
-            document.execCommand("copy");
-            setStatus(`Copied for ${DESTINATIONS[destination].label}.`);
+            try {
+              await navigator.clipboard.writeText(visibleText);
+              setStatus("HTML clipboard unavailable; copied visible text instead.");
+            } catch (fallbackError) {
+              setStatus("Clipboard write failed; select the preview and copy manually.");
+            }
           }
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(visibleText);
+          setStatus(`Copied for ${DESTINATIONS[destination].label}.`);
+        } catch (error) {
+          setStatus("Clipboard write failed; select the preview and copy manually.");
         }
       });
     }
@@ -1113,6 +1565,12 @@
   const API = {
     sanitize,
     buildGmailHtml,
+    buildGmailHtmlFromDoc,
+    buildDocumentHtmlFromDoc,
+    parsePlainTextToDoc,
+    parseHtmlToDoc,
+    sanitizeDoc,
+    docToPlainText,
     buildOptions,
     PRESETS,
     DESTINATIONS,
