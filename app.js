@@ -205,7 +205,7 @@
     { label: "Georgia", value: "Georgia, serif" },
     { label: "Tahoma", value: "Tahoma, Geneva, sans-serif" },
     { label: "Trebuchet MS", value: "'Trebuchet MS', sans-serif" },
-    { label: "Verdana", value: "Verdana, Geneva, sans-serif" }
+    { label: "Verdana", value: "Verdana, sans-serif" }
   ]);
 
   const GMAIL_SIZE_OPTIONS = Object.freeze([
@@ -1004,7 +1004,7 @@
     const destination = mergedOptions.destination || "plain";
     const isGmail = destination === "gmail";
     const isDocument = destination === "googleDocs" || destination === "word" || destination === "outlook";
-    const defaultFont = isGmail ? "Arial, Helvetica, sans-serif" : (isDocument ? "Arial, sans-serif" : "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace");
+    const defaultFont = isGmail ? "Verdana, sans-serif" : (isDocument ? "Arial, sans-serif" : "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace");
     const defaultSize = isGmail ? "13px" : (isDocument ? "11pt" : "0.92rem");
     return {
       fontFamily: mergedOptions.textFontFamily || mergedOptions.gmailFontFamily || defaultFont,
@@ -1321,13 +1321,22 @@
   }
 
   function visualizeInvisibles(text) {
-    return String(text || "").replace(/[\u0009\u00a0\u00ad\u034f\u061c\u180e\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff]/gu, (char) => {
-      if (char === "\t") return "→";
-      if (char === "\u00a0") return "⍽";
-      if (char === "\u00ad") return "[SHY]";
-      if (char === "\u2028") return "[LS]";
-      if (char === "\u2029") return "[PS]";
-      return `[${labelChar(char).split(" ")[0]}]`;
+    const labels = new Map([
+      ["\t", "→"],
+      ["\u00a0", "⍽"],
+      ["\u00ad", "[SHY]"],
+      ["\u200b", "[ZWSP]"],
+      ["\u200c", "[ZWNJ]"],
+      ["\u200d", "[ZWJ]"],
+      ["\u200e", "[LRM]"],
+      ["\u200f", "[RLM]"],
+      ["\u2028", "[LS]"],
+      ["\u2029", "[PS]"],
+      ["\u2060", "[WJ]"],
+      ["\ufeff", "[BOM]"]
+    ]);
+    return String(text || "").replace(/[\u0009\u00a0\u00ad\u034f\u061c\u180e\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff]|[\u{E0000}-\u{E007F}]/gu, (char) => {
+      return labels.get(char) || `[${labelChar(char).split(" ")[0]}]`;
     });
   }
 
@@ -1660,7 +1669,7 @@
         return {
           fonts: GMAIL_FONT_OPTIONS,
           sizes: GMAIL_SIZE_OPTIONS,
-          defaultFont: "Arial, Helvetica, sans-serif",
+          defaultFont: "Verdana, sans-serif",
           defaultSize: "13px",
           note: "Matches Gmail's named compose choices: font family plus Small, Normal, Large, or Huge size."
         };
@@ -1873,10 +1882,29 @@
       }
     }
 
+    function renderInputEditorForOptions(options) {
+      const shouldVisualize = Boolean(options.showInvisibles);
+      const isVisualized = inputEditor.dataset.showingInvisibles === "true";
+      if (!shouldVisualize && !isVisualized) return;
+      suppressInputEvent = true;
+      renderDocInto(inputEditor, inputDoc, "input", "source", shouldVisualize ? options : {});
+      inputEditor.dataset.showingInvisibles = shouldVisualize ? "true" : "false";
+      suppressInputEvent = false;
+    }
+
+    function showRawInputEditor() {
+      if (inputEditor.dataset.showingInvisibles !== "true") return;
+      suppressInputEvent = true;
+      renderDocInto(inputEditor, inputDoc, "input", "source", {});
+      inputEditor.dataset.showingInvisibles = "false";
+      suppressInputEvent = false;
+    }
+
     function update() {
-      if (!suppressInputEvent) inputDoc = parseEditorToDoc(inputEditor);
+      if (!suppressInputEvent && inputEditor.dataset.showingInvisibles !== "true") inputDoc = parseEditorToDoc(inputEditor);
       refreshProfileUi();
       const options = getOptions();
+      renderInputEditorForOptions(options);
       const destinationStyle = destinationStyleFromOptions(options);
       outputEditor.style.setProperty("--destination-font-family", destinationStyle.fontFamily);
       outputEditor.style.setProperty("--destination-font-size", destinationStyle.fontSize);
@@ -1919,7 +1947,12 @@
       return doc;
     }
 
+    inputEditor.addEventListener("beforeinput", () => {
+      showRawInputEditor();
+    });
+
     inputEditor.addEventListener("paste", (event) => {
+      showRawInputEditor();
       const doc = parseClipboardEvent(event);
       if (!doc) return;
       event.preventDefault();
