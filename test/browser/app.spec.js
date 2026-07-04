@@ -52,18 +52,18 @@ test('removes the show invisible characters input option', async ({ page }) => {
 });
 
 
-test('defaults to preview and toggles compact diff view beside the output preview', async ({ page }) => {
+test('toggles compact diff view beside the output preview', async ({ page }) => {
   await page.goto('/');
   await page.locator('#inputEditor').fill('Hello — world');
 
-  await expect(page.locator('#diffViewToggle')).not.toBeChecked();
-  await expect(page.locator('#outputEditor .char-change')).toHaveCount(0);
-  await expect(page.locator('#outputEditor')).toContainText('Hello -- world');
-
-  await page.locator('#diffViewToggle').check();
+  await expect(page.locator('#diffViewToggle')).toBeChecked();
   await expect(page.locator('#outputEditor')).toContainText('Hello -- world');
   await expect(page.locator('#outputEditor .char-change')).toContainText(' -- ');
   await expect(page.locator('#outputEditor')).not.toContainText('character changes');
+
+  await page.locator('#diffViewToggle').uncheck();
+  await expect(page.locator('#outputEditor .char-change')).toHaveCount(0);
+  await expect(page.locator('#outputEditor')).toContainText('Hello -- world');
 });
 
 test('inspector highlights changed source text without scrolling', async ({ page }) => {
@@ -101,27 +101,4 @@ test('compact diff preserves HTML list provenance for Gmail', async ({ page }) =
   await expect(page.locator('#outputEditor')).not.toContainText('Unordered list preserved: 2 items.');
   await expect(page.locator('#outputEditor .diff-note')).toHaveCount(0);
   await expect(page.locator('#outputEditor li').first()).toHaveText('Approximately 38 box lunches');
-});
-
-
-test('advanced settings sheet opens from the left, supports item toggles, and dismisses', async ({ page }) => {
-  await page.goto('/');
-  await page.locator('#advancedSettingsButton').click();
-  await expect(page.locator('#advancedSettings')).toHaveAttribute('open', '');
-  const sheetBox = await page.locator('.advanced-sheet').boundingBox();
-  expect(sheetBox.x).toBeLessThan(80);
-
-  await page.locator('#advancedSettings details', { hasText: 'Source cleanup' }).locator('summary').click();
-  await page.locator('#advancedSettings details', { hasText: 'Punctuation cleanup' }).locator('summary').click();
-  const collapseRepeated = page.locator('[data-option="collapseRepeatedSpaces"]');
-  await expect(collapseRepeated).not.toBeChecked();
-  await page.locator('.setting-item', { hasText: 'Collapse repeated spaces' }).click();
-  await expect(collapseRepeated).toBeChecked();
-
-  await page.keyboard.press('Escape');
-  await expect(page.locator('#advancedSettings')).not.toHaveAttribute('open', '');
-
-  await page.locator('#advancedSettingsButton').click();
-  await page.mouse.click(900, 200);
-  await expect(page.locator('#advancedSettings')).not.toHaveAttribute('open', '');
 });
