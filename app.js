@@ -1729,6 +1729,7 @@
     const diffViewToggle = document.getElementById("diffViewToggle");
     const advancedSettingsSearch = document.getElementById("advancedSettingsSearch");
     const advancedSettingsSearchStatus = document.getElementById("advancedSettingsSearchStatus");
+    const advancedSettingsClear = document.getElementById("advancedSettingsClear");
     const runUserTestsButton = document.getElementById("runUserTestsButton");
     const userTestResults = document.getElementById("userTestResults");
     const userTestAnimation = document.getElementById("userTestAnimation");
@@ -1876,6 +1877,11 @@
         });
       }
       if (destinationCopyButton) destinationCopyButton.textContent = profile.copyLabel;
+      const plainOnly = (DESTINATION_DETAILS[destinationSelect.value] || DESTINATION_DETAILS.gmail).format.toLowerCase().includes("plain text") || profile.copyLabel === "Copy text";
+      if (copyVisibleButton) {
+        copyVisibleButton.hidden = plainOnly;
+        copyVisibleButton.textContent = "Copy visible text";
+      }
       outputEditor.classList.remove("gmail-compose", "document-output", "plain-output", "strict-output", "markdown-output", "diff-output", "compact-diff-output");
       outputEditor.classList.add(profile.outputClass);
     }
@@ -2343,32 +2349,46 @@
       return String(value).replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
     }
 
+    const USER_EXAMPLES = Object.freeze([
+      { name: "Smart quotes and dashes", input: "“Hello” — 1–5...", destination: "plain", options: { normalizeQuotes: true, normalizeDashes: true, normalizeEllipsis: true }, expected: '"Hello" -- 1-5...' },
+      { name: "Nested lists", input: "- parent\n  - child\n- sibling", destination: "markdown", doc: true, expected: "- parent\n  - child\n- sibling" },
+      { name: "Emoji removal", input: "Launch 🚀 and smile 😀", destination: "plain", options: { removeEmoji: true, collapseRepeatedSpaces: true }, expected: "Launch and smile" },
+      { name: "Hidden characters", input: "Zero\u200Bwidth\u200E mark", destination: "plain", options: { removeHidden: true }, expected: "Zerowidth mark" },
+      { name: "Heavy emoji usage", input: "🔥🔥 Ship it ✅✨", destination: "plain", options: { removeEmoji: true, collapseRepeatedSpaces: true }, expected: " Ship it" },
+      { name: "Right-to-left text", input: "abc\u200F def", destination: "plain", options: { removeHidden: true }, expected: "abc def" },
+      { name: "Superscripts and subscripts", input: "x² + H₂O", destination: "plain", options: { normalizeSuperscriptsSubscripts: true }, expected: "x2 + H2O" },
+      { name: "Ligatures", input: "office ﬁle ﬂow", destination: "plain", options: { expandLigatures: true }, expected: "office file flow" },
+      { name: "Mathematical symbols", input: "± × ÷ √", destination: "strictAscii", options: { strictAscii: true, replaceSymbolsAscii: true }, expected: "+/- x / " },
+      { name: "Strict ASCII conversion", input: "Café — ™", destination: "strictAscii", options: { strictAscii: true, foldAccents: true, replaceSymbolsAscii: true, normalizeDashes: true }, expected: "Cafe -- TM" },
+      { name: "Markdown lists", input: "- One\n- Two", destination: "markdown", doc: true, expected: "- One\n- Two" },
+      { name: "Rich pasted lists", input: "<ul><li>One</li><li>Two</li></ul>", destination: "googleDocs", html: true, expected: "One\nTwo" },
+      { name: "Code comment cleanup", input: "TODO — fix “quotes”\u200B", destination: "code", expected: 'TODO -- fix "quotes"' },
+      { name: "Form-safe plain text", input: "Name:\tJane   Doe\n\n\nNotes", destination: "plain", expected: "Name: Jane   Doe\n\nNotes" }
+    ]);
+
+    function runExampleCase(example) {
+      const options = Object.assign(buildOptions(example.destination || "plain"), example.options || {});
+      if (example.html) return docToPlainText(sanitizeDoc(parseHtmlToDoc(example.input), options).doc, example.destination || "plain");
+      if (example.doc) return docToPlainText(sanitizeDoc(parsePlainTextToDoc(example.input, true), options).doc, example.destination || "plain");
+      return sanitize(example.input, options).cleanText;
+    }
+
     function runUserExamples() {
       if (!userTestResults) return;
-      const examples = [
-        { name: "Smart quotes and dashes", input: "“Hello” — 1–5...", options: { normalizeQuotes: true, normalizeDashes: true, normalizeEllipsis: true } },
-        { name: "Nested lists", input: "- parent\n  - child\n- sibling", doc: true, destination: "markdown" },
-        { name: "Emoji removal", input: "Launch 🚀 and smile 😀", options: { removeEmoji: true } },
-        { name: "Hidden characters", input: "Zero\u200Bwidth\u200E mark", options: { removeHidden: true } }
-      ];
       userTestAnimation?.classList.remove("running");
       void userTestAnimation?.offsetWidth;
       userTestAnimation?.classList.add("running");
       userTestResults.innerHTML = "";
-      examples.forEach((example, index) => {
+      USER_EXAMPLES.forEach((example, index) => {
         window.setTimeout(() => {
+          const actual = runExampleCase(example);
+          const passed = actual === example.expected;
           const li = document.createElement("li");
-          let output;
-          if (example.doc) {
-            const doc = parsePlainTextToDoc(example.input, true);
-            output = docToPlainText(sanitizeDoc(doc, buildOptions(example.destination || "plain")).doc, example.destination || "plain");
-          } else {
-            output = sanitize(example.input, Object.assign({}, example.options)).cleanText;
-          }
-          li.innerHTML = `<strong>${escapeHtml(example.name)}</strong><span>${escapeHtml(example.input)}</span><code>${escapeHtml(output)}</code>`;
+          li.className = `user-test-result ${passed ? "pass" : "fail"}`;
+          li.innerHTML = `<div class="user-test-title"><strong>${escapeHtml(example.name)}</strong><span class="test-badge">${passed ? "PASS" : "FAIL"}</span></div><dl><dt>Input</dt><dd><code>${escapeHtml(example.input)}</code></dd><dt>Expected</dt><dd><code>${escapeHtml(example.expected)}</code></dd><dt>Actual</dt><dd><code>${escapeHtml(actual)}</code></dd></dl>`;
           userTestResults.appendChild(li);
-          if (index === examples.length - 1) window.setTimeout(() => userTestAnimation?.classList.remove("running"), 900);
-        }, index * 180);
+          if (index === USER_EXAMPLES.length - 1) window.setTimeout(() => userTestAnimation?.classList.remove("running"), 900);
+        }, index * 90);
       });
     }
 
@@ -2431,7 +2451,22 @@
       update();
     });
     if (diffViewToggle) diffViewToggle.addEventListener("change", update);
-    if (advancedSettingsSearch) advancedSettingsSearch.addEventListener("input", filterAdvancedSettings);
+    function clearAdvancedSettingsSearch() {
+      if (!advancedSettingsSearch) return;
+      advancedSettingsSearch.value = "";
+      filterAdvancedSettings();
+      advancedSettingsSearch.focus();
+    }
+    if (advancedSettingsSearch) {
+      advancedSettingsSearch.addEventListener("input", filterAdvancedSettings);
+      advancedSettingsSearch.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && advancedSettingsSearch.value) {
+          event.preventDefault();
+          clearAdvancedSettingsSearch();
+        }
+      });
+    }
+    if (advancedSettingsClear) advancedSettingsClear.addEventListener("click", clearAdvancedSettingsSearch);
     if (runUserTestsButton) runUserTestsButton.addEventListener("click", runUserExamples);
     if (themeToggle) themeToggle.addEventListener("change", () => applyTheme(themeToggle.checked));
     presetSelect.addEventListener("change", applyPresetAndProfile);

@@ -31,6 +31,18 @@
       <ul id="testResults" class="test-results" aria-live="polite"></ul>
     </section>
 
+    <section class="panel debug-panel user-facing-tests-panel" aria-labelledby="userTestsLabel">
+      <div class="debug-heading">
+        <div>
+          <h2 id="userTestsLabel">Try common sanitizer tests</h2>
+          <p class="panel-subtitle">Run visible examples for ordinary cleanup questions. Each case shows input, expected output, actual output, and pass/fail status.</p>
+        </div>
+        <button id="runUserTestsButton" type="button" class="primary-button">Run examples</button>
+      </div>
+      <div id="userTestAnimation" class="user-test-animation" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      <ul id="userTestResults" class="user-test-results detailed-user-tests" aria-live="polite"></ul>
+    </section>
+
     <section class="panel debug-panel" aria-labelledby="diagnosticsLabel">
       <h2 id="diagnosticsLabel">Debug diagnostics</h2>
       <p class="panel-subtitle">Environment details that commonly explain clipboard or rich-copy behavior differences.</p>
