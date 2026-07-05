@@ -1,11 +1,11 @@
 const { test, expect } = require('@playwright/test');
 
-async function createSampleDocxBuffer() {
+async function createSampleDocxBuffer(documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:rPr><w:b/><w:i/><w:u w:val="single"/><w:highlight w:val="yellow"/></w:rPr><w:t>Hello “Word” — café</w:t></w:r></w:p><w:p><w:r><w:t>Hidden</w:t></w:r><w:r><w:t>​</w:t></w:r><w:r><w:t>marker</w:t></w:r></w:p></w:body></w:document>') {
   const zlib = require('node:zlib');
   const encoder = new TextEncoder();
   const entries = [
     { name: '[Content_Types].xml', content: '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>' },
-    { name: 'word/document.xml', content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:rPr><w:b/><w:i/><w:u w:val="single"/><w:highlight w:val="yellow"/></w:rPr><w:t>Hello “Word” — café</w:t></w:r></w:p><w:p><w:r><w:t>Hidden</w:t></w:r><w:r><w:t>​</w:t></w:r><w:r><w:t>marker</w:t></w:r></w:p></w:body></w:document>' }
+    { name: 'word/document.xml', content: documentXml }
   ].map((entry) => ({ name: entry.name, raw: encoder.encode(entry.content) }));
   const chunks = [];
   const centralDirectory = [];
@@ -205,6 +205,29 @@ test('advanced setting items include descriptions', async ({ page }) => {
   await expect(page.locator('.setting-item', { hasText: 'Collapse repeated spaces' }).locator('.setting-item-description')).toContainText('Multiple spaces');
 });
 
+
+test('document analysis treats DOCX text and file metadata as text instead of markup', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Analyze Word file' }).click();
+
+  const payload = '<img src=x onerror=alert(1)>';
+  const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Unsafe “&lt;img src=x onerror=alert(1)&gt;” content</w:t></w:r></w:p></w:body></w:document>`;
+  const docxBuffer = await createSampleDocxBuffer(xml);
+  await page.locator('#documentFileInput').setInputFiles({
+    name: `${payload}.docx`,
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: docxBuffer
+  });
+
+  await expect(page.locator('#documentStatus')).toContainText('Document analysis ready');
+  await expect(page.locator('#documentMetadata')).toContainText(`${payload}.docx`);
+  await expect(page.locator('#documentFormattedPreview')).toContainText(payload);
+  await expect(page.locator('#documentExtractedPreview')).toContainText(payload);
+  await page.locator('#documentIssueSidebar .issue-row').first().click();
+  await expect(page.locator('#documentIssueDetails')).toContainText(payload);
+  await expect(page.locator('#documentView img')).toHaveCount(0);
+});
+
 test('document analysis uploads DOCX and returns to paste view', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Analyze Word file' }).click();
@@ -218,7 +241,8 @@ test('document analysis uploads DOCX and returns to paste view', async ({ page }
   });
   await expect(page.locator('#documentStatus')).toContainText('Document analysis ready');
   await expect(page.locator('#documentSummaryCards')).toContainText('Total issues');
-  await expect(page.locator('#documentFormattedPreview')).toContainText('Hello “Word”');
+  await expect(page.locator('#documentFormattedPreview')).toContainText('Hello');
+  await expect(page.locator('#documentFormattedPreview')).toContainText('Word');
   await expect(page.locator('#documentFormattedPreview .formatted-run.is-bold.is-italic.is-underline.has-highlight').first()).toBeVisible();
   await expect(page.locator('#documentFormattedPreview .issue-highlight').first()).toBeVisible();
   await expect(page.locator('#documentExtractedPreview')).toContainText('Hello “Word”');
