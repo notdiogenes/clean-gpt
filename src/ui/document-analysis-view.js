@@ -36,7 +36,7 @@
 
   function createReviewState(model) {
     const issues = (model.analysisResults.issues || []).map((issue) => Object.assign({ status: "open" }, issue));
-    return { issues, selectedIssueId: null, filters: { status: "all", type: "all", hideLow: false }, cleanedText: model.rawText };
+    return { issues, selectedIssueId: null, previewMode: "markup", filters: { status: "all", type: "all", hideLow: false }, cleanedText: model.rawText };
   }
 
   function issueExplanation(issue) {
@@ -69,6 +69,7 @@
       dropZone: doc.getElementById("documentDropZone"), fileInput: doc.getElementById("documentFileInput"), status: doc.getElementById("documentStatus"), metadata: doc.getElementById("documentMetadata"), report: doc.getElementById("documentReport"),
       summary: doc.getElementById("documentSummaryCards"), groups: doc.getElementById("documentIssueGroups"), formatted: doc.getElementById("documentFormattedPreview"), extracted: doc.getElementById("documentExtractedPreview"), cleaned: doc.getElementById("documentCleanedPreview"),
       sidebar: doc.getElementById("documentIssueSidebar"), details: doc.getElementById("documentIssueDetails"), filterStatus: doc.getElementById("documentIssueStatusFilter"), filterType: doc.getElementById("documentIssueTypeFilter"), hideLow: doc.getElementById("documentHideLowSeverity"),
+      reviewPrevious: doc.getElementById("documentPreviousIssueButton"), reviewNext: doc.getElementById("documentNextIssueButton"), reviewApply: doc.getElementById("documentApplyIssueButton"), reviewIgnore: doc.getElementById("documentIgnoreIssueButton"), reviewApplySimilar: doc.getElementById("documentApplySimilarButton"), previewMode: doc.getElementById("documentPreviewModeSelect"), reviewProgress: doc.getElementById("documentReviewProgress"),
       copy: doc.getElementById("copyDocumentCleanedButton"), downloadText: doc.getElementById("downloadDocumentTextButton"), download: doc.getElementById("downloadDocumentReportButton"), clear: doc.getElementById("clearDocumentButton")
     };
     let currentModel = null;
@@ -98,10 +99,25 @@
       return { total: issues.length, open: issues.filter((i) => i.status === "open").length, applied: issues.filter((i) => i.status === "applied").length, ignored: issues.filter((i) => i.status === "ignored").length, types: new Set(issues.map((i) => i.group)).size };
     }
 
-    function filteredIssues() {
+    function visibleIssues() {
       if (!review) return [];
       return review.issues.filter((issue) => (review.filters.status === "all" || issue.status === review.filters.status) && (review.filters.type === "all" || issue.group === review.filters.type) && !(review.filters.hideLow && issue.severity === "low"));
     }
+
+    function selectedIssueIndex() {
+      if (!review) return -1;
+      const list = visibleIssues();
+      return list.findIndex((issue) => issue.id === review.selectedIssueId);
+    }
+
+    function reviewProgressLabel() {
+      const list = visibleIssues();
+      if (!list.length) return "Issue 0 of 0";
+      const index = selectedIssueIndex();
+      return `Issue ${index >= 0 ? index + 1 : 0} of ${list.length}`;
+    }
+
+    function filteredIssues() { return visibleIssues(); }
 
     function renderSummary() {
       const c = counts();
@@ -154,40 +170,59 @@
       return !String(value || "").replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\s]/g, "").length;
     }
 
-    function appendIssueMarker(parent, issue, originalText, properties) {
+    function issueTextForMode(issue, originalText) {
+      const replacement = issue.replacement == null ? "" : String(issue.replacement);
+      if (review.previewMode === "accepted" && issue.status === "applied") return replacement;
+      return String(originalText || "");
+    }
+
+    function appendInvisibleMarker(parent, label) {
+      const marker = doc.createElement("span");
+      marker.className = "issue-invisible-marker";
+      marker.textContent = label;
+      parent.appendChild(marker);
+    }
+
+    function appendIssueMarker(parent, issues, originalText, properties) {
+      const issueList = Array.isArray(issues) ? issues : [issues];
+      const primary = issueList[0];
       const wrapper = doc.createElement("span");
       const classes = formattedRunClasses(properties);
-      classes.push("inline-issue-review", "issue-highlight", `issue-${issue.group}`, `status-${issue.status}`);
-      if (issue.id === review.selectedIssueId) classes.push("is-selected");
+      classes.push("inline-issue-review", "issue-highlight", `issue-${primary.group}`, `status-${primary.status}`, `preview-${review.previewMode}`);
+      if (issueList.some((issue) => issue.id === review.selectedIssueId)) classes.push("is-selected");
+      if (issueList.length > 1) classes.push("has-overlap");
       wrapper.className = classes.join(" ");
-      wrapper.dataset.issueId = issue.id;
+      wrapper.dataset.issueId = primary.id;
+      wrapper.dataset.issueIds = issueList.map((issue) => issue.id).join(" ");
       wrapper.tabIndex = 0;
-      wrapper.title = `${issue.type}: ${issue.label}`;
+      wrapper.title = issueList.map((issue) => `${issue.type}: ${issue.label}`).join(" | ");
 
-      const problem = doc.createElement(issue.status === "applied" ? "del" : "span");
-      problem.className = "issue-original";
-      if (originalText && !isInvisibleIssueText(originalText)) {
-        problem.textContent = originalText;
+      if (review.previewMode === "markup") {
+        const problem = doc.createElement(primary.status === "applied" ? "del" : "span");
+        problem.className = "issue-original";
+        if (originalText && !isInvisibleIssueText(originalText)) problem.textContent = originalText;
+        else appendInvisibleMarker(problem, primary.group === "warnings" ? "warning" : "hidden");
+        wrapper.appendChild(problem);
+        issueList.forEach((issue) => {
+          const replacement = issue.replacement == null ? "" : String(issue.replacement);
+          if (replacement === String(originalText || "") && issueList.length === 1) return;
+          const insertion = doc.createElement("ins");
+          insertion.className = "issue-replacement";
+          insertion.dataset.issueId = issue.id;
+          if (replacement && !isInvisibleIssueText(replacement)) insertion.textContent = replacement;
+          else appendInvisibleMarker(insertion, "remove");
+          wrapper.appendChild(insertion);
+        });
       } else {
-        const marker = doc.createElement("span");
-        marker.className = "issue-invisible-marker";
-        marker.textContent = issue.group === "warnings" ? "warning" : "hidden";
-        problem.appendChild(marker);
+        const text = issueTextForMode(primary, originalText);
+        if (text && !isInvisibleIssueText(text)) wrapper.textContent = text;
+        else appendInvisibleMarker(wrapper, primary.group === "warnings" ? "warning" : "hidden");
       }
-      wrapper.appendChild(problem);
-
-      const replacement = issue.replacement == null ? "" : String(issue.replacement);
-      if (replacement !== String(originalText || "")) {
-        const insertion = doc.createElement("ins");
-        insertion.className = "issue-replacement";
-        if (replacement && !isInvisibleIssueText(replacement)) insertion.textContent = replacement;
-        else {
-          const marker = doc.createElement("span");
-          marker.className = "issue-invisible-marker issue-empty-marker";
-          marker.textContent = "remove";
-          insertion.appendChild(marker);
-        }
-        wrapper.appendChild(insertion);
+      if (issueList.length > 1) {
+        const badge = doc.createElement("sup");
+        badge.className = "issue-overlap-badge";
+        badge.textContent = `+${issueList.length - 1}`;
+        wrapper.appendChild(badge);
       }
       parent.appendChild(wrapper);
     }
@@ -205,9 +240,9 @@
         const partEnd = points[i + 1];
         related.filter((issue) => issue.start === issue.end && issue.start === partStart).forEach((issue) => appendIssueMarker(parent, issue, "", properties));
         if (partStart >= partEnd) continue;
-        const issue = related.find((item) => item.start < partEnd && item.end > partStart);
-        if (issue) {
-          appendIssueMarker(parent, issue, text.slice(partStart - start, partEnd - start), properties);
+        const activeIssues = related.filter((item) => item.start < partEnd && item.end > partStart);
+        if (activeIssues.length) {
+          appendIssueMarker(parent, activeIssues, text.slice(partStart - start, partEnd - start), properties);
         } else {
           const span = doc.createElement("span");
           span.className = formattedRunClasses(properties).join(" ");
@@ -312,17 +347,39 @@
       elements.details.append(list, actions);
     }
 
+    function renderToolbar() {
+      if (elements.reviewProgress) elements.reviewProgress.textContent = reviewProgressLabel();
+      if (elements.previewMode) elements.previewMode.value = review ? review.previewMode : "markup";
+      const hasSelection = Boolean(selectedIssue());
+      [elements.reviewApply, elements.reviewIgnore, elements.reviewApplySimilar].forEach((button) => { if (button) button.disabled = !hasSelection; });
+      const hasVisible = visibleIssues().length > 0;
+      [elements.reviewPrevious, elements.reviewNext].forEach((button) => { if (button) button.disabled = !hasVisible; });
+    }
     function renderCleaned() { review.cleanedText = applyIssuePatches(currentModel.rawText, review.issues); elements.cleaned.textContent = review.cleanedText; }
-    function renderAll() { renderSummary(); renderFormattedDocument(); renderHighlights(); renderSidebar(); renderDetails(); renderCleaned(); }
+    function renderAll() { renderSummary(); renderFormattedDocument(); renderHighlights(); renderSidebar(); renderDetails(); renderCleaned(); renderToolbar(); }
 
     function selectIssue(id) {
+      if (!id) return;
       review.selectedIssueId = id;
       renderAll();
       const node = (elements.formatted && elements.formatted.querySelector(`[data-issue-id="${id}"]`)) || elements.extracted.querySelector(`[data-issue-id="${id}"]`);
       if (node) node.scrollIntoView({ block: "center", behavior: "smooth" });
     }
+    function selectNextIssue() {
+      const list = visibleIssues();
+      if (!list.length) return;
+      const index = selectedIssueIndex();
+      selectIssue(list[index < 0 ? 0 : Math.min(list.length - 1, index + 1)].id);
+    }
+    function selectPreviousIssue() {
+      const list = visibleIssues();
+      if (!list.length) return;
+      const index = selectedIssueIndex();
+      selectIssue(list[index <= 0 ? 0 : index - 1].id);
+    }
     function setIssueStatus(issue, status) { if (issue) issue.status = status; }
     function updateSelected(status) { setIssueStatus(selectedIssue(), status); renderAll(); }
+    function updateSimilarSelected(status) { const issue = selectedIssue(); if (!issue) return; review.issues.filter((item) => item.type === issue.type && item.originalText === issue.originalText && item.status === "open").forEach((item) => setIssueStatus(item, status)); renderAll(); }
     function updateType(group, status) { review.issues.filter((issue) => issue.group === group && issue.status === "open").forEach((issue) => setIssueStatus(issue, status)); renderAll(); }
 
     function renderReport(model) {
@@ -381,14 +438,20 @@
     elements.extracted?.addEventListener("focusin", (event) => { const node = event.target.closest("[data-issue-id]"); if (node) selectIssue(node.dataset.issueId); });
     elements.sidebar?.addEventListener("click", (event) => { const row = event.target.closest("[data-issue-id]"); if (row) selectIssue(row.dataset.issueId); const apply = event.target.closest("[data-apply-type]"); if (apply) updateType(apply.dataset.applyType, "applied"); const ignore = event.target.closest("[data-ignore-type]"); if (ignore) updateType(ignore.dataset.ignoreType, "ignored"); });
     elements.details?.addEventListener("click", (event) => { const action = event.target.dataset.action; if (action === "apply-selected") updateSelected("applied"); if (action === "ignore-selected") updateSelected("ignored"); });
-    elements.filterStatus?.addEventListener("change", () => { if (!review) return; review.filters.status = elements.filterStatus.value; renderAll(); });
-    elements.filterType?.addEventListener("change", () => { if (!review) return; review.filters.type = elements.filterType.value; renderAll(); });
-    elements.hideLow?.addEventListener("change", () => { if (!review) return; review.filters.hideLow = elements.hideLow.checked; renderAll(); });
+    elements.reviewNext?.addEventListener("click", selectNextIssue);
+    elements.reviewPrevious?.addEventListener("click", selectPreviousIssue);
+    elements.reviewApply?.addEventListener("click", () => updateSelected("applied"));
+    elements.reviewIgnore?.addEventListener("click", () => updateSelected("ignored"));
+    elements.reviewApplySimilar?.addEventListener("click", () => updateSimilarSelected("applied"));
+    elements.previewMode?.addEventListener("change", () => { if (!review) return; review.previewMode = elements.previewMode.value; renderAll(); });
+    function renderAfterFilterChange() { if (review && review.selectedIssueId && selectedIssueIndex() < 0) review.selectedIssueId = visibleIssues()[0]?.id || null; renderAll(); }
+    elements.filterStatus?.addEventListener("change", () => { if (!review) return; review.filters.status = elements.filterStatus.value; renderAfterFilterChange(); });
+    elements.filterType?.addEventListener("change", () => { if (!review) return; review.filters.type = elements.filterType.value; renderAfterFilterChange(); });
+    elements.hideLow?.addEventListener("change", () => { if (!review) return; review.filters.hideLow = elements.hideLow.checked; renderAfterFilterChange(); });
     doc.addEventListener("keydown", (event) => {
       if (!review || elements.documentView.hidden) return;
-      const list = filteredIssues(); const index = Math.max(0, list.findIndex((issue) => issue.id === review.selectedIssueId));
-      if (event.key === "ArrowDown") { event.preventDefault(); selectIssue(list[Math.min(list.length - 1, index + 1)]?.id); }
-      if (event.key === "ArrowUp") { event.preventDefault(); selectIssue(list[Math.max(0, index - 1)]?.id); }
+      if (event.key === "ArrowDown") { event.preventDefault(); selectNextIssue(); }
+      if (event.key === "ArrowUp") { event.preventDefault(); selectPreviousIssue(); }
       if (event.key === "Enter") { event.preventDefault(); updateSelected("applied"); }
       if (event.key.toLowerCase() === "i") { event.preventDefault(); updateSelected("ignored"); }
       if (event.key === "Escape") { review.selectedIssueId = null; renderAll(); }
@@ -398,7 +461,7 @@
     elements.download?.addEventListener("click", () => { if (!currentModel) return; const report = { file: { name: currentModel.fileName, size: currentModel.fileSize }, issues: review.issues, appliedIssueIds: review.issues.filter((i) => i.status === "applied").map((i) => i.id), ignoredIssueIds: review.issues.filter((i) => i.status === "ignored").map((i) => i.id), finalCleanedTextLength: review.cleanedText.length, finalCleanedTextChecksum: checksumText(review.cleanedText) }; const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }); const a = doc.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${currentModel.fileName.replace(/\.docx$/i, "")}-analysis.json`; a.click(); URL.revokeObjectURL(a.href); });
     elements.clear?.addEventListener("click", clear);
     if (global.location && global.location.hash === "#document") showView("document");
-    return { showView, handleFile, clear, getCurrentModel: () => currentModel, getReviewState: () => review };
+    return { showView, handleFile, clear, getCurrentModel: () => currentModel, getReviewState: () => review, visibleIssues, selectedIssueIndex, selectNextIssue, selectPreviousIssue, reviewProgressLabel };
   }
 
   const API = { createDocumentAnalysisView, createReviewState, applyIssuePatches, checksumText, formatBytes };

@@ -149,6 +149,23 @@
           <details class="formatted-document-section" open>
             <summary>Show formatted document</summary>
             <p id="documentFormattedPreviewDescription" class="compact-note">Local preview of extracted DOCX content. The formatted preview is approximate, and the file is not uploaded.</p>
+            <div class="review-toolbar" aria-label="Formatted preview review controls">
+              <div class="review-toolbar-actions">
+                <button id="documentPreviousIssueButton" type="button" class="button ghost-button">Previous issue</button>
+                <button id="documentNextIssueButton" type="button" class="button ghost-button">Next issue</button>
+                <button id="documentApplyIssueButton" type="button" class="button primary-button">Apply</button>
+                <button id="documentIgnoreIssueButton" type="button" class="button ghost-button">Ignore</button>
+                <button id="documentApplySimilarButton" type="button" class="button secondary-button">Apply all similar</button>
+              </div>
+              <label class="review-mode-label">Preview mode
+                <select id="documentPreviewModeSelect">
+                  <option value="original">Original</option>
+                  <option value="markup" selected>Markup</option>
+                  <option value="accepted">Accepted</option>
+                </select>
+              </label>
+              <span id="documentReviewProgress" class="review-progress" aria-live="polite">Issue 0 of 0</span>
+            </div>
             <div id="documentFormattedPreview" class="formatted-document-preview" role="region" aria-label="Formatted document preview" aria-describedby="documentFormattedPreviewDescription"></div>
           </details>
           <h3>Extracted plain text with issue highlights</h3>

@@ -261,3 +261,54 @@ test('document analysis uploads DOCX and returns to paste view', async ({ page }
   await page.getByRole('button', { name: 'Return to paste cleaner' }).click();
   await expect(page.getByRole('heading', { name: 'Original clipboard content' })).toBeVisible();
 });
+
+test('document formatted review supports inline selection navigation actions modes and filters', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Analyze Word file' }).click();
+  const docxBuffer = await createSampleDocxBuffer();
+  await page.locator('#documentFileInput').setInputFiles({
+    name: 'review.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: docxBuffer
+  });
+  await expect(page.locator('#documentStatus')).toContainText('Document analysis ready');
+
+  const firstIssue = page.locator('#documentFormattedPreview [data-issue-id]').first();
+  await firstIssue.click();
+  await expect(firstIssue).toHaveClass(/is-selected/);
+  await expect(page.locator('#documentIssueSidebar .issue-row.is-selected')).toHaveCount(1);
+  const initialProgress = await page.locator('#documentReviewProgress').innerText();
+  expect(initialProgress).toMatch(/Issue \d+ of \d+/);
+
+  await page.getByRole('button', { name: 'Previous issue' }).click();
+  const previousProgress = await page.locator('#documentReviewProgress').innerText();
+  expect(previousProgress).toMatch(/Issue \d+ of \d+/);
+  expect(previousProgress).not.toBe(initialProgress);
+  await page.getByRole('button', { name: 'Next issue' }).click();
+  await expect(page.locator('#documentReviewProgress')).toHaveText(initialProgress);
+
+  await page.locator('#documentApplyIssueButton').click();
+  await expect(page.locator('#documentIssueDetails')).toContainText('applied');
+  await expect(page.locator('#documentFormattedPreview .status-applied').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Next issue' }).click();
+  await page.locator('#documentIgnoreIssueButton').click();
+  await expect(page.locator('#documentIssueDetails')).toContainText('ignored');
+  await expect(page.locator('#documentFormattedPreview .status-ignored').first()).toBeVisible();
+
+  await page.locator('#documentPreviewModeSelect').selectOption('original');
+  await expect(page.locator('#documentFormattedPreview .preview-original').first()).toBeVisible();
+  await expect(page.locator('#documentFormattedPreview .issue-replacement')).toHaveCount(0);
+  await page.locator('#documentPreviewModeSelect').selectOption('markup');
+  await expect(page.locator('#documentFormattedPreview .issue-replacement').first()).toBeVisible();
+  await page.locator('#documentPreviewModeSelect').selectOption('accepted');
+  await expect(page.locator('#documentFormattedPreview .preview-accepted').first()).toBeVisible();
+
+  await page.locator('#documentIssueStatusFilter').selectOption('open');
+  await expect(page.locator('#documentIssueSidebar .status-applied')).toHaveCount(0);
+  await expect(page.locator('#documentIssueSidebar .status-ignored')).toHaveCount(0);
+  await expect(page.locator('#documentReviewProgress')).toHaveText(/Issue \d+ of \d+/);
+
+  await page.locator('#documentIssueTypeFilter').selectOption('punctuation');
+  await expect(page.locator('#documentIssueSidebar .issue-group h4').first()).toContainText('Punctuation');
+});
