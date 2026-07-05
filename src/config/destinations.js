@@ -179,9 +179,74 @@
     strictAscii: { format: "strict ASCII plain text", list: "visible ASCII lines", typography: "ASCII replacements only", font: "preview-only", fallback: "plain text only" }
   });
 
+  const INSPECTOR_PRESENTATION_PROFILES = Object.freeze({
+    gmail: {
+      priorityCategories: ["Typography normalized", "Hidden and suspicious characters", "Whitespace and layout cleanup", "Compatibility cleanup"],
+      promotedRows: ["Quotes normalized", "Dashes normalized", "Ellipses normalized", "Hidden/invisible characters removed", "Unusual spaces normalized", "Remaining non-ASCII characters", "Destination typography changes"],
+      collapsedCategories: ["Technical details"],
+      warningRules: { rows: ["Remaining non-ASCII characters", "Destination typography changes"], categories: ["Still needs review"] }
+    },
+    googleDocs: {
+      priorityCategories: ["Structure detected", "Typography normalized", "Compatibility cleanup", "Hidden and suspicious characters"],
+      promotedRows: ["Clipboard HTML available", "Lists detected", "List items", "Destination typography changes", "Hidden/invisible characters removed", "Compatibility changes"],
+      collapsedCategories: ["Technical details"],
+      warningRules: { rows: ["Compatibility changes", "Superscripts/subscripts flattened"], categories: ["Still needs review"] }
+    },
+    word: {
+      priorityCategories: ["Structure detected", "Typography normalized", "Compatibility cleanup", "Hidden and suspicious characters"],
+      promotedRows: ["Clipboard HTML available", "Lists detected", "List items", "Destination typography changes", "Hidden/invisible characters removed", "Compatibility changes"],
+      collapsedCategories: ["Technical details"],
+      warningRules: { rows: ["Compatibility changes", "Superscripts/subscripts flattened"], categories: ["Still needs review"] }
+    },
+    outlook: {
+      priorityCategories: ["Structure detected", "Typography normalized", "Compatibility cleanup", "Hidden and suspicious characters"],
+      promotedRows: ["Clipboard HTML available", "Lists detected", "List items", "Hidden/invisible characters removed", "Compatibility changes"],
+      collapsedCategories: ["Technical details"],
+      warningRules: { rows: ["Compatibility changes"], categories: ["Still needs review"] }
+    },
+    markdown: {
+      priorityCategories: ["Structure detected", "Typography normalized", "Hidden and suspicious characters", "Whitespace and layout cleanup"],
+      promotedRows: ["Lists detected", "List items", "Quotes normalized", "Dashes normalized", "Ellipses normalized", "Hidden/invisible characters removed", "Remaining non-ASCII characters"],
+      collapsedCategories: ["Technical details", "Compatibility cleanup"],
+      warningRules: { rows: ["Remaining non-ASCII characters"], categories: ["Still needs review"] }
+    },
+    slack: {
+      priorityCategories: ["Whitespace and layout cleanup", "Structure detected", "Typography normalized", "Hidden and suspicious characters"],
+      promotedRows: ["Line endings normalized", "Lists detected", "List items", "Clipboard HTML available", "Hidden/invisible characters removed", "Remaining non-ASCII characters"],
+      collapsedCategories: ["Technical details", "Compatibility cleanup"],
+      warningRules: { rows: ["Remaining non-ASCII characters", "Clipboard HTML available"], categories: ["Still needs review"] }
+    },
+    cms: {
+      priorityCategories: ["Whitespace and layout cleanup", "Hidden and suspicious characters", "Compatibility cleanup", "Typography normalized"],
+      promotedRows: ["Unusual spaces normalized", "Trailing spaces removed", "Repeated spaces collapsed", "Hidden/invisible characters removed", "Compatibility changes", "Remaining non-ASCII characters"],
+      collapsedCategories: ["Technical details", "Structure detected"],
+      warningRules: { rows: ["Remaining non-ASCII characters"], categories: ["Still needs review"] }
+    },
+    plain: {
+      priorityCategories: ["Whitespace and layout cleanup", "Hidden and suspicious characters", "Compatibility cleanup", "Typography normalized"],
+      promotedRows: ["Unusual spaces normalized", "Trailing spaces removed", "Repeated spaces collapsed", "Hidden/invisible characters removed", "Compatibility changes", "Remaining non-ASCII characters"],
+      collapsedCategories: ["Technical details", "Structure detected"],
+      warningRules: { rows: ["Remaining non-ASCII characters"], categories: ["Still needs review"] }
+    },
+    code: {
+      priorityCategories: ["Typography normalized", "Hidden and suspicious characters", "Whitespace and layout cleanup"],
+      promotedRows: ["Quotes normalized", "Dashes normalized", "Hidden/invisible characters removed", "Tabs converted", "Unusual spaces normalized", "Remaining directional marks", "Remaining non-ASCII characters"],
+      collapsedCategories: ["Technical details", "Structure detected"],
+      warningRules: { rows: ["Remaining directional marks", "Remaining non-ASCII characters"], categories: ["Still needs review"] }
+    },
+    strictAscii: {
+      priorityCategories: ["Compatibility cleanup", "Hidden and suspicious characters", "Typography normalized"],
+      promotedRows: ["Strict ASCII changes", "Compatibility changes", "Remaining non-ASCII characters", "Emoji removed", "Superscripts/subscripts flattened", "Hidden/invisible characters removed"],
+      collapsedCategories: ["Technical details", "Structure detected", "Whitespace and layout cleanup"],
+      warningRules: { rows: ["Strict ASCII changes", "Remaining non-ASCII characters", "Emoji removed", "Superscripts/subscripts flattened"], categories: ["Still needs review", "Compatibility cleanup"] }
+    }
+  });
+
+
   const API = {
     DESTINATIONS,
-    DESTINATION_DETAILS
+    DESTINATION_DETAILS,
+    INSPECTOR_PRESENTATION_PROFILES
   };
 
   if (typeof module !== "undefined" && module.exports) {

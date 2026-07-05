@@ -31,7 +31,8 @@
     DOCUMENT_FONT_OPTIONS,
     DOCUMENT_SIZE_OPTIONS,
     PLAIN_FONT_OPTIONS,
-    PLAIN_SIZE_OPTIONS
+    PLAIN_SIZE_OPTIONS,
+    INSPECTOR_PRESENTATION_PROFILES
   } = config;
 
   const unicodeData = typeof require === "function"
@@ -798,6 +799,10 @@
       button.addEventListener("mouseleave", () => clearTransientInputMetricHighlight(button));
       button.addEventListener("focus", () => renderTransientInputMetricHighlight(button, renderHighlight));
       button.addEventListener("blur", () => clearTransientInputMetricHighlight(button));
+      li.addEventListener("click", (event) => {
+        if (event.target === button) return;
+        button.click();
+      });
       li.appendChild(button);
       return li;
     }
@@ -816,8 +821,61 @@
       return { type: "metric", label, value, matcher, blockMatcher, records, severity: options?.severity || "info", warningText: options?.warningText || "" };
     }
 
-    function makeInspectorNote(text) {
-      return { type: "note", text };
+    function makeInspectorNote(text, options) {
+      return { type: "note", text, label: options?.label || text.split(":")[0], severity: options?.severity || "info" };
+    }
+
+    function inspectorEntryLabel(entry) {
+      if (!entry) return "";
+      if (entry.label) return entry.label;
+      if (entry.type === "review") {
+        if (entry.record?.subcategory === "remaining-non-ascii") return "Remaining non-ASCII characters";
+        if (entry.record?.subcategory === "remaining-hidden") return "Remaining directional marks";
+      }
+      if (entry.type === "change") return entry.change?.note || entry.change?.category || "";
+      return entry.text || "";
+    }
+
+    function activeInspectorProfile(result) {
+      const options = result?.options || getOptions();
+      return (INSPECTOR_PRESENTATION_PROFILES || {})[options.destination || destinationSelect.value] || (INSPECTOR_PRESENTATION_PROFILES || {}).gmail || {};
+    }
+
+    function applyInspectorProfileToEntry(entry, profile) {
+      if (!entry || !profile?.warningRules) return entry;
+      const rowWarnings = new Set(profile.warningRules.rows || []);
+      if (rowWarnings.has(inspectorEntryLabel(entry)) && entry.severity !== "warning") {
+        entry.severity = "warning";
+        if (entry.record) entry.record.severity = "warning";
+        if (entry.change) entry.change.severity = "warning";
+        if (entry.type === "metric" && !entry.warningText) entry.warningText = "Review for this destination before copying.";
+      }
+      return entry;
+    }
+
+    function applyInspectorProfileToGroups(groups, profile) {
+      const rowWarnings = new Set(profile?.warningRules?.rows || []);
+      const categoryWarnings = new Set(profile?.warningRules?.categories || []);
+      const promotedRows = new Set(profile?.promotedRows || []);
+      const promotedEntries = [];
+      const normalizedGroups = groups.map(([title, entries]) => {
+        const categoryIsWarning = categoryWarnings.has(title);
+        const remaining = [];
+        (entries || []).forEach((entry) => {
+          if (categoryIsWarning && entry.severity !== "warning") {
+            entry.severity = "warning";
+            if (entry.type === "metric" && !entry.warningText) entry.warningText = "Review for this destination before copying.";
+          }
+          applyInspectorProfileToEntry(entry, profile);
+          if (promotedRows.has(inspectorEntryLabel(entry))) promotedEntries.push(entry);
+          else remaining.push(entry);
+        });
+        return [title, remaining];
+      });
+      const priority = new Map((profile?.priorityCategories || []).map((title, index) => [title, index]));
+      normalizedGroups.sort((a, b) => (priority.has(a[0]) ? priority.get(a[0]) : 1000) - (priority.has(b[0]) ? priority.get(b[0]) : 1000));
+      if (promotedEntries.length) normalizedGroups.unshift(["Destination priorities", promotedEntries]);
+      return normalizedGroups;
     }
 
     function createInspectorMetricRow(entry) {
@@ -876,7 +934,7 @@
     function appendInspectorSection(title, entries, options) {
       if (!inspectorSections || !entries.length) return;
       const section = document.createElement("section");
-      section.className = "inspector-section";
+      section.className = `inspector-section${options?.collapsed ? " is-collapsed" : ""}${options?.emphasis === "warning" ? " inspector-warning-section" : ""}`;
       const heading = document.createElement("h3");
       heading.textContent = title;
       const list = document.createElement("ul");
@@ -892,7 +950,13 @@
           list.appendChild(li);
         }
       });
-      section.append(heading, list);
+      if (options?.collapsed) {
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.appendChild(heading);
+        details.append(summary, list);
+        section.appendChild(details);
+      } else section.append(heading, list);
       inspectorSections.appendChild(section);
     }
 
@@ -964,6 +1028,8 @@
       container.innerHTML = "";
       const inputText = docToPlainText(inputDoc, "plain");
       const inputChars = inputText.length;
+      const inspectorProfile = activeInspectorProfile(result);
+      const sourceMeta = inputDoc.meta || {};
       appendInspectorSection("Inspector summary", buildInspectorSummary(result), { compact: true });
       const unicodeCategoryEntries = INSPECTOR_UNICODE_CATEGORIES.map((category) => makeInspectorMetric(
         category.label,
@@ -971,16 +1037,23 @@
       )).filter((entry) => entry.value > 0);
       const sourceChanges = makeInspectorMetric("Source changes", result.stats.sourceChanges, null, null, () => changeRecordsForPhase("Source"));
       const destinationChanges = makeInspectorMetric("Destination changes", result.stats.destinationChanges, null, null, () => changeRecordsForPhase("Destination"));
+      const clipboardHtmlAvailable = makeInspectorMetric("Clipboard HTML available", sourceMeta.htmlAvailable ? 1 : 0);
+      const destinationTypographyChanges = makeInspectorMetric("Destination typography changes", result.stats.destinationChanges, null, null, () => changeRecordsForPhase("Destination"));
+      const remainingNonAscii = makeInspectorMetric("Remaining non-ASCII characters", reviewRecords(result).filter((record) => record.subcategory === "remaining-non-ascii").length, null, null, () => []);
+      const remainingDirectionalMarks = makeInspectorMetric("Remaining directional marks", reviewRecords(result).filter((record) => record.subcategory === "remaining-hidden").length, null, null, () => []);
       const groups = [
-        ["Cleanup summary", [sourceChanges, destinationChanges]],
+        ["Cleanup summary", [sourceChanges, destinationChanges, clipboardHtmlAvailable]],
         ["Hidden and suspicious characters", [
           makeInspectorMetric("Hidden/invisible characters removed", result.stats.hiddenRemoved, null, null, () => changeRecordsForCategory("hidden-character")),
+          remainingDirectionalMarks,
+          remainingNonAscii,
           ...unicodeCategoryEntries
         ]],
         ["Typography normalized", [
           makeInspectorMetric("Quotes normalized", result.stats.quotesChanged, null, null, () => changeRecordsForCategory("quote")),
           makeInspectorMetric("Dashes normalized", result.stats.dashesChanged, null, null, () => changeRecordsForCategory("dash")),
-          makeInspectorMetric("Ellipses normalized", result.stats.ellipsesChanged, null, null, () => changeRecordsForCategory("ellipsis"))
+          makeInspectorMetric("Ellipses normalized", result.stats.ellipsesChanged, null, null, () => changeRecordsForCategory("ellipsis")),
+          destinationTypographyChanges
         ]],
         ["Whitespace and layout cleanup", [
           makeInspectorMetric("Line endings normalized", result.stats.lineEndingsNormalized, null, null, () => changeRecordsForSubcategories(["crlf", "cr"])),
@@ -1003,29 +1076,33 @@
           makeInspectorMetric("List items", result.doc.meta.listItems || 0, null, (block) => block.type === "ul" || block.type === "ol")
         ]]
       ];
-      groups.forEach(([title, entries]) => appendInspectorSection(title, entries));
+      const collapsedCategories = new Set(inspectorProfile.collapsedCategories || []);
+      const warningCategories = new Set(inspectorProfile.warningRules?.categories || []);
+      applyInspectorProfileToGroups(groups, inspectorProfile).forEach(([title, entries]) => appendInspectorSection(title, entries, {
+        collapsed: collapsedCategories.has(title),
+        emphasis: warningCategories.has(title) ? "warning" : ""
+      }));
 
       const reviewEntries = reviewRecords(result).length
-        ? reviewRecords(result).slice(0, 30).map((record) => ({ type: "review", record }))
+        ? reviewRecords(result).slice(0, 30).map((record) => applyInspectorProfileToEntry({ type: "review", record, severity: record.severity }, inspectorProfile))
         : [makeInspectorNote("No suspicious characters remaining.")];
       if (reviewRecords(result).length > 30) reviewEntries.push(makeInspectorNote(`...and ${reviewRecords(result).length - 30} more review records.`));
-      appendInspectorSection("Still needs review", reviewEntries, { compact: true });
+      appendInspectorSection("Still needs review", reviewEntries, { compact: true, emphasis: warningCategories.has("Still needs review") ? "warning" : "" });
 
       const changeEntries = result.changes.length
         ? result.changes.slice(0, 80).map((change) => ({ type: "change", change }))
         : [makeInspectorNote("No character changes made.")];
       if (result.changes.length > 80) changeEntries.push(makeInspectorNote(`...and ${result.changes.length - 80} more grouped change records.`));
-      const sourceMeta = inputDoc.meta || {};
       appendInspectorSection("Technical details", [
         makeInspectorMetric("Characters in", inputChars),
         makeInspectorMetric("Characters out", result.cleanText.length),
         makeInspectorNote(`Clipboard source: ${sourceMeta.source || "manual"}`),
-        makeInspectorNote(`Clipboard HTML available: ${sourceMeta.htmlAvailable ? "yes" : "no"}`),
+        makeInspectorNote(`Clipboard HTML available: ${sourceMeta.htmlAvailable ? "yes" : "no"}`, { label: "Clipboard HTML available" }),
         makeInspectorNote(`Clipboard plain text available: ${sourceMeta.plainAvailable ? "yes" : "no"}`),
         makeInspectorNote(`Clipboard API: ${navigator.clipboard ? "available" : "unavailable"}`),
         makeInspectorNote(`Rich clipboard write: ${global.ClipboardItem ? "available" : "unavailable"}`),
         ...changeEntries
-      ], { compact: true });
+      ], { compact: true, collapsed: collapsedCategories.has("Technical details") });
     }
 
     function appendDiffLine(container, marker, text, className) {
