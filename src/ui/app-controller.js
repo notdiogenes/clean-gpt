@@ -129,8 +129,39 @@
     }).join(" + ");
   }
 
+  const INSPECTOR_MARKER_LABELS = new Map([
+    ["\u200B", "ZWSP"],
+    ["\u2060", "WORD JOINER"],
+    ["\u200E", "LRM"],
+    ["\u200F", "RLM"],
+    ["\u00AD", "SOFT HYPHEN"],
+    ["\u00A0", "NBSP"],
+    ["\t", "TAB"]
+  ]);
+
+  const INSPECTOR_SUBCATEGORY_MARKER_LABELS = {
+    "trailing-space": "TRAILING SPACE",
+    "blank-line-run": "EXTRA BLANK LINE",
+    "repeated-space": "REPEATED SPACE"
+  };
+
+  function markerLabelForText(text) {
+    const chars = Array.from(String(text || ""));
+    if (chars.length !== 1) return "";
+    return INSPECTOR_MARKER_LABELS.get(chars[0]) || "";
+  }
+
   function visualizeInvisibles(text) {
-    return String(text || "").replace(/[\u0009\u00a0\u00ad\u034f\u061c\u180b-\u180f\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff\ufff9-\ufffb]|[\u{E0001}\u{E0020}-\u{E007F}\u{E0100}-\u{E01EF}]/gu, (char) => `[${invisibleLabel(char)}]`);
+    return String(text || "").replace(/[\u0009\u00a0\u00ad\u034f\u061c\u180b-\u180f\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff\ufff9-\ufffb]|[\u{E0001}\u{E0020}-\u{E007F}\u{E0100}-\u{E01EF}]/gu, (char) => `[${markerLabelForText(char) || invisibleLabel(char)}]`);
+  }
+
+  function appendMarkerBadge(container, label, title) {
+    const badge = document.createElement("span");
+    badge.className = "inline-invisible-badge inspector-marker-badge";
+    badge.textContent = `[${label}]`;
+    badge.title = title || label;
+    badge.setAttribute("aria-label", badge.title);
+    container.appendChild(badge);
   }
 
   function appendVisualizedText(container, text) {
@@ -139,7 +170,7 @@
       if (regexMatchesText(/[\u0009\u00a0\u00ad\u034f\u061c\u180b-\u180f\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff\ufff9-\ufffb]|[\u{E0001}\u{E0020}-\u{E007F}\u{E0100}-\u{E01EF}]/u, part)) {
         const badge = document.createElement("span");
         badge.className = "inline-invisible-badge";
-        badge.textContent = invisibleLabel(part);
+        badge.textContent = markerLabelForText(part) || invisibleLabel(part);
         badge.title = labelChar(part);
         badge.setAttribute("aria-label", badge.title);
         container.appendChild(badge);
@@ -372,6 +403,7 @@
     let lastResult = null;
     let inputDoc = makeDoc([], { source: "manual" });
     let suppressInputEvent = false;
+    let pinnedInspectorElement = null;
 
     function setStatus(message) {
       if (status) status.textContent = message || "";
@@ -563,6 +595,18 @@
       return changes.some((change) => changeRecordMatchesPartSpan(change, part) || changeRecordMatchesPartText(change, part));
     }
 
+    function markerLabelForChangeRecord(change) {
+      if (!change) return "";
+      if (INSPECTOR_SUBCATEGORY_MARKER_LABELS[change.subcategory]) return INSPECTOR_SUBCATEGORY_MARKER_LABELS[change.subcategory];
+      if (change.note === "Tab converted to two spaces") return "TAB";
+      return markerLabelForText(change.before ?? change.source ?? "");
+    }
+
+    function markerLabelForChangeRecords(records, part) {
+      const change = (records || []).find((record) => markerLabelForChangeRecord(record) && (changeRecordMatchesPartSpan(record, part) || changeRecordMatchesPartText(record, part)));
+      return change ? markerLabelForChangeRecord(change) : "";
+    }
+
     function filterChangeRecords(predicate) {
       return (lastResult?.changes || []).filter(predicate);
     }
@@ -602,7 +646,7 @@
       if (!lastResult) return;
       const options = getOptions();
       const spanRecords = records || [];
-      renderInputDiffHighlights(inputDoc, lastResult.doc, options, (part) => changeRecordsMatchPart(spanRecords, part), blockMatcher);
+      renderInputDiffHighlights(inputDoc, lastResult.doc, options, (part) => changeRecordsMatchPart(spanRecords, part), blockMatcher, (part) => markerLabelForChangeRecords(spanRecords, part));
       inputEditor.classList.add("inspector-pulse");
     }
 
@@ -617,14 +661,31 @@
       inputEditor.classList.add("inspector-pulse");
     }
 
-    function clearInputMetricHighlight() {
+    function clearInputMetricHighlight(options = {}) {
+      if (options.preservePinned && pinnedInspectorElement) return;
+      if (!options.preservePinned) pinnedInspectorElement = null;
       inputEditor.classList.remove("inspector-pulse");
-      const options = getOptions();
+      const currentOptions = getOptions();
       suppressInputEvent = true;
-      renderDocInto(inputEditor, inputDoc, "input", "source", options.showInvisibles ? options : {});
-      inputEditor.dataset.showingInvisibles = options.showInvisibles ? "true" : "false";
+      renderDocInto(inputEditor, inputDoc, "input", "source", currentOptions.showInvisibles ? currentOptions : {});
+      inputEditor.dataset.showingInvisibles = currentOptions.showInvisibles ? "true" : "false";
       inputEditor.dataset.diffHighlight = "false";
       suppressInputEvent = false;
+    }
+
+    function pinInputMetricHighlight(element, render) {
+      pinnedInspectorElement = element;
+      render();
+    }
+
+    function renderTransientInputMetricHighlight(element, render) {
+      if (pinnedInspectorElement && pinnedInspectorElement !== element) return;
+      render();
+    }
+
+    function clearTransientInputMetricHighlight(element) {
+      if (pinnedInspectorElement && pinnedInspectorElement !== element) return;
+      clearInputMetricHighlight({ preservePinned: true });
     }
 
     function makeInspectorMetric(label, value, matcher, blockMatcher, records) {
@@ -647,11 +708,12 @@
         li.tabIndex = 0;
         li.role = "button";
         li.title = "Hover to highlight related input text.";
-        li.addEventListener("mouseenter", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records));
-        li.addEventListener("click", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records));
-        li.addEventListener("mouseleave", clearInputMetricHighlight);
-        li.addEventListener("focus", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records));
-        li.addEventListener("blur", clearInputMetricHighlight);
+        const renderHighlight = () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records);
+        li.addEventListener("mouseenter", () => renderTransientInputMetricHighlight(li, renderHighlight));
+        li.addEventListener("click", () => pinInputMetricHighlight(li, renderHighlight));
+        li.addEventListener("mouseleave", () => clearTransientInputMetricHighlight(li));
+        li.addEventListener("focus", () => renderTransientInputMetricHighlight(li, renderHighlight));
+        li.addEventListener("blur", () => clearTransientInputMetricHighlight(li));
       } else {
         li.title = "This metric summarizes the document and does not map to one exact text span.";
       }
@@ -667,10 +729,12 @@
       button.className = "inspector-link";
       button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
       const exactTransformRecords = () => changeRecordsForExactTransform(change.before ?? change.source ?? "", change.after ?? change.target ?? "").filter((record) => record.key === change.key);
-      button.addEventListener("mouseenter", () => highlightInputForChangeRecords(exactTransformRecords()));
-      button.addEventListener("mouseleave", clearInputMetricHighlight);
-      button.addEventListener("focus", () => highlightInputForChangeRecords(exactTransformRecords()));
-      button.addEventListener("blur", clearInputMetricHighlight);
+      const renderHighlight = () => highlightInputForChangeRecords(exactTransformRecords());
+      button.addEventListener("mouseenter", () => renderTransientInputMetricHighlight(button, renderHighlight));
+      button.addEventListener("click", () => pinInputMetricHighlight(button, renderHighlight));
+      button.addEventListener("mouseleave", () => clearTransientInputMetricHighlight(button));
+      button.addEventListener("focus", () => renderTransientInputMetricHighlight(button, renderHighlight));
+      button.addEventListener("blur", () => clearTransientInputMetricHighlight(button));
       li.appendChild(button);
       return li;
     }
@@ -983,18 +1047,16 @@
         } else if (part.type === "remove" || part.type === "replace") {
           const shouldHighlight = highlighter && highlighter.matches(part);
           if (shouldHighlight) {
+            const markerLabel = highlighter && highlighter.markerLabel ? highlighter.markerLabel(part) : "";
             const hiddenOnlyRemoval = part.type === "remove" && Array.from(part.source || "").every((char) => regexMatchesText(REGEX.hidden, char)) && !part.text;
-            if (hiddenOnlyRemoval) {
-              appendVisualizedText(container, part.source);
-            } else {
-              const span = document.createElement("span");
-              span.className = "source-change";
-              span.title = replacementTitle(part.source, part.text || "");
-              span.setAttribute("aria-label", span.title);
-              if (options && (options.showInvisibles || part.type === "remove" || !part.text)) appendVisualizedText(span, part.source);
-              else span.textContent = part.source;
-              container.appendChild(span);
-            }
+            const span = document.createElement("span");
+            span.className = "source-change";
+            span.title = markerLabel ? `${markerLabel}: ${replacementTitle(part.source, part.text || "")}` : replacementTitle(part.source, part.text || "");
+            span.setAttribute("aria-label", span.title);
+            if (markerLabel) appendMarkerBadge(span, markerLabel, span.title);
+            else if (hiddenOnlyRemoval || (options && (options.showInvisibles || part.type === "remove" || !part.text))) appendVisualizedText(span, part.source);
+            else span.textContent = part.source;
+            container.appendChild(span);
           } else {
             if (options && options.showInvisibles) appendVisualizedText(container, part.source);
             else container.appendChild(document.createTextNode(part.source));
@@ -1003,8 +1065,8 @@
       });
     }
 
-    function renderInputDiffHighlights(inputModel, outputModel, options, matcher, blockMatcher) {
-      const highlighter = { matches: matcher || (() => true) };
+    function renderInputDiffHighlights(inputModel, outputModel, options, matcher, blockMatcher, markerLabel) {
+      const highlighter = { matches: matcher || (() => true), markerLabel: markerLabel || (() => "") };
       let sourceOffset = 0;
       let outputOffset = 0;
       const advanceOffsets = (sourceText, outputText) => {
@@ -1017,7 +1079,20 @@
       inputEditor.innerHTML = "";
       (inputModel.blocks || []).forEach((block, index) => {
         const outputBlock = (outputModel.blocks || [])[index];
-        if (block.type === "blank") { sourceOffset += 1; outputOffset += 1; inputEditor.appendChild(document.createElement("br")); return; }
+        if (block.type === "blank") {
+          const blankPart = { type: "remove", source: "\n", text: "", sourceStart: sourceOffset, sourceEnd: sourceOffset + 1, outputStart: outputOffset, outputEnd: outputOffset };
+          if (highlighter.matches(blankPart)) {
+            const span = document.createElement("span");
+            span.className = "source-change";
+            const marker = highlighter.markerLabel(blankPart) || "EXTRA BLANK LINE";
+            appendMarkerBadge(span, marker, marker);
+            inputEditor.appendChild(span);
+          }
+          sourceOffset += 1;
+          outputOffset += 1;
+          inputEditor.appendChild(document.createElement("br"));
+          return;
+        }
         if (block.type === "paragraph") {
           const outputText = outputBlock && outputBlock.type === "paragraph" ? outputBlock.text || "" : "";
           const offsets = advanceOffsets(block.text || "", outputText);
