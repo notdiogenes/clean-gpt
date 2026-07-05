@@ -161,3 +161,22 @@ test('rich change records include precise ranges and classifications', () => {
     }
   }
 });
+
+test('diagnostics return structured review records with output and source locations', () => {
+  const result = sanitizer.sanitize('Keep café\u200B', { strictAscii: false, removeHidden: false });
+  assert.ok(Array.isArray(result.reviewRecords));
+  const nonAscii = result.reviewRecords.find((record) => record.subcategory === 'remaining-non-ascii' && record.character === 'é');
+  assert.equal(nonAscii.category, 'review');
+  assert.equal(nonAscii.severity, 'needs-review');
+  assert.equal(nonAscii.codePoint, 'U+00E9');
+  assert.equal(nonAscii.count, 1);
+  assert.deepEqual(nonAscii.outputLocations, [{ start: 8, end: 9 }]);
+  assert.deepEqual(nonAscii.sourceLocations, [{ start: 8, end: 9 }]);
+  assert.match(nonAscii.message, /character remains/);
+  assert.match(nonAscii.suggestion, /Confirm this character/);
+  const hidden = result.reviewRecords.find((record) => record.subcategory === 'remaining-hidden');
+  assert.equal(hidden.category, 'review');
+  assert.equal(hidden.severity, 'warning');
+  assert.equal(hidden.codePoint, 'U+200B');
+  assert.equal(result.warnings[0].category, 'review');
+});

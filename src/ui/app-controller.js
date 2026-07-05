@@ -642,12 +642,90 @@
       return filterChangeRecords((change) => change.phase === phase);
     }
 
+    function reviewRecords(result) {
+      return result?.reviewRecords || [];
+    }
+
+    function locationMatchesPart(locations, part, prefix) {
+      const startKey = `${prefix}Start`;
+      const endKey = `${prefix}End`;
+      return (locations || []).some((location) => Number.isInteger(part[startKey]) && Number.isInteger(part[endKey]) && rangesOverlap(location.start, location.end, part[startKey], part[endKey]));
+    }
+
+    function reviewRecordMatchesInputPart(record, part) {
+      return locationMatchesPart(record.sourceLocations, part, "source");
+    }
+
+    function reviewRecordMatchesOutputPart(record, part) {
+      return locationMatchesPart(record.outputLocations, part, "output");
+    }
+
     function highlightInputForChangeRecords(records, blockMatcher) {
       if (!lastResult) return;
       const options = getOptions();
       const spanRecords = records || [];
       renderInputDiffHighlights(inputDoc, lastResult.doc, options, (part) => changeRecordsMatchPart(spanRecords, part), blockMatcher, (part) => markerLabelForChangeRecords(spanRecords, part));
       inputEditor.classList.add("inspector-pulse");
+    }
+
+    function highlightInputForReviewRecord(record) {
+      if (!lastResult || !(record.sourceLocations || []).length) return;
+      const options = getOptions();
+      renderInputDiffHighlights(inputDoc, lastResult.doc, options, (part) => reviewRecordMatchesInputPart(record, part), null, () => record.codePoint);
+      inputEditor.classList.add("inspector-pulse");
+    }
+
+    function appendOutputReviewText(container, text, baseOutputOffset, record) {
+      let cursor = Number.isInteger(baseOutputOffset) ? baseOutputOffset : 0;
+      for (const char of String(text || "")) {
+        const part = { outputStart: cursor, outputEnd: cursor + char.length };
+        if (reviewRecordMatchesOutputPart(record, part)) {
+          const span = document.createElement("span");
+          span.className = "char-change";
+          span.title = `${record.codePoint} ${record.characterName}: ${record.suggestion}`;
+          span.setAttribute("aria-label", span.title);
+          span.textContent = char;
+          container.appendChild(span);
+        } else container.appendChild(document.createTextNode(char));
+        cursor += char.length;
+      }
+    }
+
+    function highlightOutputForReviewRecord(record) {
+      if (!lastResult) return;
+      const options = getOptions();
+      outputEditor.innerHTML = "";
+      let outputOffset = 0;
+      const appendBlock = (text, className) => {
+        const div = document.createElement("div");
+        div.className = className || "editor-paragraph";
+        appendOutputReviewText(div, text || "", outputOffset, record);
+        if (!text) div.appendChild(document.createElement("br"));
+        outputEditor.appendChild(div);
+        outputOffset += String(text || "").length + 1;
+      };
+      (lastResult.doc.blocks || []).forEach((block) => {
+        if (block.type === "blank") appendBlock("", "editor-blank");
+        else if (block.type === "paragraph") appendBlock(block.text || "", "editor-paragraph");
+        else if (block.type === "ul" || block.type === "ol") {
+          const list = document.createElement(block.type);
+          (block.items || []).forEach((item) => {
+            const li = document.createElement("li");
+            appendOutputReviewText(li, item.text || "", outputOffset, record);
+            outputOffset += String(item.text || "").length + 1;
+            list.appendChild(li);
+          });
+          outputEditor.appendChild(list);
+        }
+      });
+      outputEditor.classList.add("inspector-pulse");
+    }
+
+    function clearOutputReviewHighlight() {
+      if (!lastResult) return;
+      outputEditor.classList.remove("inspector-pulse");
+      if (diffViewToggle && diffViewToggle.checked) renderCompactDiff(inputDoc, lastResult.doc, lastResult.changes, DESTINATIONS[destinationSelect.value], getOptions());
+      else renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, getOptions());
     }
 
     function highlightInputForMetric(label, matcher, blockMatcher, records) {
@@ -695,11 +773,13 @@
       if (pinnedInspectorElement) return;
       if (activeInspectorElement !== element) return;
       clearInputMetricHighlight({ preservePinned: true });
+      clearOutputReviewHighlight();
     }
 
     function clearAnyInspectorHighlight() {
       if (!pinnedInspectorElement && !activeInspectorElement) return;
       clearInputMetricHighlight();
+      clearOutputReviewHighlight();
     }
 
     function createInspectorInteractiveRow(options) {
@@ -770,6 +850,19 @@
       });
     }
 
+    function createInspectorReviewRow(record) {
+      const text = `${visibleChar(record.character)} ${record.codePoint} ${record.characterName} ×${record.count} — ${record.suggestion}`;
+      return createInspectorInteractiveRow({
+        ariaLabel: `Highlight remaining ${record.codePoint} in output${(record.sourceLocations || []).length ? " and input" : ""}`,
+        title: (record.sourceLocations || []).length ? "Hover, focus, or click to highlight the output first and the mapped input source." : "Hover, focus, or click to highlight the output.",
+        text,
+        renderHighlight: () => {
+          highlightOutputForReviewRecord(record);
+          if ((record.sourceLocations || []).length) highlightInputForReviewRecord(record);
+        }
+      });
+    }
+
     function appendInspectorSection(title, entries, options) {
       if (!inspectorSections || !entries.length) return;
       const section = document.createElement("section");
@@ -781,6 +874,7 @@
       entries.forEach((entry) => {
         if (entry.type === "metric") list.appendChild(createInspectorMetricRow(entry));
         else if (entry.type === "change") list.appendChild(createInspectorChangeRow(entry.change));
+        else if (entry.type === "review") list.appendChild(createInspectorReviewRow(entry.record));
         else {
           const li = document.createElement("li");
           li.className = "inspector-metadata-row";
@@ -822,7 +916,7 @@
     }
 
     function countReviewItems(result) {
-      return (result.warnings || []).length + (result.remainingNonAscii || []).length;
+      return reviewRecords(result).length;
     }
 
     function getDestinationSafetyStatus(result) {
@@ -830,7 +924,7 @@
       const destination = options.destination || destinationSelect.value;
       const profile = DESTINATIONS[destination] || DESTINATIONS.gmail;
       const hasReviewItems = countReviewItems(result) > 0;
-      const remainingNonAsciiCount = (result.remainingNonAscii || []).length;
+      const remainingNonAsciiCount = reviewRecords(result).filter((record) => record.subcategory === "remaining-non-ascii").length;
       if (options.strictAscii || destination === "strictAscii") {
         if (remainingNonAsciiCount > 0) return "Destination safety: Strict ASCII needs review";
         return "Destination safety: Strict ASCII ready";
@@ -900,11 +994,10 @@
       ];
       groups.forEach(([title, entries]) => appendInspectorSection(title, entries));
 
-      const reviewEntries = [];
-      if (!result.warnings.length) reviewEntries.push(makeInspectorNote("No remaining suspicious characters found."));
-      else result.warnings.forEach((warning) => reviewEntries.push(makeInspectorNote(warning)));
-      if (!result.remainingNonAscii.length) reviewEntries.push(makeInspectorNote("Remaining non-ASCII characters: none"));
-      else result.remainingNonAscii.slice(0, 30).forEach((entry) => reviewEntries.push(makeInspectorNote(`${entry.label} ×${entry.count}`)));
+      const reviewEntries = reviewRecords(result).length
+        ? reviewRecords(result).slice(0, 30).map((record) => ({ type: "review", record }))
+        : [makeInspectorNote("No suspicious characters remaining.")];
+      if (reviewRecords(result).length > 30) reviewEntries.push(makeInspectorNote(`...and ${reviewRecords(result).length - 30} more review records.`));
       appendInspectorSection("Still needs review", reviewEntries, { compact: true });
 
       const changeEntries = result.changes.length

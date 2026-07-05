@@ -60,13 +60,15 @@
     }).filter((block) => block.type === "blank" || block.type === "paragraph" || block.items?.length);
     const outputDoc = makeDoc(outBlocks, Object.assign({}, doc.meta));
     const visibleText = docToPlainText(outputDoc, options.destination || "gmail");
-    const diagnostics = getDiagnostics(visibleText);
+    const sourceVisibleText = docToPlainText(doc, options.destination || "gmail");
+    const diagnostics = getDiagnostics(visibleText, sourceVisibleText);
     return {
       doc: outputDoc,
       cleanText: visibleText,
       changes,
       stats,
       warnings: diagnostics.warnings,
+      reviewRecords: diagnostics.reviewRecords,
       remainingNonAscii: diagnostics.remainingNonAscii,
       options
     };
