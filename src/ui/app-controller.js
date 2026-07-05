@@ -663,7 +663,11 @@
 
     function clearInputMetricHighlight(options = {}) {
       if (options.preservePinned && pinnedInspectorElement) return;
-      if (!options.preservePinned) pinnedInspectorElement = null;
+      if (!options.preservePinned) {
+        if (pinnedInspectorElement) pinnedInspectorElement.classList.remove("is-pinned");
+        pinnedInspectorElement = null;
+      }
+      activeInspectorElement = null;
       inputEditor.classList.remove("inspector-pulse");
       const currentOptions = getOptions();
       suppressInputEvent = true;
@@ -674,19 +678,59 @@
     }
 
     function pinInputMetricHighlight(element, render) {
+      if (pinnedInspectorElement && pinnedInspectorElement !== element) pinnedInspectorElement.classList.remove("is-pinned");
       pinnedInspectorElement = element;
+      activeInspectorElement = element;
+      element.classList.add("is-pinned");
       render();
     }
 
     function renderTransientInputMetricHighlight(element, render) {
       if (pinnedInspectorElement && pinnedInspectorElement !== element) return;
+      activeInspectorElement = element;
       render();
     }
 
     function clearTransientInputMetricHighlight(element) {
-      if (pinnedInspectorElement && pinnedInspectorElement !== element) return;
+      if (pinnedInspectorElement) return;
+      if (activeInspectorElement !== element) return;
       clearInputMetricHighlight({ preservePinned: true });
     }
+
+    function clearAnyInspectorHighlight() {
+      if (!pinnedInspectorElement && !activeInspectorElement) return;
+      clearInputMetricHighlight();
+    }
+
+    function createInspectorInteractiveRow(options) {
+      const li = document.createElement("li");
+      li.className = "inspector-interactive-row";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "inspector-row-button";
+      button.setAttribute("aria-label", options.ariaLabel);
+      if (options.title) button.title = options.title;
+      if (options.text) button.textContent = options.text;
+      else button.append(...options.children);
+      const renderHighlight = options.renderHighlight;
+      button.addEventListener("mouseenter", () => renderTransientInputMetricHighlight(button, renderHighlight));
+      button.addEventListener("click", () => pinInputMetricHighlight(button, renderHighlight));
+      button.addEventListener("mouseleave", () => clearTransientInputMetricHighlight(button));
+      button.addEventListener("focus", () => renderTransientInputMetricHighlight(button, renderHighlight));
+      button.addEventListener("blur", () => clearTransientInputMetricHighlight(button));
+      li.appendChild(button);
+      return li;
+    }
+
+    function createInspectorMetadataRow(children, title) {
+      const li = document.createElement("li");
+      li.className = "inspector-metadata-row";
+      if (title) li.title = title;
+      li.append(...children);
+      return li;
+    }
+
+    let activeInspectorElement = null;
 
     function makeInspectorMetric(label, value, matcher, blockMatcher, records) {
       return { type: "metric", label, value, matcher, blockMatcher, records };
@@ -697,46 +741,33 @@
     }
 
     function createInspectorMetricRow(entry) {
-      const li = document.createElement("li");
       const span = document.createElement("span");
       const strong = document.createElement("strong");
       span.textContent = entry.label;
       strong.textContent = String(entry.value);
-      li.append(span, strong);
-      const canLink = Boolean(entry.matcher || entry.blockMatcher || entry.records) && Number(entry.value) > 0;
-      if (canLink) {
-        li.tabIndex = 0;
-        li.role = "button";
-        li.title = "Hover to highlight related input text.";
-        const renderHighlight = () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records);
-        li.addEventListener("mouseenter", () => renderTransientInputMetricHighlight(li, renderHighlight));
-        li.addEventListener("click", () => pinInputMetricHighlight(li, renderHighlight));
-        li.addEventListener("mouseleave", () => clearTransientInputMetricHighlight(li));
-        li.addEventListener("focus", () => renderTransientInputMetricHighlight(li, renderHighlight));
-        li.addEventListener("blur", () => clearTransientInputMetricHighlight(li));
-      } else {
-        li.title = "This metric summarizes the document and does not map to one exact text span.";
+      const canHighlight = Boolean(entry.matcher || entry.blockMatcher || entry.records) && Number(entry.value) > 0;
+      if (!canHighlight) {
+        return createInspectorMetadataRow([span, strong], "This metric summarizes the document and does not map to one exact text span.");
       }
-      return li;
+      return createInspectorInteractiveRow({
+        ariaLabel: `Highlight ${entry.label.toLowerCase()} in input`,
+        title: "Hover, focus, or click to highlight related input text.",
+        children: [span, strong],
+        renderHighlight: () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records)
+      });
     }
 
     function createInspectorChangeRow(change) {
-      const li = document.createElement("li");
       const source = getCodeLabelForChangeValue(change.source);
       const target = getCodeLabelForChangeValue(change.target);
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "inspector-link";
-      button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
+      const text = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
       const exactTransformRecords = () => changeRecordsForExactTransform(change.before ?? change.source ?? "", change.after ?? change.target ?? "").filter((record) => record.key === change.key);
-      const renderHighlight = () => highlightInputForChangeRecords(exactTransformRecords());
-      button.addEventListener("mouseenter", () => renderTransientInputMetricHighlight(button, renderHighlight));
-      button.addEventListener("click", () => pinInputMetricHighlight(button, renderHighlight));
-      button.addEventListener("mouseleave", () => clearTransientInputMetricHighlight(button));
-      button.addEventListener("focus", () => renderTransientInputMetricHighlight(button, renderHighlight));
-      button.addEventListener("blur", () => clearTransientInputMetricHighlight(button));
-      li.appendChild(button);
-      return li;
+      return createInspectorInteractiveRow({
+        ariaLabel: `Highlight ${change.phase} change from ${source} to ${target} in input`,
+        title: "Hover, focus, or click to highlight this input change.",
+        text,
+        renderHighlight: () => highlightInputForChangeRecords(exactTransformRecords())
+      });
     }
 
     function appendInspectorSection(title, entries, options) {
@@ -752,6 +783,7 @@
         else if (entry.type === "change") list.appendChild(createInspectorChangeRow(entry.change));
         else {
           const li = document.createElement("li");
+          li.className = "inspector-metadata-row";
           li.textContent = entry.text;
           list.appendChild(li);
         }
@@ -1384,7 +1416,11 @@
       });
     });
     if (advancedSettingsButton && advancedSettings) advancedSettingsButton.addEventListener("click", () => { advancedSettings.open = true; });
-    document.addEventListener("keydown", (event) => { if (event.key === "Escape" && advancedSettings) advancedSettings.open = false; });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (advancedSettings) advancedSettings.open = false;
+      clearAnyInspectorHighlight();
+    });
     document.addEventListener("pointerdown", (event) => {
       if (!advancedSettings || !advancedSettings.open) return;
       const sheet = advancedSettings.closest(".advanced-sheet");

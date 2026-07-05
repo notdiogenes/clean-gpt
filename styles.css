@@ -100,7 +100,13 @@ details { border-top:1px solid var(--border); padding:.65rem 0; } details:first-
 .inspector-title { display:flex; justify-content:space-between; gap:.75rem; align-items:center; } .separator { height:1px; background:var(--border); margin:1rem 0; }
 .inspector-sections{ display:grid; gap:1rem; } .inspector-section{ border-top:1px solid var(--border); padding-top:.85rem; } .inspector-section:first-child{ border-top:0; padding-top:0; } .inspector-section h3{ margin-top:0; }
 .stats-list,.plain-list{ margin:0; padding:0; list-style:none; } .stats-list li{ display:flex; justify-content:space-between; gap:1rem; padding:.48rem 0; border-bottom:1px solid var(--border); } .stats-list span,.plain-list li{ color:var(--muted-foreground); } .plain-list li{ padding:.3rem 0; overflow-wrap:anywhere; } .compact{ font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:.84rem; }
-.inspector-link { color:inherit; background:transparent; border:0; padding:0; text-align:left; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.stats-list li.inspector-interactive-row { padding:0; }
+.inspector-row-button { display:flex; justify-content:space-between; align-items:center; gap:1rem; width:100%; padding:.48rem .35rem; margin:0 -.35rem; color:inherit; background:transparent; border:1px solid transparent; border-radius:.5rem; font:inherit; text-align:left; cursor:pointer; transition:background-color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.inspector-row-button:hover, .inspector-row-button:focus-visible, .inspector-row-button.is-pinned { background:color-mix(in srgb, var(--primary), transparent 92%); border-color:color-mix(in srgb, var(--primary), transparent 58%); box-shadow:0 0 0 2px color-mix(in srgb, var(--primary), transparent 85%); }
+.inspector-row-button:hover { transform:translateY(-1px); }
+.inspector-row-button:focus-visible { outline:2px solid color-mix(in srgb, var(--primary), transparent 35%); outline-offset:2px; }
+.inspector-row-button.is-pinned::after { content:"Pinned"; flex:0 0 auto; padding:.1rem .35rem; border-radius:999px; color:var(--primary); background:color-mix(in srgb, var(--primary), transparent 88%); font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.inspector-metadata-row { cursor:default; }
 .site-footer { padding:0 1rem 2rem; color:var(--muted-foreground); font-size:.9rem; }
 @media (max-width: 1100px){ .workflow-list,.settings-grid,.workspace-grid,.side-rail{ grid-template-columns:1fr; } .editor-panel{ height:560px; } }
 @media (max-width: 720px){ .site-header{ grid-template-columns:1fr; } .site-nav{ justify-content:flex-start; } h1{ font-size:2.6rem; } .control-grid.two-up{ grid-template-columns:1fr; } .output-actions{ justify-content:flex-start; } .button,.site-nav a{ width:auto; } }
