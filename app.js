@@ -1194,7 +1194,14 @@
   function parseListElement(element, ordered) {
     const items = [];
     Array.from(element.children || []).forEach((child) => {
-      if (child.tagName !== "LI") return;
+      const tag = child.tagName;
+      if (tag === "UL" || tag === "OL") {
+        const nested = parseListElement(child, tag === "OL");
+        const parent = items[items.length - 1];
+        if (parent && nested.items.length) parent.children = (parent.children || []).concat(nested);
+        return;
+      }
+      if (tag !== "LI") return;
       const nestedLists = Array.from(child.children || []).filter((nested) => nested.tagName === "UL" || nested.tagName === "OL");
       const clone = child.cloneNode(true);
       Array.from(clone.querySelectorAll("ul,ol")).forEach((nested) => nested.remove());

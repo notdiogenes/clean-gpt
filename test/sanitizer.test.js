@@ -22,6 +22,16 @@ test('markdown profile serializes nested lists with indentation', () => {
   assert.equal(sanitizer.docToPlainText(doc, 'markdown'), '- parent\n  - child');
 });
 
+test('HTML parser attaches orphan nested lists to preceding list item', () => {
+  if (typeof DOMParser === 'undefined') return;
+  const doc = sanitizer.parseHtmlToDoc('<ul><li>parent</li><ul><li>child</li></ul><li>sibling</li></ul>');
+  assert.equal(doc.blocks[0].type, 'ul');
+  assert.equal(doc.blocks[0].items[0].text, 'parent');
+  assert.equal(doc.blocks[0].items[0].children[0].items[0].text, 'child');
+  assert.equal(doc.blocks[0].items[1].text, 'sibling');
+  assert.equal(doc.meta.listItems, 3);
+});
+
 test('Gmail HTML preserves nested semantic lists', () => {
   const doc = sanitizer.parsePlainTextToDoc('- parent\n  - child', true);
   const html = sanitizer.buildGmailHtmlFromDoc(doc, {

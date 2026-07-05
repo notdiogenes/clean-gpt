@@ -34,6 +34,12 @@
       equal(doc.blocks[0].type, "ul");
       equal(doc.blocks[0].items[0].children[0].items[0].text, "child");
     }},
+    { category: "Parsing", name: "Orphan nested HTML lists attach to parent", body: "Handles browser/editor HTML where a nested list appears as a sibling of the preceding list item.", run(api) {
+      const doc = api.parseHtmlToDoc("<ul><li>parent</li><ul><li>child</li></ul><li>sibling</li></ul>");
+      equal(doc.blocks[0].type, "ul");
+      equal(doc.blocks[0].items[0].children[0].items[0].text, "child");
+      equal(doc.blocks[0].items[1].text, "sibling");
+    }},
     { category: "Clipboard", name: "Document HTML includes rich list fallback", body: "Builds ordered-list HTML for document destinations with plain-text fallback support.", run(api) {
       const doc = api.parsePlainTextToDoc("1. first\n2. second", true);
       const html = api.buildDocumentHtmlFromDoc(doc, api.buildOptions("googleDocs", null, { structuredListsForDocs: true }));
