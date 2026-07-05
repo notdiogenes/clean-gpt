@@ -13,7 +13,25 @@
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
 
-  function escapeText(value) { return String(value == null ? "" : value); }
+  function appendDefinitionItem(list, term, value, code) {
+    const dt = docFor(list).createElement("dt");
+    dt.textContent = term;
+    const dd = docFor(list).createElement("dd");
+    const valueNode = code ? docFor(list).createElement("code") : dd;
+    valueNode.textContent = String(value == null ? "" : value);
+    if (code) dd.appendChild(valueNode);
+    list.append(dt, dd);
+  }
+
+  function docFor(node) { return node.ownerDocument || global.document; }
+
+  function appendTextElement(parent, tagName, text, className) {
+    const element = docFor(parent).createElement(tagName);
+    if (className) element.className = className;
+    element.textContent = String(text == null ? "" : text);
+    parent.appendChild(element);
+    return element;
+  }
   function checksumText(text) { return Array.from(String(text || "")).reduce((sum, char) => (sum + char.codePointAt(0)) % 1000000007, 0); }
 
   function createReviewState(model) {
@@ -28,7 +46,7 @@
       punctuation: "This punctuation can be normalized for plain-text compatibility.",
       compatibility: "This character may not survive every destination or workflow.",
       nonAscii: "This non-ASCII character may need review for strict systems.",
-      warnings: "This item describes a limitation of the text-only analysis."
+      warnings: "This item describes a DOCX parsing or formatted-preview limitation."
     };
     return map[issue.group] || "Review this issue and decide whether to apply the proposed fix.";
   }
@@ -68,7 +86,11 @@
       if (!elements.metadata) return;
       elements.metadata.hidden = false;
       const modified = file.lastModified ? new Date(file.lastModified).toLocaleString() : "Not available";
-      elements.metadata.innerHTML = `<dt>File name</dt><dd>${escapeText(file.name)}</dd><dt>File size</dt><dd>${formatBytes(file.size)}</dd><dt>Last modified</dt><dd>${escapeText(modified)}</dd><dt>Extraction status</dt><dd>${escapeText(status)}</dd>`;
+      elements.metadata.textContent = "";
+      appendDefinitionItem(elements.metadata, "File name", file.name);
+      appendDefinitionItem(elements.metadata, "File size", formatBytes(file.size));
+      appendDefinitionItem(elements.metadata, "Last modified", modified);
+      appendDefinitionItem(elements.metadata, "Extraction status", status);
     }
 
     function counts() {
@@ -85,7 +107,10 @@
       const c = counts();
       elements.summary.innerHTML = "";
       [["Total issues", c.total], ["Open issues", c.open], ["Applied fixes", c.applied], ["Ignored issues", c.ignored], ["Issue types found", c.types]].forEach(([label, value]) => {
-        const card = doc.createElement("div"); card.className = "summary-card"; card.innerHTML = `<span>${label}</span><strong>${value}</strong>`; elements.summary.appendChild(card);
+        const card = doc.createElement("div"); card.className = "summary-card";
+        appendTextElement(card, "span", label);
+        appendTextElement(card, "strong", value);
+        elements.summary.appendChild(card);
       });
     }
 
@@ -228,18 +253,31 @@
         const groupIssues = visible.filter((issue) => issue.group === group.id);
         if (!groupIssues.length) return;
         const section = doc.createElement("section"); section.className = "issue-group";
-        section.innerHTML = `<h4>${escapeText(group.title)} <span>${groupIssues.length}</span></h4>`;
+        const heading = doc.createElement("h4");
+        heading.append(doc.createTextNode(group.title + " "));
+        appendTextElement(heading, "span", groupIssues.length);
+        section.appendChild(heading);
         const actions = doc.createElement("div"); actions.className = "issue-group-actions";
-        actions.innerHTML = `<button type="button" data-apply-type="${group.id}">Apply all</button><button type="button" data-ignore-type="${group.id}">Ignore all</button>`;
+        const applyButton = doc.createElement("button");
+        applyButton.type = "button";
+        applyButton.dataset.applyType = group.id;
+        applyButton.textContent = "Apply all";
+        const ignoreButton = doc.createElement("button");
+        ignoreButton.type = "button";
+        ignoreButton.dataset.ignoreType = group.id;
+        ignoreButton.textContent = "Ignore all";
+        actions.append(applyButton, ignoreButton);
         section.appendChild(actions);
         groupIssues.forEach((issue) => {
           const row = doc.createElement("button"); row.type = "button"; row.className = `issue-row status-${issue.status}${issue.id === review.selectedIssueId ? " is-selected" : ""}`; row.dataset.issueId = issue.id;
-          row.innerHTML = `<strong>${escapeText(issue.type)}</strong><span>${escapeText(issue.shortLabel || issue.label)} · Paragraph ${issue.paragraphIndex}</span><small>${escapeText(issue.replacement === issue.originalText ? "Review" : `Replace with ${issue.replacement || "∅"}`)} · ${issue.status}</small>`;
+          appendTextElement(row, "strong", issue.type);
+          appendTextElement(row, "span", `${issue.shortLabel || issue.label} · Paragraph ${issue.paragraphIndex}`);
+          appendTextElement(row, "small", `${issue.replacement === issue.originalText ? "Review" : `Replace with ${issue.replacement || "∅"}`} · ${issue.status}`);
           section.appendChild(row);
         });
         elements.sidebar.appendChild(section);
       });
-      if (!elements.sidebar.children.length) elements.sidebar.innerHTML = '<p class="compact-note">No issues match the current filters.</p>';
+      if (!elements.sidebar.children.length) appendTextElement(elements.sidebar, "p", "No issues match the current filters.", "compact-note");
     }
 
     function selectedIssue() { return review && review.issues.find((issue) => issue.id === review.selectedIssueId); }
@@ -247,8 +285,31 @@
 
     function renderDetails() {
       const issue = selectedIssue();
-      if (!issue) { elements.details.innerHTML = '<p class="compact-note">Select an issue to review details and actions.</p>'; return; }
-      elements.details.innerHTML = `<h3>Selected issue</h3><dl><dt>Type</dt><dd>${escapeText(issue.type)}</dd><dt>Explanation</dt><dd>${escapeText(issueExplanation(issue))}</dd><dt>Original value</dt><dd><code>${escapeText(issue.originalText || "∅")}</code></dd><dt>Unicode</dt><dd>${escapeText(issue.codePoint || "Not applicable")}</dd><dt>Proposed replacement</dt><dd><code>${escapeText(issue.replacement || "∅")}</code></dd><dt>Paragraph context</dt><dd>${escapeText(paragraphContext(issue))}</dd><dt>Status</dt><dd>${escapeText(issue.status)}</dd></dl><div class="document-actions"><button type="button" data-action="apply-selected" class="button primary-button">Apply</button><button type="button" data-action="ignore-selected" class="button ghost-button">Ignore</button></div>`;
+      elements.details.textContent = "";
+      if (!issue) { appendTextElement(elements.details, "p", "Select an issue to review details and actions.", "compact-note"); return; }
+      appendTextElement(elements.details, "h3", "Selected issue");
+      const list = doc.createElement("dl");
+      appendDefinitionItem(list, "Type", issue.type);
+      appendDefinitionItem(list, "Explanation", issueExplanation(issue));
+      appendDefinitionItem(list, "Original value", issue.originalText || "∅", true);
+      appendDefinitionItem(list, "Unicode", issue.codePoint || "Not applicable");
+      appendDefinitionItem(list, "Proposed replacement", issue.replacement || "∅", true);
+      appendDefinitionItem(list, "Paragraph context", paragraphContext(issue));
+      appendDefinitionItem(list, "Status", issue.status);
+      const actions = doc.createElement("div");
+      actions.className = "document-actions";
+      const apply = doc.createElement("button");
+      apply.type = "button";
+      apply.dataset.action = "apply-selected";
+      apply.className = "button primary-button";
+      apply.textContent = "Apply";
+      const ignore = doc.createElement("button");
+      ignore.type = "button";
+      ignore.dataset.action = "ignore-selected";
+      ignore.className = "button ghost-button";
+      ignore.textContent = "Ignore";
+      actions.append(apply, ignore);
+      elements.details.append(list, actions);
     }
 
     function renderCleaned() { review.cleanedText = applyIssuePatches(currentModel.rawText, review.issues); elements.cleaned.textContent = review.cleanedText; }
@@ -266,7 +327,19 @@
 
     function renderReport(model) {
       elements.report.hidden = false;
-      if (elements.filterType) elements.filterType.innerHTML = '<option value="all">All issue types</option>' + GROUPS.map((g) => `<option value="${g.id}">${g.title}</option>`).join("");
+      if (elements.filterType) {
+        elements.filterType.textContent = "";
+        const allOption = doc.createElement("option");
+        allOption.value = "all";
+        allOption.textContent = "All issue types";
+        elements.filterType.appendChild(allOption);
+        GROUPS.forEach((group) => {
+          const option = doc.createElement("option");
+          option.value = group.id;
+          option.textContent = group.title;
+          elements.filterType.appendChild(option);
+        });
+      }
       renderAll();
     }
 

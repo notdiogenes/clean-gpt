@@ -18,7 +18,7 @@
     { id: "punctuation", title: "Punctuation issues", explanation: "Quote, dash, ellipsis, and dot-leader characters that may need destination-aware normalization." },
     { id: "compatibility", title: "Compatibility issues", explanation: "Ligatures, fractions, superscripts/subscripts, emoji, and fullwidth forms that may not travel well." },
     { id: "nonAscii", title: "Non-ASCII characters", explanation: "Characters outside the ASCII range that may require review for strict systems." },
-    { id: "warnings", title: "Warnings", explanation: "Analysis warnings and parse limitations for this MVP." }
+    { id: "warnings", title: "Warnings", explanation: "Analysis warnings and DOCX parsing limitations for the local preview." }
   ];
 
   function paragraphIndexForOffset(paragraphs, offset) {
@@ -126,7 +126,7 @@
     const rawText = String(model && model.rawText || "");
     if (!rawText.trim()) throw Object.assign(new Error("Empty document"), { code: "empty-document" });
     const paragraphs = model.paragraphs || rawText.split(/\n+/);
-    const warnings = [{ id: "warning-formatting", group: "warnings", type: "formatting-warning", label: "Formatting not preserved", shortLabel: "Formatting not preserved", text: "This MVP analyzes extracted text only.", originalText: "", replacement: "", proposedReplacement: "", codePoint: "", severity: "warning", paragraphIndex: 1, start: 0, end: 0, location: 0, status: "open" }];
+    const warnings = [{ id: "warning-formatting", group: "warnings", type: "formatting-warning", label: "Formatted preview is approximate", shortLabel: "Formatted preview is approximate", text: "Formatted preview is approximate; comments, tracked changes, footnotes/endnotes, headers, footers, images, text boxes, complex tables, and exact Word layout are not fully represented.", originalText: "", replacement: "", proposedReplacement: "", codePoint: "", severity: "warning", paragraphIndex: 1, start: 0, end: 0, location: 0, status: "open" }];
     const issues = [
       ...collectRegexIssues(rawText, model, paragraphs, REGEX.hidden, "hidden", "hidden", "Hidden or directional character"),
       ...collectRegexIssues(rawText, model, paragraphs, REGEX.unusualSpaces, "unusual-space", "whitespace", "Unusual space"),
