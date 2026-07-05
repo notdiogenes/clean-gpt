@@ -1,6 +1,7 @@
 (function (global) {
   "use strict";
 
+  const wordprocessing = typeof require === "function" ? require("./docx-wordprocessingml") : global.TextSanitizerDocument;
   const MAX_DOCX_BYTES = 20 * 1024 * 1024;
   const TEXT_XML_PATHS = ["word/document.xml"];
 
@@ -300,8 +301,11 @@
     if (!entry) throw Object.assign(new Error("Could not parse document"), { code: "parse-failed" });
     const xml = new TextDecoder("utf-8").decode(entry.content);
     const stylesEntry = zip.get("word/styles.xml");
-    const styleMap = stylesEntry ? extractStyleMapFromStylesXml(new TextDecoder("utf-8").decode(stylesEntry.content)) : null;
-    const blocks = extractDocumentBlocksFromDocumentXml(xml, styleMap);
+    const relsEntry = zip.get("word/_rels/document.xml.rels");
+    const styleMap = stylesEntry ? wordprocessing.extractStyleMapFromStylesXml(new TextDecoder("utf-8").decode(stylesEntry.content)) : null;
+    const relationships = relsEntry ? wordprocessing.parseDocxRelationships(new TextDecoder("utf-8").decode(relsEntry.content)) : {};
+    const paths = new Set(zip.keys ? zip.keys() : Array.from(zip).map((entry) => entry[0]));
+    const blocks = wordprocessing.extractDocumentBlocksFromDocumentXml(xml, styleMap, { relationships });
     const paragraphs = blocks.filter((block) => block.type === "paragraph").map((block) => block.text);
     const rawText = blocks.map((block) => block.text).join("\n");
     if (!rawText.trim()) throw Object.assign(new Error("Empty document"), { code: "empty-document" });
@@ -314,11 +318,12 @@
       wordCount: wordCountForText(rawText),
       schemaVersion: 1,
       coordinateSpace: "canonical-text-v1",
-      analysisResults: null
+      analysisResults: null,
+      warnings: wordprocessing.buildDocxWarnings({ paths, documentXml: xml })
     };
   }
 
-  const API = { MAX_DOCX_BYTES, isDocxFile, readZipEntries, extractParagraphsFromDocumentXml, extractDocumentBlocksFromDocumentXml, extractRunProperties, extractStyleMapFromStylesXml, wordCountForText, extractDocxText };
+  const API = Object.assign({}, wordprocessing, { MAX_DOCX_BYTES, isDocxFile, readZipEntries, wordCountForText, extractDocxText });
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.TextSanitizerDocument = Object.assign(global.TextSanitizerDocument || {}, API);
 })(typeof window !== "undefined" ? window : globalThis);

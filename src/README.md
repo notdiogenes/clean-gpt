@@ -67,6 +67,28 @@ Normalized DOCX shapes:
 
 `document/document-analysis.js` maps issue anchors back into block/run locations and, for tables, row/cell/paragraph locations. Overlapping issue ranges are grouped deterministically; specific cleanup issues such as emoji and curly quotes take priority over the broad non-ASCII issue for the same range.
 
+
+#### DOCX WordprocessingML capability matrix
+
+`document/docx-wordprocessingml.js` is the structured DOCX parser used by `document/docx-extract.js`. In browsers it parses WordprocessingML with `DOMParser`; in Node tests it uses the module-local XML parser and then traverses the resulting tree by XML local name. This keeps extraction independent from namespace prefixes such as `w:` and `r:` while remaining testable without a live DOM.
+
+| DOCX construct | Status | Extraction behavior |
+| --- | --- | --- |
+| Paragraphs (`w:p`) and runs (`w:r`, `w:t`) | Rendered and reviewable | Emitted as paragraph blocks with canonical `start`/`end` ranges and run-level review anchors. |
+| Run breaks and tabs (`w:br`, `w:cr`, `w:tab`) | Rendered and reviewable | Converted to `\n` and `\t` runs in the same canonical coordinate space. |
+| Paragraph styles and headings (`w:pStyle`, `word/styles.xml`) | Rendered and reviewable | Preserves `styleId` and resolved `styleName` on paragraph blocks so heading-like styles are visible to renderers/review UI. |
+| Run styles and formatting (`w:rPr`) | Rendered and reviewable | Preserves bold, italic, underline, strike, subscript/superscript, highlight, color, and character style metadata on runs. |
+| Lists/numbering (`w:numPr`) | Rendered and reviewable | Preserves list `level` and `numId` metadata on paragraph blocks; numbering labels are not synthesized yet. |
+| Tables (`w:tbl`, `w:tr`, `w:tc`) | Rendered and reviewable | Emits table/row/cell/paragraph shapes with cell text included in `rawText`; cell separators are tabs and row separators are newlines. |
+| Hyperlinks (`w:hyperlink` plus `document.xml.rels`) | Rendered and reviewable | Emits hyperlink text as runs and preserves relationship id, target URL, and anchor metadata on run properties. |
+| Tracked insertions/deletions (`w:ins`, `w:del`) | Rendered and reviewable, detected with warning | Renders contained text with revision metadata (`revision`, `author`, `date`) on runs and adds a document warning for tracked revisions. |
+| Comments (`word/comments.xml`) | Detected with warning | Warns that comments exist; comment ranges and comment text are not rendered yet. |
+| Headers/footers (`word/header*.xml`, `word/footer*.xml`) | Detected with warning | Warns that the parts exist; their text is not merged into the main review model yet. |
+| Footnotes (`word/footnotes.xml`) | Detected with warning | Warns that footnotes exist; footnote bodies are not rendered yet. |
+| Images, drawings, charts, SmartArt, embedded objects, fields, bookmarks, section properties, page layout, and theme data | Ignored | These constructs do not contribute text or review anchors in the current parser. |
+
+The backward-compatible public extraction fields remain `rawText`, `paragraphs`, `blocks`, and `analysisResults`; callers may also inspect `warnings` for deferred DOCX features.
+
 ### `html/`
 
 Pure HTML string generation:

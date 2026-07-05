@@ -52,6 +52,8 @@
     extractDocumentBlocksFromDocumentXml: docxExtractor.extractDocumentBlocksFromDocumentXml,
     extractRunProperties: docxExtractor.extractRunProperties,
     extractStyleMapFromStylesXml: docxExtractor.extractStyleMapFromStylesXml,
+    parseDocxRelationships: docxExtractor.parseDocxRelationships,
+    buildDocxWarnings: docxExtractor.buildDocxWarnings,
     analyzeDocumentText: documentAnalysis.analyzeDocumentText,
     buildIssueGroups: documentAnalysis.buildIssueGroups,
     groupOverlappingIssues: documentAnalysis.groupOverlappingIssues,

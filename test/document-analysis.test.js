@@ -235,3 +235,43 @@ test('overlapping issue ranges are grouped and prioritized deterministically', (
   assert.equal(quoteGroup.primary.type, 'double-quote');
 });
 
+
+test('DOCX parser extracts headings lists hyperlinks tables comments and revisions metadata', () => {
+  const styles = sanitizer.extractStyleMapFromStylesXml(`
+    <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+      <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/></w:style>
+    </w:styles>
+  `);
+  const relationships = sanitizer.parseDocxRelationships(`
+    <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+      <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.com"/>
+    </Relationships>
+  `);
+  const xml = `
+    <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>
+      <w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Section</w:t></w:r></w:p>
+      <w:p><w:pPr><w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr></w:pPr><w:r><w:t>List item</w:t></w:r></w:p>
+      <w:p><w:hyperlink r:id="rId5"><w:r><w:t>Example link</w:t></w:r></w:hyperlink></w:p>
+      <w:p><w:ins w:author="Ada" w:date="2026-01-02T00:00:00Z"><w:r><w:t>Inserted</w:t></w:r></w:ins></w:p>
+      <w:tbl><w:tr><w:tc><w:p><w:r><w:t>Cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>
+    </w:body></w:document>
+  `;
+
+  const blocks = sanitizer.extractDocumentBlocksFromDocumentXml(xml, styles, { relationships });
+  assert.deepEqual(blocks.map((block) => block.text), ['Section', 'List item', 'Example link', 'Inserted', 'Cell']);
+  assert.equal(blocks[0].styleName, 'heading 2');
+  assert.deepEqual(blocks[1].list, { level: '1', numId: '7' });
+  assert.equal(blocks[2].runs[0].properties.hyperlink, true);
+  assert.equal(blocks[2].runs[0].properties.href, 'https://example.com');
+  assert.equal(blocks[3].runs[0].properties.revision, 'ins');
+  assert.equal(blocks[3].runs[0].properties.author, 'Ada');
+  assert.equal(blocks[4].type, 'table');
+});
+
+test('DOCX parser reports deferred constructs as warnings', () => {
+  const warnings = sanitizer.buildDocxWarnings({
+    documentXml: '<w:document><w:body><w:p><w:del w:author="Ada"><w:r><w:t>Removed</w:t></w:r></w:del></w:p></w:body></w:document>',
+    paths: new Set(['word/comments.xml', 'word/header1.xml', 'word/footer1.xml', 'word/footnotes.xml'])
+  });
+  assert.deepEqual(warnings.map((warning) => warning.type), ['tracked-revisions', 'comments', 'headers', 'footers', 'footnotes']);
+});
