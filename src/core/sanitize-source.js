@@ -122,11 +122,11 @@
     }
 
     if (options.normalizeSuperscriptsSubscripts) {
-      text = replaceMappedChars(text, superSubMapForText(text), "Source", changes, stats, "superSubChanged", "Superscript/subscript flattened");
+      text = replaceMappedChars(text, superSubMapForText(text), "Source", changes, stats, "superSubChanged", "Superscript/subscript flattened", { category: "compatibility", subcategory: "super-sub-flatten", severity: "warning", suggestion: "May change meaning. Review output." });
     }
 
     if (options.removeEmoji) {
-      text = replaceRegex(text, REGEX.emoji, "", "Source", changes, stats, "emojiRemoved", "Emoji or pictographic symbol removed");
+      text = replaceRegex(text, REGEX.emoji, "", "Source", changes, stats, "emojiRemoved", "Emoji or pictographic symbol removed", null, { category: "emoji", subcategory: "emoji-remove", severity: "warning", suggestion: "May change meaning. Review output." });
     }
 
     if (options.trimTrailingSpaces) {

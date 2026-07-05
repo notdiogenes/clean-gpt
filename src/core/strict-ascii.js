@@ -11,7 +11,7 @@
     if (!options.strictAscii) return text;
 
     if (options.replaceSymbolsAscii) {
-      text = replaceMappedChars(text, MAPS.asciiSymbols, "Source", changes, stats, "strictAsciiChanged", "Common symbol replaced for ASCII");
+      text = replaceMappedChars(text, MAPS.asciiSymbols, "Source", changes, stats, "strictAsciiChanged", "Common symbol replaced for ASCII", { category: "strict-ascii", subcategory: "symbol-replace", severity: "warning", suggestion: "May change meaning. Review output." });
     }
 
     if (options.foldAccents) {
@@ -21,7 +21,7 @@
         const char = Array.from(text.slice(i))[0];
         const replacement = char.normalize("NFKD").replace(REGEX.combiningMarks, "");
         if (replacement !== char) {
-          addChange(changes, "Source", char, replacement, 1, "Accents folded", { category: "strict-ascii", subcategory: "accent-fold", severity: "info", sourceStart: i, sourceEnd: i + char.length, outputStart: output.length, outputEnd: output.length + replacement.length, suggestion: "Use the ASCII-compatible decomposition." });
+          addChange(changes, "Source", char, replacement, 1, "Accents folded", { category: "strict-ascii", subcategory: "accent-fold", severity: "warning", sourceStart: i, sourceEnd: i + char.length, outputStart: output.length, outputEnd: output.length + replacement.length, suggestion: "May change meaning. Review output." });
           folded += 1;
         }
         output += replacement;
@@ -34,7 +34,7 @@
       }
     }
 
-    text = replaceRegex(text, REGEX.nonAscii, "", "Source", changes, stats, "strictAsciiChanged", "Remaining non-ASCII removed", null, { category: "strict-ascii", subcategory: "non-ascii-remove", severity: "review", suggestion: "Remove or replace this remaining non-ASCII character." });
+    text = replaceRegex(text, REGEX.nonAscii, "", "Source", changes, stats, "strictAsciiChanged", "Remaining non-ASCII removed", null, { category: "strict-ascii", subcategory: "non-ascii-remove", severity: "warning", suggestion: "May change meaning. Review output." });
     return text;
   }
 
