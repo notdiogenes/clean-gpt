@@ -1919,20 +1919,12 @@
       return source === change.source || target === change.target || source.includes(change.source || "\u0000") || target.includes(change.target || "\u0000");
     }
 
-    function highlightInputForMetric(label, matcher) {
+    function focusInputForMetric(label, matcher) {
       if (!lastResult) return;
       const options = getOptions();
       renderInputDiffHighlights(inputDoc, lastResult.doc, options, matcher || ((part) => sourceChangeMatchesMetric(part, label)));
       inputEditor.classList.add("inspector-pulse");
-    }
-
-    function clearInputMetricHighlight() {
-      inputEditor.classList.remove("inspector-pulse");
-      const options = getOptions();
-      suppressInputEvent = true;
-      renderDocInto(inputEditor, inputDoc, "input", "source", options.showInvisibles ? options : {});
-      inputEditor.dataset.showingInvisibles = options.showInvisibles ? "true" : "false";
-      suppressInputEvent = false;
+      window.setTimeout(() => inputEditor.classList.remove("inspector-pulse"), 1200);
     }
 
     function renderStats(result) {
@@ -1965,11 +1957,9 @@
         if (canLink) {
           li.tabIndex = 0;
           li.role = "button";
-          li.title = "Hover to highlight related input text.";
-          li.addEventListener("mouseenter", () => highlightInputForMetric(label));
-          li.addEventListener("mouseleave", clearInputMetricHighlight);
-          li.addEventListener("focus", () => highlightInputForMetric(label));
-          li.addEventListener("blur", clearInputMetricHighlight);
+          li.title = "Highlight related input text.";
+          li.addEventListener("click", () => focusInputForMetric(label));
+          li.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") focusInputForMetric(label); });
         } else {
           li.title = "This metric summarizes the document and does not map to one exact text span.";
         }
@@ -1994,10 +1984,7 @@
         button.type = "button";
         button.className = "inspector-link";
         button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
-        button.addEventListener("mouseenter", () => highlightInputForMetric(change.note || change.target || change.source, (part) => sourceChangeMatchesRecord(part, change)));
-        button.addEventListener("mouseleave", clearInputMetricHighlight);
-        button.addEventListener("focus", () => highlightInputForMetric(change.note || change.target || change.source, (part) => sourceChangeMatchesRecord(part, change)));
-        button.addEventListener("blur", clearInputMetricHighlight);
+        button.addEventListener("click", () => focusInputForMetric(change.note || change.target || change.source, (part) => sourceChangeMatchesRecord(part, change)));
         li.appendChild(button);
         changesList.appendChild(li);
       });
@@ -2143,8 +2130,11 @@
       diffTextParts(beforeText, afterText).forEach((part) => {
         if (part.type === "equal") container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.text) : part.text));
         else if (part.type === "remove") {
-          // Pure removals are shown on the source/input side in diff mode so the
-          // output text keeps the same footprint as preview text.
+          const badge = document.createElement("span");
+          badge.className = "removed-hidden";
+          badge.title = replacementTitle(part.source, "");
+          badge.textContent = `${getCodeLabelForChangeValue(part.source).replace(/^U\+[0-9A-F]+\s*/, "")} removed`;
+          container.appendChild(badge);
         } else {
           const span = document.createElement("span");
           span.className = "char-change";
@@ -2179,14 +2169,15 @@
         if (part.type === "equal") {
           container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.text) : part.text));
         } else if (part.type === "remove" || part.type === "replace") {
-          const shouldHighlight = highlighter && highlighter.matches(part);
+          const shouldHighlight = highlighter && !highlighter.done && highlighter.matches(part);
           if (shouldHighlight) {
             const span = document.createElement("span");
             span.className = "source-change";
             span.title = replacementTitle(part.source, part.text || "");
             span.setAttribute("aria-label", span.title);
-            span.textContent = options && (options.showInvisibles || part.type === "remove" || !part.text) ? visualizeInvisibles(part.source) : part.source;
+            span.textContent = options && options.showInvisibles ? visualizeInvisibles(part.source) : part.source;
             container.appendChild(span);
+            highlighter.done = true;
           } else {
             container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.source) : part.source));
           }
@@ -2195,7 +2186,7 @@
     }
 
     function renderInputDiffHighlights(inputModel, outputModel, options, matcher) {
-      const highlighter = { matches: matcher || (() => true) };
+      const highlighter = { done: false, matches: matcher || (() => true) };
       suppressInputEvent = true;
       inputEditor.innerHTML = "";
       (inputModel.blocks || []).forEach((block, index) => {
@@ -2223,33 +2214,20 @@
 
     function renderCompactDiff(inputModel, outputModel, changeRecords, destinationProfile, options) {
       outputEditor.innerHTML = "";
-      const blocks = outputModel.blocks || [];
-      const contentIndexes = blocks.map((block, index) => {
-        if (block.type === "paragraph" && (block.text || "").trim()) return index;
-        if ((block.type === "ul" || block.type === "ol") && (block.items || []).length) return index;
-        return -1;
-      }).filter((index) => index >= 0);
-      const lastContentIndex = contentIndexes.length ? contentIndexes[contentIndexes.length - 1] : -1;
-
-      blocks.forEach((block, index) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "compact-diff";
+      (outputModel.blocks || []).forEach((block, index) => {
         const inputBlock = (inputModel.blocks || [])[index];
-        if (block.type === "blank") {
-          const blank = document.createElement("div");
-          blank.className = options.destination === "gmail" ? "gmail_default editor-paragraph gmail-line" : "editor-blank";
-          if (options.destination === "gmail") blank.setAttribute("style", "font-family: verdana, sans-serif;");
-          blank.appendChild(document.createElement("br"));
-          outputEditor.appendChild(blank);
-          return;
-        }
+        if (block.type === "blank") { const blank = document.createElement("div"); blank.className = "diff-block paragraph editor-paragraph"; if (options.destination === "gmail") blank.classList.add("gmail_default", "gmail-line"); blank.appendChild(document.createElement("br")); wrapper.appendChild(blank); return; }
         if (block.type === "paragraph") {
           const div = document.createElement("div");
-          div.className = options.destination === "gmail" ? "gmail_default editor-paragraph gmail-line" : "editor-paragraph";
-          if (options.destination === "gmail") div.setAttribute("style", "font-family: verdana, sans-serif;");
+          div.className = "diff-block paragraph editor-paragraph";
+          if (options.destination === "gmail") div.classList.add("gmail_default", "gmail-line");
           appendAnnotatedText(div, inputBlock && inputBlock.type === "paragraph" ? inputBlock.text || "" : "", block.text || "", options);
-          if (options.destination === "gmail" && index === lastContentIndex && (block.text || "").trim()) div.appendChild(document.createElement("br"));
-          outputEditor.appendChild(div);
-        } else if (block.type === "ul" || block.type === "ol") appendListPreview(outputEditor, inputBlock, block, options);
+          wrapper.appendChild(div);
+        } else if (block.type === "ul" || block.type === "ol") appendListPreview(wrapper, inputBlock, block, options);
       });
+      outputEditor.append(wrapper);
     }
 
     function renderInputEditorForOptions(options) {
@@ -2285,13 +2263,11 @@
       if (previewTab) previewTab.setAttribute("aria-selected", String(!showDiff));
       if (diffTab) diffTab.setAttribute("aria-selected", String(showDiff));
       if (showDiff) {
-        outputEditor.classList.remove("diff-output", "compact-diff-output");
-        renderInputDiffHighlights(inputDoc, lastResult.doc, options, () => true);
+        outputEditor.classList.add("diff-output", "compact-diff-output");
         renderCompactDiff(inputDoc, lastResult.doc, lastResult.changes, DESTINATIONS[destinationSelect.value], options);
       } else {
         outputEditor.classList.remove("diff-output", "compact-diff-output");
         renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, options);
-        renderInputEditorForOptions(options);
       }
       renderStats(lastResult);
       renderChanges(lastResult);
