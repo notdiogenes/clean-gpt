@@ -20,6 +20,7 @@
       presetSelect: doc.getElementById("presetSelect"),
       status: doc.getElementById("status"),
       pasteStatus: doc.getElementById("pasteStatus"),
+      inspectorSections: doc.getElementById("inspectorSections"),
       statsList: doc.getElementById("statsList"),
       changesList: doc.getElementById("changesList"),
       warningsList: doc.getElementById("warningsList"),

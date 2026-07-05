@@ -347,6 +347,7 @@
       presetSelect,
       status,
       pasteStatus,
+      inspectorSections,
       statsList,
       changesList,
       warningsList,
@@ -579,134 +580,151 @@
       suppressInputEvent = false;
     }
 
-    function renderStats(result) {
-      if (!statsList) return;
+    function makeInspectorMetric(label, value, matcher, blockMatcher) {
+      return { type: "metric", label, value, matcher, blockMatcher };
+    }
+
+    function makeInspectorNote(text) {
+      return { type: "note", text };
+    }
+
+    function createInspectorMetricRow(entry) {
+      const li = document.createElement("li");
+      const span = document.createElement("span");
+      const strong = document.createElement("strong");
+      span.textContent = entry.label;
+      strong.textContent = String(entry.value);
+      li.append(span, strong);
+      const canLink = Boolean(entry.matcher || entry.blockMatcher || /changes|Hidden|Spaces|Quotes|Dashes|Ellipses|Lists|ASCII|Compatibility/i.test(entry.label)) && Number(entry.value) > 0;
+      if (canLink) {
+        li.tabIndex = 0;
+        li.role = "button";
+        li.title = "Hover to highlight related input text.";
+        li.addEventListener("mouseenter", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher));
+        li.addEventListener("click", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher));
+        li.addEventListener("mouseleave", clearInputMetricHighlight);
+        li.addEventListener("focus", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher));
+        li.addEventListener("blur", clearInputMetricHighlight);
+      } else {
+        li.title = "This metric summarizes the document and does not map to one exact text span.";
+      }
+      return li;
+    }
+
+    function createInspectorChangeRow(change) {
+      const li = document.createElement("li");
+      const source = getCodeLabelForChangeValue(change.source);
+      const target = getCodeLabelForChangeValue(change.target);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "inspector-link";
+      button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
+      const makeSingleChangeMatcher = () => {
+        const state = { seen: 0, matched: false };
+        return (part) => {
+          if (state.matched || !sourceChangeMatchesRecordOccurrence(part, change, state)) return false;
+          state.matched = true;
+          return true;
+        };
+      };
+      button.addEventListener("mouseenter", () => highlightInputForMetric(change.note || change.target || change.source, makeSingleChangeMatcher()));
+      button.addEventListener("mouseleave", clearInputMetricHighlight);
+      button.addEventListener("focus", () => highlightInputForMetric(change.note || change.target || change.source, makeSingleChangeMatcher()));
+      button.addEventListener("blur", clearInputMetricHighlight);
+      li.appendChild(button);
+      return li;
+    }
+
+    function appendInspectorSection(title, entries, options) {
+      if (!inspectorSections || !entries.length) return;
+      const section = document.createElement("section");
+      section.className = "inspector-section";
+      const heading = document.createElement("h3");
+      heading.textContent = title;
+      const list = document.createElement("ul");
+      list.className = options?.compact ? "plain-list compact" : "stats-list";
+      entries.forEach((entry) => {
+        if (entry.type === "metric") list.appendChild(createInspectorMetricRow(entry));
+        else if (entry.type === "change") list.appendChild(createInspectorChangeRow(entry.change));
+        else {
+          const li = document.createElement("li");
+          li.textContent = entry.text;
+          list.appendChild(li);
+        }
+      });
+      section.append(heading, list);
+      inspectorSections.appendChild(section);
+    }
+
+    function renderInspector(result) {
+      const container = inspectorSections || statsList;
+      if (!container) return;
+      container.innerHTML = "";
       const inputText = docToPlainText(inputDoc, "plain");
       const inputChars = inputText.length;
-      const unicodeCategoryEntries = INSPECTOR_UNICODE_CATEGORIES.map((category) => ({
-        label: category.label,
-        value: countMatches(inputText, category.regex),
-        matcher: (part) => regexMatchesText(category.regex, part.source || part.text || "")
-      })).filter((entry) => entry.value > 0);
-      const entries = [
-        { label: "Characters in", value: inputChars },
-        { label: "Characters out", value: result.cleanText.length },
-        { label: "Source changes", value: result.stats.sourceChanges, matcher: () => true },
-        { label: "Destination changes", value: result.stats.destinationChanges, matcher: () => false },
-        { label: "Hidden removed", value: result.stats.hiddenRemoved, matcher: (part) => regexMatchesText(REGEX.hidden, part.source || "") },
-        ...unicodeCategoryEntries,
-        { label: "Line endings normalized", value: result.stats.lineEndingsNormalized, matcher: (part) => /\r|\n/.test(part.source || "") },
-        { label: "Unicode separators normalized", value: result.stats.separatorsNormalized, matcher: (part) => regexMatchesText(REGEX.separators, part.source || "") },
-        { label: "Spaces normalized", value: result.stats.spacesNormalized, matcher: (part) => regexMatchesText(REGEX.unusualSpaces, part.source || "") },
-        { label: "Trailing spaces removed", value: result.stats.trailingSpacesRemoved, matcher: (part) => /[ \t]+$/m.test(part.source || "") },
-        { label: "Repeated spaces collapsed", value: result.stats.repeatedSpacesCollapsed, matcher: (part) => / {2,}/.test(part.source || "") },
-        { label: "Extra blank-line runs reduced", value: result.stats.blankLineRunsReduced, matcher: (part) => /\n{3,}/.test(part.source || "") },
-        { label: "Tabs converted", value: result.stats.tabsConverted, matcher: (part) => /\t/.test(part.source || "") },
-        { label: "Quotes changed", value: result.stats.quotesChanged, matcher: (part) => /["'“”‘’′″]/u.test((part.source || "") + (part.text || "")) },
-        { label: "Dashes changed", value: result.stats.dashesChanged, matcher: (part) => /[-‐‑‒–—―]/u.test((part.source || "") + (part.text || "")) },
-        { label: "Ellipses changed", value: result.stats.ellipsesChanged, matcher: (part) => /…|\.\.\./u.test((part.source || "") + (part.text || "")) },
-        { label: "Bullets converted", value: result.stats.bulletsChanged, matcher: (part) => /^[\s]*[•‣◦⁃∙]/mu.test(part.source || "") },
-        { label: "Emoji removed", value: result.stats.emojiRemoved, matcher: (part) => regexMatchesText(REGEX.emoji, part.source || "") },
-        { label: "Lists detected", value: result.doc.meta.lists || 0, blockMatcher: (block) => block.type === "ul" || block.type === "ol" },
-        { label: "List items", value: result.doc.meta.listItems || 0, blockMatcher: (block) => block.type === "ul" || block.type === "ol" },
-        { label: "Compatibility changes", value: result.stats.fullwidthChanged + result.stats.ligaturesChanged + result.stats.fractionsChanged + result.stats.superSubChanged, matcher: (part) => /[^\x00-\x7F]/u.test(part.source || "") },
-        { label: "Strict ASCII changes", value: result.stats.strictAsciiChanged, matcher: (part) => /[^\x00-\x7F]/u.test(part.source || "") }
+      const unicodeCategoryEntries = INSPECTOR_UNICODE_CATEGORIES.map((category) => makeInspectorMetric(
+        category.label,
+        countMatches(inputText, category.regex),
+        (part) => regexMatchesText(category.regex, part.source || part.text || "")
+      )).filter((entry) => entry.value > 0);
+      const sourceChanges = makeInspectorMetric("Source changes", result.stats.sourceChanges, () => true);
+      const destinationChanges = makeInspectorMetric("Destination changes", result.stats.destinationChanges, () => false);
+      const groups = [
+        ["Cleanup summary", [sourceChanges, destinationChanges]],
+        ["Hidden and suspicious characters", [
+          makeInspectorMetric("Hidden/invisible characters removed", result.stats.hiddenRemoved, (part) => regexMatchesText(REGEX.hidden, part.source || "")),
+          ...unicodeCategoryEntries
+        ]],
+        ["Typography normalized", [
+          makeInspectorMetric("Quotes normalized", result.stats.quotesChanged, (part) => /["'“”‘’′″]/u.test((part.source || "") + (part.text || ""))),
+          makeInspectorMetric("Dashes normalized", result.stats.dashesChanged, (part) => /[-‐‑‒–—―]/u.test((part.source || "") + (part.text || ""))),
+          makeInspectorMetric("Ellipses normalized", result.stats.ellipsesChanged, (part) => /…|\.\.\./u.test((part.source || "") + (part.text || "")))
+        ]],
+        ["Whitespace and layout cleanup", [
+          makeInspectorMetric("Line endings normalized", result.stats.lineEndingsNormalized, (part) => /\r|\n/.test(part.source || "")),
+          makeInspectorMetric("Unicode line/paragraph separators normalized", result.stats.separatorsNormalized, (part) => regexMatchesText(REGEX.separators, part.source || "")),
+          makeInspectorMetric("Unusual spaces normalized", result.stats.spacesNormalized, (part) => regexMatchesText(REGEX.unusualSpaces, part.source || "")),
+          makeInspectorMetric("Trailing spaces removed", result.stats.trailingSpacesRemoved, (part) => /[ \t]+$/m.test(part.source || "")),
+          makeInspectorMetric("Repeated spaces collapsed", result.stats.repeatedSpacesCollapsed, (part) => / {2,}/.test(part.source || "")),
+          makeInspectorMetric("Extra blank-line runs reduced", result.stats.blankLineRunsReduced, (part) => /\n{3,}/.test(part.source || "")),
+          makeInspectorMetric("Tabs converted", result.stats.tabsConverted, (part) => /\t/.test(part.source || ""))
+        ]],
+        ["Compatibility cleanup", [
+          makeInspectorMetric("Bullets converted", result.stats.bulletsChanged, (part) => /^[\s]*[•‣◦⁃∙]/mu.test(part.source || "")),
+          makeInspectorMetric("Emoji removed", result.stats.emojiRemoved, (part) => regexMatchesText(REGEX.emoji, part.source || "")),
+          makeInspectorMetric("Compatibility changes", result.stats.fullwidthChanged + result.stats.ligaturesChanged + result.stats.fractionsChanged + result.stats.superSubChanged, (part) => /[^\x00-\x7F]/u.test(part.source || "")),
+          makeInspectorMetric("Strict ASCII changes", result.stats.strictAsciiChanged, (part) => /[^\x00-\x7F]/u.test(part.source || ""))
+        ]],
+        ["Structure detected", [
+          makeInspectorMetric("Lists detected", result.doc.meta.lists || 0, null, (block) => block.type === "ul" || block.type === "ol"),
+          makeInspectorMetric("List items", result.doc.meta.listItems || 0, null, (block) => block.type === "ul" || block.type === "ol")
+        ]]
       ];
-      statsList.innerHTML = "";
-      entries.forEach((entry) => {
-        const { label, value } = entry;
-        const li = document.createElement("li");
-        const span = document.createElement("span");
-        const strong = document.createElement("strong");
-        span.textContent = label;
-        strong.textContent = String(value);
-        li.append(span, strong);
-        const canLink = Boolean(entry.matcher || entry.blockMatcher || /changes|Hidden|Spaces|Quotes|Dashes|Ellipses|Lists|ASCII|Compatibility/i.test(label)) && Number(value) > 0;
-        if (canLink) {
-          li.tabIndex = 0;
-          li.role = "button";
-          li.title = "Hover to highlight related input text.";
-          li.addEventListener("mouseenter", () => highlightInputForMetric(label, entry.matcher, entry.blockMatcher));
-          li.addEventListener("click", () => highlightInputForMetric(label, entry.matcher, entry.blockMatcher));
-          li.addEventListener("mouseleave", clearInputMetricHighlight);
-          li.addEventListener("focus", () => highlightInputForMetric(label, entry.matcher, entry.blockMatcher));
-          li.addEventListener("blur", clearInputMetricHighlight);
-        } else {
-          li.title = "This metric summarizes the document and does not map to one exact text span.";
-        }
-        statsList.appendChild(li);
-      });
+      groups.forEach(([title, entries]) => appendInspectorSection(title, entries));
+
+      const reviewEntries = [];
+      if (!result.warnings.length) reviewEntries.push(makeInspectorNote("No remaining suspicious characters found."));
+      else result.warnings.forEach((warning) => reviewEntries.push(makeInspectorNote(warning)));
+      if (!result.remainingNonAscii.length) reviewEntries.push(makeInspectorNote("Remaining non-ASCII characters: none"));
+      else result.remainingNonAscii.slice(0, 30).forEach((entry) => reviewEntries.push(makeInspectorNote(`${entry.label} ×${entry.count}`)));
+      appendInspectorSection("Still needs review", reviewEntries, { compact: true });
+
+      const changeEntries = result.changes.length
+        ? result.changes.slice(0, 80).map((change) => ({ type: "change", change }))
+        : [makeInspectorNote("No character changes made.")];
+      if (result.changes.length > 80) changeEntries.push(makeInspectorNote(`...and ${result.changes.length - 80} more grouped change records.`));
+      const sourceMeta = inputDoc.meta || {};
+      appendInspectorSection("Technical details", [
+        makeInspectorMetric("Characters in", inputChars),
+        makeInspectorMetric("Characters out", result.cleanText.length),
+        makeInspectorNote(`Clipboard source: ${sourceMeta.source || "manual"}`),
+        makeInspectorNote(`Clipboard HTML available: ${sourceMeta.htmlAvailable ? "yes" : "no"}`),
+        makeInspectorNote(`Clipboard plain text available: ${sourceMeta.plainAvailable ? "yes" : "no"}`),
+        makeInspectorNote(`Clipboard API: ${navigator.clipboard ? "available" : "unavailable"}`),
+        makeInspectorNote(`Rich clipboard write: ${global.ClipboardItem ? "available" : "unavailable"}`),
+        ...changeEntries
+      ], { compact: true });
     }
-
-    function renderChanges(result) {
-      if (!changesList) return;
-      changesList.innerHTML = "";
-      if (!result.changes.length) {
-        const li = document.createElement("li");
-        li.textContent = "No character changes made.";
-        changesList.appendChild(li);
-        return;
-      }
-      result.changes.slice(0, 80).forEach((change) => {
-        const li = document.createElement("li");
-        const source = getCodeLabelForChangeValue(change.source);
-        const target = getCodeLabelForChangeValue(change.target);
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "inspector-link";
-        button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
-        const makeSingleChangeMatcher = () => {
-          const state = { seen: 0, matched: false };
-          return (part) => {
-            if (state.matched || !sourceChangeMatchesRecordOccurrence(part, change, state)) return false;
-            state.matched = true;
-            return true;
-          };
-        };
-        button.addEventListener("mouseenter", () => highlightInputForMetric(change.note || change.target || change.source, makeSingleChangeMatcher()));
-        button.addEventListener("mouseleave", clearInputMetricHighlight);
-        button.addEventListener("focus", () => highlightInputForMetric(change.note || change.target || change.source, makeSingleChangeMatcher()));
-        button.addEventListener("blur", clearInputMetricHighlight);
-        li.appendChild(button);
-        changesList.appendChild(li);
-      });
-      if (result.changes.length > 80) {
-        const li = document.createElement("li");
-        li.textContent = `...and ${result.changes.length - 80} more grouped change records.`;
-        changesList.appendChild(li);
-      }
-    }
-
-    function renderWarnings(result) {
-      if (!warningsList || !nonAsciiList) return;
-      warningsList.innerHTML = "";
-      nonAsciiList.innerHTML = "";
-
-      if (!result.warnings.length) {
-        const li = document.createElement("li");
-        li.textContent = "No remaining suspicious characters found.";
-        warningsList.appendChild(li);
-      } else {
-        result.warnings.forEach((warning) => {
-          const li = document.createElement("li");
-          li.textContent = warning;
-          warningsList.appendChild(li);
-        });
-      }
-
-      if (!result.remainingNonAscii.length) {
-        const li = document.createElement("li");
-        li.textContent = "None";
-        nonAsciiList.appendChild(li);
-      } else {
-        result.remainingNonAscii.slice(0, 30).forEach((entry) => {
-          const li = document.createElement("li");
-          li.textContent = `${entry.label} ×${entry.count}`;
-          nonAsciiList.appendChild(li);
-        });
-      }
-    }
-
 
     function appendDiffLine(container, marker, text, className) {
       const row = document.createElement("div");
@@ -975,9 +993,7 @@
         renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, options);
         renderInputEditorForOptions(options);
       }
-      renderStats(lastResult);
-      renderChanges(lastResult);
-      renderWarnings(lastResult);
+      renderInspector(lastResult);
       setStatus("");
     }
 
