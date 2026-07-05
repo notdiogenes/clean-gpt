@@ -1,14 +1,21 @@
 # Copy Sanitizer
 
-A static GitHub Pages app for cleaning copied text and preparing it for a target destination such as Gmail, Google Docs, Microsoft Word, Markdown/chat, Outlook, CMS/forms, code comments, or strict ASCII workflows.
+Copy Sanitizer is a static, destination-aware clipboard cleanup app. It helps turn messy copied content into output shaped for Gmail, Google Docs, Microsoft Word, Outlook, Markdown/chat, CMS fields, code comments, plain text, or strict ASCII workflows.
 
-The app runs fully in the browser. It does not send text to a server.
+The app runs fully in the browser. Text is processed locally and is not sent to a server.
 
-## Current model
+## Project status
 
-The app now uses controlled textarea-like `contenteditable` panels instead of plain `<textarea>` fields.
+The codebase has been split out of the legacy single-file implementation into focused modules under `src/`. The root `app.js` file remains as a CommonJS/browser compatibility entry point for tests and older consumers, while `index.html` loads the browser modules directly.
 
-Why: a textarea can only show plain text. Clipboard data often includes both `text/html` and `text/plain`, and list structure may be present only in the HTML version. The app intercepts paste, reads `text/html` first when available, parses paragraphs and lists into an internal document model, and then renders the parsed result back into the input panel so the user can see what the clipboard actually contained.
+Both README files are intentional:
+
+- This root `README.md` is the product and repository overview for users and contributors.
+- `src/README.md` is the source-tree map for developers working inside the modularized application code.
+
+## How the app works
+
+The app uses controlled `contenteditable` panels instead of plain `<textarea>` fields. A textarea can only show plain text, while clipboard data often includes both `text/html` and `text/plain`; list structure may only exist in the HTML payload.
 
 Pipeline:
 
@@ -22,94 +29,23 @@ clipboard paste
   -> copy using destination-specific clipboard formats
 ```
 
-
-## Preview policy
-
-The input panel is a structural preview of the parsed clipboard payload. It renders paragraphs and semantic lists from clipboard HTML when available instead of flattening them into textarea text.
-
-The output panel is also structural:
-
-- Gmail shows Verdana-style Gmail paragraphs and semantic HTML lists by default.
-- Google Docs and Microsoft Word show document-style typography and semantic lists.
-- Plain text and Strict ASCII show the plain-text serialization.
-
-The visible preview is not a raw-code view. The primary copy button writes the selected destination payload; Copy visible text writes the plain visible-text fallback.
-
 ## Destination profiles
 
-### Gmail
+- **Gmail**: uses Gmail-friendly punctuation and rich HTML with locally saved Gmail font/size settings. Semantic lists are preserved unless the advanced Gmail list-flattening option is enabled.
+- **Google Docs**: uses document-style typography and writes `text/html` plus `text/plain`, preserving semantic lists where possible.
+- **Microsoft Word**: uses the document typography profile and writes rich plus plain clipboard payloads.
+- **Outlook**: favors rich destination output with semantic list support.
+- **Markdown/chat, CMS/forms, and code comments**: flatten structure toward destination-safe plain text conventions.
+- **Plain text / forms**: copies `text/plain` only.
+- **Strict ASCII**: replaces or removes non-ASCII characters aggressively.
 
-Visible output uses keyboard-safe punctuation and the locally saved Gmail font/size preference:
+## Cleanup capabilities
 
-- straight quotes
-- straight apostrophes
-- ` -- ` instead of em dash
-- `...` instead of Unicode ellipsis
-- normal spaces only
-
-Primary copy writes Gmail-shaped `text/html` using the selected Gmail font/size:
-
-```html
-<div><div class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;">Paragraph one</div><div class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;"><br></div><div class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;">Paragraph two<br></div><br clear="all"></div>
-```
-
-The app does not intentionally insert zero-width spaces, spans, font tags, color styles, background-color styles, line-height styles, or extra wrappers.
-
-Detected lists are preserved for Gmail as semantic list HTML by default:
-
-```html
-<ul style="font-family: verdana, sans-serif; font-size: 10pt;"><li class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;">First item</li><li class="gmail_default" style="font-family: verdana, sans-serif; font-size: 10pt;">Second item</li></ul>
-```
-
-An advanced option can flatten Gmail lists to plain hyphen lines when a deliberately plain fallback is needed. The Gmail font and size controls are saved locally and applied to both the preview and copied HTML.
-
-### Google Docs
-
-Visible output uses document-style typography:
-
-- curly quotes
-- curly apostrophes
-- em dashes
-- numeric en dashes
-- ellipsis characters
-- measurement primes when enabled
-
-Primary copy writes `text/html` plus `text/plain`. HTML copy preserves semantic lists using `<ul>`, `<ol>`, and `<li>`.
-
-### Microsoft Word
-
-Word uses the same document typography profile as Google Docs by default. Primary copy writes `text/html` plus `text/plain`, so Word can receive semantic lists and then apply its paste behavior.
-
-### Plain text / forms
-
-Copies `text/plain` only. Lists use plain hyphen or numbered lines.
-
-### Strict ASCII
-
-Aggressively replaces or removes non-ASCII characters. Lists use plain hyphen or numbered lines.
-
-## List policy
-
-Bullets are no longer treated as a global character replacement.
-
-The app detects list structure during paste:
-
-1. If clipboard HTML contains `<ul>`, `<ol>`, or `<li>`, it stores list structure in the internal document model.
-2. If only plain text is available, it detects lines beginning with markers such as `*`, `-`, `•`, and numbered items such as `1.`.
-3. Each destination decides how lists are rendered and copied. Gmail, Google Docs, Microsoft Word, and Outlook preserve semantic lists by default; Markdown/chat, CMS, code comments, Plain text, and Strict ASCII flatten them to plain text.
-
-This replaces the old blanket rule of converting bullet characters to hyphens.
-
-## Character cleanup
-
-The app can remove or normalize:
+Copy Sanitizer can remove or normalize:
 
 - hidden Unicode characters
-- zero-width spaces
-- word joiners
-- soft hyphens
-- directional marks
-- unusual spaces
+- zero-width spaces, word joiners, soft hyphens, and directional marks
+- unusual spaces and repeated spaces
 - mixed line endings
 - Unicode line and paragraph separators
 - quote-like characters
@@ -122,34 +58,62 @@ The app can remove or normalize:
 - emoji and pictographic symbols
 - remaining non-ASCII characters in strict mode
 
-Enable **Show invisible characters in input/output previews** to render keyboard-safe markers such as `⍽` for non-breaking spaces, `[ZWSP]` for zero-width spaces, `[SHY]` for soft hyphens, `→` for tabs, `[LS]` for line separators, and `[PS]` for paragraph separators.
+The Inspector reports character counts, source changes, destination typography changes, warnings, remaining non-ASCII characters, clipboard source details, detected lists, primary copy formats, and Clipboard API compatibility.
 
-## Inspector
+## Repository layout
 
-The Inspector reports:
+```text
+.
+├── index.html              # Static GitHub Pages application shell
+├── styles.css              # Application styles
+├── app.js                  # Compatibility API wrapper for tests/legacy consumers
+├── tests.html              # Browser debugging/test page
+├── test/                   # Node test suite
+├── src/
+│   ├── main.js             # Browser startup entry point
+│   ├── public-api.js       # Public API re-export surface
+│   ├── browser-shim.js     # Browser global shim
+│   ├── config/             # Static product configuration
+│   ├── core/               # Pure sanitizer logic
+│   ├── document/           # Internal document model, parsing, serialization
+│   ├── html/               # Pure HTML string builders
+│   └── ui/                 # DOM, clipboard, preferences, rendering controllers
+└── playwright.config.js    # Browser test configuration
+```
 
-- character counts
-- source changes
-- destination typography changes
-- hidden characters removed
-- remaining non-ASCII characters
-- clipboard source used
-- whether clipboard HTML was available
-- detected list count
-- detected list-item count
-- primary copy formats for the selected destination
-- browser Clipboard API compatibility
+See `src/README.md` for details about module responsibilities and dependency direction.
+
+## Development
+
+Install dependencies:
+
+```sh
+npm install
+```
+
+Run the Node test suite:
+
+```sh
+npm test
+```
+
+Run Playwright browser tests:
+
+```sh
+npm run test:browser
+```
 
 ## Deployment
 
 The project is static. Deploy the repository root to GitHub Pages.
 
-Required root files:
+Required root files include:
 
 ```text
 index.html
 styles.css
 app.js
+src/
 README.md
 .nojekyll
 ```
