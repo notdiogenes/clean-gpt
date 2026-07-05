@@ -567,7 +567,7 @@
   });
 
   const REGEX = Object.freeze({
-    hidden: /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFE00-\uFE0F\uFEFF\uFFF9-\uFFFB]|[\u{E0000}-\u{E007F}]/gu,
+    hidden: /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFE00-\uFE0F\uFEFF\uFFF9-\uFFFB]|[\u{E0001}\u{E0020}-\u{E007F}\u{E0100}-\u{E01EF}]/gu,
     unusualSpaces: /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/gu,
     separators: /\u2028|\u2029/gu,
     curlySingle: /[\u2018\u2019\u201A\u201B\u02BC\u00B4\u0060\uFF07]/gu,
@@ -595,6 +595,17 @@
     commonFractionsTyped: /\b(1\/2|1\/4|3\/4)\b/g,
     htmlSensitive: /[&<>]/g
   });
+
+
+  const INSPECTOR_UNICODE_CATEGORIES = Object.freeze([
+    { label: "Zero-width & join controls", regex: /[\u00AD\u034F\u180B-\u180F\u200B-\u200D\u2060\uFEFF]/gu },
+    { label: "Bidirectional controls", regex: /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu },
+    { label: "Invisible math operators", regex: /[\u2061-\u2064]/gu },
+    { label: "Variation selectors", regex: /[\u180B-\u180D\u180F\uFE00-\uFE0F]|[\u{E0100}-\u{E01EF}]/gu },
+    { label: "Tag & annotation controls", regex: /[\uFFF9-\uFFFB]|[\u{E0001}\u{E0020}-\u{E007F}]/gu },
+    { label: "Space-like blanks", regex: /[\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/gu },
+    { label: "C0/C1 controls", regex: /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/gu }
+  ]);
 
   const MAPS = Object.freeze({
     ligatures: new Map([
@@ -660,11 +671,18 @@
     };
   }
 
-  function countMatches(text, regex) {
+  function cloneRegex(regex) {
     const flags = regex.flags.includes("g") ? regex.flags : regex.flags + "g";
-    const clone = new RegExp(regex.source, flags);
-    const matches = text.match(clone);
+    return new RegExp(regex.source, flags);
+  }
+
+  function countMatches(text, regex) {
+    const matches = String(text || "").match(cloneRegex(regex));
     return matches ? matches.length : 0;
+  }
+
+  function regexMatchesText(regex, text) {
+    return cloneRegex(regex).test(String(text || ""));
   }
 
   function addChange(changes, phase, source, target, count, note) {
@@ -1400,23 +1418,31 @@
     return htmlEscape(text).replace(/\n/g, "<br>");
   }
 
-  function visualizeInvisibles(text) {
+  function invisibleLabel(char) {
     const labels = new Map([
-      ["\t", "→"],
-      ["\u00a0", "⍽"],
-      ["\u00ad", "[SHY]"],
-      ["\u200b", "[ZWSP]"],
-      ["\u200c", "[ZWNJ]"],
-      ["\u200d", "[ZWJ]"],
-      ["\u200e", "[LRM]"],
-      ["\u200f", "[RLM]"],
-      ["\u2028", "[LS]"],
-      ["\u2029", "[PS]"],
-      ["\u2060", "[WJ]"],
-      ["\ufeff", "[BOM]"]
+      ["\t", "TAB"], ["\u00a0", "NBSP"], ["\u00ad", "SHY"], ["\u034f", "CGJ"], ["\u061c", "ALM"],
+      ["\u180e", "MVS"], ["\u200b", "ZWSP"], ["\u200c", "ZWNJ"], ["\u200d", "ZWJ"],
+      ["\u200e", "LRM"], ["\u200f", "RLM"], ["\u2028", "LS"], ["\u2029", "PS"],
+      ["\u2060", "WJ"], ["\ufeff", "BOM"]
     ]);
-    return String(text || "").replace(/[\u0009\u00a0\u00ad\u034f\u061c\u180e\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff]|[\u{E0000}-\u{E007F}]/gu, (char) => {
-      return labels.get(char) || `[${labelChar(char).split(" ")[0]}]`;
+    return labels.get(char) || labelChar(char).split(" ")[0];
+  }
+
+  function visualizeInvisibles(text) {
+    return String(text || "").replace(/[\u0009\u00a0\u00ad\u034f\u061c\u180b-\u180f\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff\ufff9-\ufffb]|[\u{E0001}\u{E0020}-\u{E007F}\u{E0100}-\u{E01EF}]/gu, (char) => `[${invisibleLabel(char)}]`);
+  }
+
+  function appendVisualizedText(container, text) {
+    String(text || "").split(/([\u0009\u00a0\u00ad\u034f\u061c\u180b-\u180f\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff\ufff9-\ufffb]|[\u{E0001}\u{E0020}-\u{E007F}\u{E0100}-\u{E01EF}])/u).forEach((part) => {
+      if (!part) return;
+      if (regexMatchesText(/[\u0009\u00a0\u00ad\u034f\u061c\u180b-\u180f\u2000-\u200f\u2028-\u202f\u205f\u2060-\u2069\ufeff\ufff9-\ufffb]|[\u{E0001}\u{E0020}-\u{E007F}\u{E0100}-\u{E01EF}]/u, part)) {
+        const badge = document.createElement("span");
+        badge.className = "inline-invisible-badge";
+        badge.textContent = invisibleLabel(part);
+        badge.title = labelChar(part);
+        badge.setAttribute("aria-label", badge.title);
+        container.appendChild(badge);
+      } else container.appendChild(document.createTextNode(part));
     });
   }
 
@@ -1919,10 +1945,10 @@
       return source === change.source || target === change.target || source.includes(change.source || "\u0000") || target.includes(change.target || "\u0000");
     }
 
-    function highlightInputForMetric(label, matcher) {
+    function highlightInputForMetric(label, matcher, blockMatcher) {
       if (!lastResult) return;
       const options = getOptions();
-      renderInputDiffHighlights(inputDoc, lastResult.doc, options, matcher || ((part) => sourceChangeMatchesMetric(part, label)));
+      renderInputDiffHighlights(inputDoc, lastResult.doc, options, matcher || ((part) => sourceChangeMatchesMetric(part, label)), blockMatcher);
       inputEditor.classList.add("inspector-pulse");
     }
 
@@ -1938,46 +1964,55 @@
 
     function renderStats(result) {
       if (!statsList) return;
-      const inputChars = docToPlainText(inputDoc, "plain").length;
+      const inputText = docToPlainText(inputDoc, "plain");
+      const inputChars = inputText.length;
+      const unicodeCategoryEntries = INSPECTOR_UNICODE_CATEGORIES.map((category) => ({
+        label: category.label,
+        value: countMatches(inputText, category.regex),
+        matcher: (part) => regexMatchesText(category.regex, part.source || part.text || "")
+      })).filter((entry) => entry.value > 0);
       const entries = [
-        ["Characters in", inputChars],
-        ["Characters out", result.cleanText.length],
-        ["Source changes", result.stats.sourceChanges],
-        ["Destination changes", result.stats.destinationChanges],
-        ["Hidden removed", result.stats.hiddenRemoved],
-        ["Line endings normalized", result.stats.lineEndingsNormalized],
-        ["Unicode separators normalized", result.stats.separatorsNormalized],
-        ["Spaces normalized", result.stats.spacesNormalized],
-        ["Trailing spaces removed", result.stats.trailingSpacesRemoved],
-        ["Repeated spaces collapsed", result.stats.repeatedSpacesCollapsed],
-        ["Extra blank-line runs reduced", result.stats.blankLineRunsReduced],
-        ["Tabs converted", result.stats.tabsConverted],
-        ["Quotes changed", result.stats.quotesChanged],
-        ["Dashes changed", result.stats.dashesChanged],
-        ["Ellipses changed", result.stats.ellipsesChanged],
-        ["Bullets converted", result.stats.bulletsChanged],
-        ["Emoji removed", result.stats.emojiRemoved],
-        ["Lists detected", result.doc.meta.lists || 0],
-        ["List items", result.doc.meta.listItems || 0],
-        ["Compatibility changes", result.stats.fullwidthChanged + result.stats.ligaturesChanged + result.stats.fractionsChanged + result.stats.superSubChanged],
-        ["Strict ASCII changes", result.stats.strictAsciiChanged]
+        { label: "Characters in", value: inputChars },
+        { label: "Characters out", value: result.cleanText.length },
+        { label: "Source changes", value: result.stats.sourceChanges, matcher: () => true },
+        { label: "Destination changes", value: result.stats.destinationChanges, matcher: () => false },
+        { label: "Hidden removed", value: result.stats.hiddenRemoved, matcher: (part) => regexMatchesText(REGEX.hidden, part.source || "") },
+        ...unicodeCategoryEntries,
+        { label: "Line endings normalized", value: result.stats.lineEndingsNormalized, matcher: (part) => /\r|\n/.test(part.source || "") },
+        { label: "Unicode separators normalized", value: result.stats.separatorsNormalized, matcher: (part) => regexMatchesText(REGEX.separators, part.source || "") },
+        { label: "Spaces normalized", value: result.stats.spacesNormalized, matcher: (part) => regexMatchesText(REGEX.unusualSpaces, part.source || "") },
+        { label: "Trailing spaces removed", value: result.stats.trailingSpacesRemoved, matcher: (part) => /[ \t]+$/m.test(part.source || "") },
+        { label: "Repeated spaces collapsed", value: result.stats.repeatedSpacesCollapsed, matcher: (part) => / {2,}/.test(part.source || "") },
+        { label: "Extra blank-line runs reduced", value: result.stats.blankLineRunsReduced, matcher: (part) => /\n{3,}/.test(part.source || "") },
+        { label: "Tabs converted", value: result.stats.tabsConverted, matcher: (part) => /\t/.test(part.source || "") },
+        { label: "Quotes changed", value: result.stats.quotesChanged, matcher: (part) => /["'“”‘’′″]/u.test((part.source || "") + (part.text || "")) },
+        { label: "Dashes changed", value: result.stats.dashesChanged, matcher: (part) => /[-‐‑‒–—―]/u.test((part.source || "") + (part.text || "")) },
+        { label: "Ellipses changed", value: result.stats.ellipsesChanged, matcher: (part) => /…|\.\.\./u.test((part.source || "") + (part.text || "")) },
+        { label: "Bullets converted", value: result.stats.bulletsChanged, matcher: (part) => /^[\s]*[•‣◦⁃∙]/mu.test(part.source || "") },
+        { label: "Emoji removed", value: result.stats.emojiRemoved, matcher: (part) => regexMatchesText(REGEX.emoji, part.source || "") },
+        { label: "Lists detected", value: result.doc.meta.lists || 0, blockMatcher: (block) => block.type === "ul" || block.type === "ol" },
+        { label: "List items", value: result.doc.meta.listItems || 0, blockMatcher: (block) => block.type === "ul" || block.type === "ol" },
+        { label: "Compatibility changes", value: result.stats.fullwidthChanged + result.stats.ligaturesChanged + result.stats.fractionsChanged + result.stats.superSubChanged, matcher: (part) => /[^\x00-\x7F]/u.test(part.source || "") },
+        { label: "Strict ASCII changes", value: result.stats.strictAsciiChanged, matcher: (part) => /[^\x00-\x7F]/u.test(part.source || "") }
       ];
       statsList.innerHTML = "";
-      entries.forEach(([label, value]) => {
+      entries.forEach((entry) => {
+        const { label, value } = entry;
         const li = document.createElement("li");
         const span = document.createElement("span");
         const strong = document.createElement("strong");
         span.textContent = label;
         strong.textContent = String(value);
         li.append(span, strong);
-        const canLink = /changes|Hidden|Spaces|Quotes|Dashes|Ellipses|Lists|ASCII|Compatibility/i.test(label) && Number(value) > 0;
+        const canLink = Boolean(entry.matcher || entry.blockMatcher || /changes|Hidden|Spaces|Quotes|Dashes|Ellipses|Lists|ASCII|Compatibility/i.test(label)) && Number(value) > 0;
         if (canLink) {
           li.tabIndex = 0;
           li.role = "button";
           li.title = "Hover to highlight related input text.";
-          li.addEventListener("mouseenter", () => highlightInputForMetric(label));
+          li.addEventListener("mouseenter", () => highlightInputForMetric(label, entry.matcher, entry.blockMatcher));
+          li.addEventListener("click", () => highlightInputForMetric(label, entry.matcher, entry.blockMatcher));
           li.addEventListener("mouseleave", clearInputMetricHighlight);
-          li.addEventListener("focus", () => highlightInputForMetric(label));
+          li.addEventListener("focus", () => highlightInputForMetric(label, entry.matcher, entry.blockMatcher));
           li.addEventListener("blur", clearInputMetricHighlight);
         } else {
           li.title = "This metric summarizes the document and does not map to one exact text span.";
@@ -2186,7 +2221,8 @@
     function appendSourceAnnotatedText(container, beforeText, afterText, options, highlighter) {
       diffTextParts(beforeText, afterText).forEach((part) => {
         if (part.type === "equal") {
-          container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.text) : part.text));
+          if (options && options.showInvisibles) appendVisualizedText(container, part.text);
+          else container.appendChild(document.createTextNode(part.text));
         } else if (part.type === "remove" || part.type === "replace") {
           const shouldHighlight = highlighter && highlighter.matches(part);
           if (shouldHighlight) {
@@ -2194,16 +2230,18 @@
             span.className = "source-change";
             span.title = replacementTitle(part.source, part.text || "");
             span.setAttribute("aria-label", span.title);
-            span.textContent = options && (options.showInvisibles || part.type === "remove" || !part.text) ? visualizeInvisibles(part.source) : part.source;
+            if (options && (options.showInvisibles || part.type === "remove" || !part.text)) appendVisualizedText(span, part.source);
+            else span.textContent = part.source;
             container.appendChild(span);
           } else {
-            container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.source) : part.source));
+            if (options && options.showInvisibles) appendVisualizedText(container, part.source);
+            else container.appendChild(document.createTextNode(part.source));
           }
         }
       });
     }
 
-    function renderInputDiffHighlights(inputModel, outputModel, options, matcher) {
+    function renderInputDiffHighlights(inputModel, outputModel, options, matcher, blockMatcher) {
       const highlighter = { matches: matcher || (() => true) };
       suppressInputEvent = true;
       inputEditor.innerHTML = "";
@@ -2212,11 +2250,12 @@
         if (block.type === "blank") { inputEditor.appendChild(document.createElement("br")); return; }
         if (block.type === "paragraph") {
           const div = document.createElement("div");
-          div.className = "editor-paragraph";
+          div.className = `editor-paragraph${blockMatcher && blockMatcher(block) ? " source-change" : ""}`;
           appendSourceAnnotatedText(div, block.text || "", outputBlock && outputBlock.type === "paragraph" ? outputBlock.text || "" : "", options, highlighter);
           inputEditor.appendChild(div);
         } else if (block.type === "ul" || block.type === "ol") {
           const list = document.createElement(block.type);
+          if (blockMatcher && blockMatcher(block)) list.className = "source-change";
           (block.items || []).forEach((item, itemIndex) => {
             const li = document.createElement("li");
             const outputItem = outputBlock && outputBlock.items ? outputBlock.items[itemIndex] : null;
