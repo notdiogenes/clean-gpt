@@ -4,7 +4,7 @@
   const docxCore = typeof require === "function" ? require("../document/docx-extract") : global.TextSanitizerDocument;
   const analysisCore = typeof require === "function" ? require("../document/document-analysis") : global.TextSanitizerDocument;
   const { MAX_DOCX_BYTES, isDocxFile, extractDocxText } = docxCore;
-  const { analyzeDocumentText, GROUPS } = analysisCore;
+  const { analyzeDocumentText, GROUPS, prioritizeIssueRanges } = analysisCore;
 
   function formatBytes(bytes) {
     if (!Number.isFinite(bytes)) return "Unknown";
@@ -52,7 +52,7 @@
   }
 
   function applyIssuePatches(rawText, issues) {
-    const applied = issues.filter((issue) => issue.status === "applied" && issue.start < issue.end).sort((a, b) => a.start - b.start || b.end - a.end);
+    const applied = prioritizeIssueRanges(issues.filter((issue) => issue.status === "applied" && issue.start < issue.end));
     let cursor = 0;
     let output = "";
     applied.forEach((issue) => {

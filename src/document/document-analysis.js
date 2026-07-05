@@ -54,30 +54,81 @@
     return "low";
   }
 
+  function rangeIntersects(start, end, targetStart, targetEnd) {
+    return start >= targetStart && start < targetEnd || start === targetEnd && targetStart === targetEnd;
+  }
+
+  function findRunLocation(runs, safeOffset) {
+    const runIndex = (Array.isArray(runs) ? runs : []).findIndex((run) => rangeIntersects(safeOffset, safeOffset + 1, run.start, run.end));
+    if (runIndex === -1) return null;
+    const run = runs[runIndex];
+    return { runId: run.id || "", runIndex };
+  }
+
   function structuredLocationForOffset(blocks, offset, length) {
     if (!Array.isArray(blocks) || !blocks.length) return null;
     const safeOffset = Math.max(0, Number(offset) || 0);
     const safeLength = Math.max(0, Number(length) || 0);
+    const issueEnd = safeOffset + safeLength;
     const blockIndex = blocks.findIndex((block) => safeOffset >= block.start && safeOffset <= block.end);
     if (blockIndex === -1) return null;
     const block = blocks[blockIndex];
     const rangeInBlock = {
       start: Math.max(0, safeOffset - block.start),
-      end: Math.min(String(block.text || "").length, safeOffset + safeLength - block.start)
+      end: Math.min(String(block.text || "").length, issueEnd - block.start)
     };
-    const location = {
-      blockId: block.id || "",
-      blockIndex,
-      rangeInBlock
-    };
-    const runs = Array.isArray(block.runs) ? block.runs : [];
-    const runIndex = runs.findIndex((run) => safeOffset >= run.start && safeOffset < run.end);
-    if (runIndex !== -1) {
-      location.runId = runs[runIndex].id || "";
-      location.runIndex = runIndex;
+    const location = { blockId: block.id || "", blockIndex, rangeInBlock };
+
+    if (block.type === "table") {
+      (block.rows || []).some((row, rowIndex) => (row.cells || []).some((cell, cellIndex) => {
+        if (!rangeIntersects(safeOffset, issueEnd, cell.start, cell.end)) return false;
+        location.rowId = row.id || "";
+        location.rowIndex = rowIndex;
+        location.cellId = cell.id || "";
+        location.cellIndex = cellIndex;
+        location.rangeInCell = { start: Math.max(0, safeOffset - cell.start), end: Math.min(String(cell.text || "").length, issueEnd - cell.start) };
+        (cell.paragraphs || []).some((paragraph, paragraphIndex) => {
+          if (!rangeIntersects(safeOffset, issueEnd, paragraph.start, paragraph.end)) return false;
+          location.paragraphId = paragraph.id || "";
+          location.paragraphIndexInCell = paragraphIndex;
+          location.rangeInParagraph = { start: Math.max(0, safeOffset - paragraph.start), end: Math.min(String(paragraph.text || "").length, issueEnd - paragraph.start) };
+          Object.assign(location, findRunLocation(paragraph.runs, safeOffset) || {});
+          return true;
+        });
+        return true;
+      }));
+      return location;
     }
+
+    Object.assign(location, findRunLocation(block.runs, safeOffset) || {});
     return location;
   }
+
+  const ISSUE_PRIORITY = { hidden: 100, emoji: 90, "unusual-space": 85, "repeated-space": 84, "trailing-space": 83, "unicode-separator": 82, "double-quote": 75, "single-quote": 75, "double-prime": 74, "single-prime": 74, "em-dash": 73, "en-dash": 73, ellipsis: 72, fullwidth: 70, ligature: 69, fraction: 68, "super-sub": 67, "non-ascii": 10 };
+
+  function issuePriority(issue) { return ISSUE_PRIORITY[issue && issue.type] || 0; }
+
+  function groupOverlappingIssues(issues) {
+    const sorted = (Array.isArray(issues) ? issues : [])
+      .filter((issue) => Number.isFinite(issue.start) && Number.isFinite(issue.end) && issue.start < issue.end)
+      .slice()
+      .sort((a, b) => a.start - b.start || b.end - a.end || issuePriority(b) - issuePriority(a));
+    const groups = [];
+    sorted.forEach((issue) => {
+      const last = groups[groups.length - 1];
+      if (!last || issue.start >= last.end) groups.push({ start: issue.start, end: issue.end, issues: [issue] });
+      else {
+        last.end = Math.max(last.end, issue.end);
+        last.issues.push(issue);
+      }
+    });
+    return groups.map((group) => Object.assign(group, { primary: group.issues.slice().sort((a, b) => issuePriority(b) - issuePriority(a) || (a.end - a.start) - (b.end - b.start) || a.start - b.start)[0] }));
+  }
+
+  function prioritizeIssueRanges(issues) {
+    return groupOverlappingIssues(issues).map((group) => group.primary).filter(Boolean).sort((a, b) => a.start - b.start || b.end - a.end);
+  }
+
 
   function enrichIssueLocation(issue, model, paragraphs) {
     const structuredLocation = structuredLocationForOffset(model && model.blocks, issue.start, issue.end - issue.start);
@@ -167,7 +218,7 @@
     };
   }
 
-  const API = { GROUPS, paragraphIndexForOffset, structuredLocationForOffset, analyzeDocumentText, buildIssueGroups, replacementForIssue };
+  const API = { GROUPS, paragraphIndexForOffset, structuredLocationForOffset, groupOverlappingIssues, prioritizeIssueRanges, analyzeDocumentText, buildIssueGroups, replacementForIssue };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.TextSanitizerDocument = Object.assign(global.TextSanitizerDocument || {}, API);
 })(typeof window !== "undefined" ? window : globalThis);
