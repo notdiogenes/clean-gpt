@@ -83,7 +83,7 @@
       equal(emoji.category, "emoji");
       const nonAscii = byNote("Remaining non-ASCII removed")[0];
       equal(nonAscii.category, "strict-ascii");
-      equal(nonAscii.severity, "review");
+      equal(nonAscii.severity, "warning");
       [hidden, quote, dash, ellipsis, spaces, emoji, nonAscii].forEach((change) => ["category", "subcategory", "severity", "sourceStart", "sourceEnd", "outputStart", "outputEnd", "before", "after", "action", "characterName", "codePoint", "message", "suggestion"].forEach((field) => ok(field in change, field)));
     }},
     { category: "Changes", name: "Change records are occurrence-specific", body: "Repeated hidden-character removals produce separate records for inspector highlighting.", run(api) {

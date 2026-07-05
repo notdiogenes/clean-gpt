@@ -142,7 +142,7 @@ test('links to tests and debugging page with runnable checks', async ({ page }) 
   await page.getByRole('link', { name: 'Tests & debugging' }).click();
   await expect(page).toHaveURL(/\/tests\.html$/);
   await expect(page.getByRole('heading', { name: 'Tests and Debugging' })).toBeVisible();
-  await expect(page.locator('#testSummary')).toHaveText(/12\/12 tests passing/);
+  await expect(page.locator('#testSummary')).toHaveText(/13\/13 tests passing/);
   await expect(page.locator('#debugDiagnostics')).toContainText('Clipboard API:');
 
   await page.getByRole('button', { name: 'Run tests' }).click();
@@ -217,9 +217,19 @@ test('document analysis uploads DOCX and returns to paste view', async ({ page }
     buffer: docxBuffer
   });
   await expect(page.locator('#documentStatus')).toContainText('Document analysis ready');
-  await expect(page.locator('#documentSummaryCards')).toContainText('Total issues found');
+  await expect(page.locator('#documentSummaryCards')).toContainText('Total issues');
   await expect(page.locator('#documentExtractedPreview')).toContainText('Hello “Word”');
-  await expect(page.locator('#documentCleanedPreview')).toContainText('Hello "Word"');
+  await expect(page.locator('#documentExtractedPreview .issue-highlight').first()).toBeVisible();
+  await expect(page.locator('#documentIssueSidebar .issue-row').first()).toBeVisible();
+
+  const openBefore = await page.locator('#documentSummaryCards .summary-card', { hasText: 'Open issues' }).locator('strong').innerText();
+  await page.locator('#documentIssueSidebar .issue-row').first().click();
+  await expect(page.locator('#documentIssueDetails')).toContainText('Selected issue');
+  await page.locator('#documentIssueDetails').getByRole('button', { name: 'Apply' }).click();
+  await expect(page.locator('#documentSummaryCards .summary-card', { hasText: 'Applied fixes' }).locator('strong')).toHaveText('1');
+  await expect(page.locator('#documentSummaryCards .summary-card', { hasText: 'Open issues' }).locator('strong')).not.toHaveText(openBefore);
+  await page.getByRole('button', { name: 'Copy cleaned text' }).click();
+  await expect(page.locator('#documentStatus')).toContainText(/Copied cleaned text|Clipboard write failed/);
 
   await page.getByRole('button', { name: 'Return to paste cleaner' }).click();
   await expect(page.getByRole('heading', { name: 'Original clipboard content' })).toBeVisible();

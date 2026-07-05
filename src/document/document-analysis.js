@@ -31,11 +31,52 @@
     return paragraphs.length || 1;
   }
 
+  function replacementForIssue(type, text) {
+    if (type === "hidden" || type === "emoji" || type === "trailing-space") return "";
+    if (type === "unusual-space" || type === "repeated-space") return " ";
+    if (type === "blank-line-run") return "\n\n";
+    if (type === "unicode-separator") return text === "\u2029" ? "\n\n" : "\n";
+    if (type === "single-quote" || type === "single-prime") return "'";
+    if (type === "double-quote" || type === "double-prime") return '"';
+    if (type === "em-dash") return " -- ";
+    if (type === "en-dash") return "-";
+    if (type === "ellipsis") return text === "‥" ? ".." : text === "․" ? "." : "...";
+    if (type === "fullwidth") return Array.from(text).map((char) => String.fromCodePoint(char.codePointAt(0) - 0xFEE0)).join("");
+    if (type === "ligature") return MAPS.ligatures.get(text) || text;
+    if (type === "fraction") return MAPS.fractions.get(text) || text;
+    if (type === "super-sub") return Array.from(text).map((char) => MAPS.superSub.get(char) || char).join("");
+    return text;
+  }
+
+  function severityForIssue(type, group) {
+    if (group === "warnings" || type === "emoji" || type === "super-sub") return "warning";
+    if (group === "hidden" || group === "compatibility" || group === "nonAscii") return "medium";
+    return "low";
+  }
+
   function collectRegexIssues(text, paragraphs, regex, type, group, label) {
     const issues = [];
     String(text || "").replace(regex, (match, ...args) => {
       const offset = args[args.length - 2];
-      issues.push({ type, group, label, text: match, codePoint: Array.from(match).map(labelChar).join(" + "), paragraphIndex: paragraphIndexForOffset(paragraphs, offset), location: offset });
+      const replacement = replacementForIssue(type, match);
+      issues.push({
+        id: `issue-${issues.length}-${type}-${offset}`,
+        type,
+        group,
+        label,
+        shortLabel: label,
+        text: match,
+        originalText: match,
+        replacement,
+        proposedReplacement: replacement,
+        codePoint: Array.from(match).map(labelChar).join(" + "),
+        severity: severityForIssue(type, group),
+        paragraphIndex: paragraphIndexForOffset(paragraphs, offset),
+        start: offset,
+        end: offset + match.length,
+        location: offset,
+        status: "open"
+      });
       return match;
     });
     return issues;
@@ -52,6 +93,7 @@
     const rawText = String(model && model.rawText || "");
     if (!rawText.trim()) throw Object.assign(new Error("Empty document"), { code: "empty-document" });
     const paragraphs = model.paragraphs || rawText.split(/\n+/);
+    const warnings = [{ id: "warning-formatting", group: "warnings", type: "formatting-warning", label: "Formatting not preserved", shortLabel: "Formatting not preserved", text: "This MVP analyzes extracted text only.", originalText: "", replacement: "", proposedReplacement: "", codePoint: "", severity: "warning", paragraphIndex: 1, start: 0, end: 0, location: 0, status: "open" }];
     const issues = [
       ...collectRegexIssues(rawText, paragraphs, REGEX.hidden, "hidden", "hidden", "Hidden or directional character"),
       ...collectRegexIssues(rawText, paragraphs, REGEX.unusualSpaces, "unusual-space", "whitespace", "Unusual space"),
@@ -71,9 +113,11 @@
       ...collectRegexIssues(rawText, paragraphs, /[¼½¾⅐-⅞]/gu, "fraction", "compatibility", "Single-character fraction"),
       ...collectRegexIssues(rawText, paragraphs, /[⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉⁺⁻⁼⁽⁾₊₋₌₍₎ᵃ-ᵗᵘ-ᶻ]/gu, "super-sub", "compatibility", "Superscript or subscript"),
       ...collectRegexIssues(rawText, paragraphs, REGEX.emoji, "emoji", "compatibility", "Emoji or pictographic symbol"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.nonAscii, "non-ascii", "nonAscii", "Non-ASCII character")
+      ...collectRegexIssues(rawText, paragraphs, REGEX.nonAscii, "non-ascii", "nonAscii", "Non-ASCII character"),
+      ...warnings
     ];
     const cleanResult = sanitize(rawText, buildOptions("plain"));
+    issues.forEach((issue, index) => { issue.id = `issue-${index + 1}`; });
     const issueGroups = buildIssueGroups(issues);
     const highest = issueGroups.reduce((best, group) => group.count > (best?.count || 0) ? group : best, null);
     return {
@@ -86,11 +130,11 @@
       issues,
       cleanedText: cleanResult.cleanText,
       cleanupStats: cleanResult.stats,
-      warnings: [{ group: "warnings", label: "Formatting not preserved", text: "This MVP analyzes extracted text only.", paragraphIndex: 1, location: 0 }]
+      warnings
     };
   }
 
-  const API = { GROUPS, paragraphIndexForOffset, analyzeDocumentText, buildIssueGroups };
+  const API = { GROUPS, paragraphIndexForOffset, analyzeDocumentText, buildIssueGroups, replacementForIssue };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.TextSanitizerDocument = Object.assign(global.TextSanitizerDocument || {}, API);
 })(typeof window !== "undefined" ? window : globalThis);

@@ -23,6 +23,7 @@
   const docxExtractor = typeof require === "function" ? require("./src/document/docx-extract") : global.TextSanitizerDocument;
   const documentAnalysis = typeof require === "function" ? require("./src/document/document-analysis") : global.TextSanitizerDocument;
   const uiController = typeof require === "function" ? require("./src/ui/app-controller") : global.TextSanitizerUi;
+  const documentAnalysisView = typeof require === "function" ? require("./src/ui/document-analysis-view") : global.TextSanitizerUi;
 
   const API = Object.assign({}, {
     sanitize: sanitizeCore.sanitize,
@@ -49,7 +50,9 @@
     extractDocxText: docxExtractor.extractDocxText,
     extractParagraphsFromDocumentXml: docxExtractor.extractParagraphsFromDocumentXml,
     analyzeDocumentText: documentAnalysis.analyzeDocumentText,
-    buildIssueGroups: documentAnalysis.buildIssueGroups
+    buildIssueGroups: documentAnalysis.buildIssueGroups,
+    createReviewState: documentAnalysisView.createReviewState,
+    applyIssuePatches: documentAnalysisView.applyIssuePatches
   }, uiController ? { startApp: uiController.startApp } : {});
 
   if (typeof module !== "undefined" && module.exports) module.exports = API;

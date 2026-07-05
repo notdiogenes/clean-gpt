@@ -43,3 +43,40 @@ test('clearing uploaded document resets in-memory state shape', () => {
   model = null;
   assert.equal(model, null);
 });
+
+test('analysis issues include range metadata and proposed replacements', () => {
+  const report = sanitizer.analyzeDocumentText({ rawText: 'Hi “x”', paragraphs: ['Hi “x”'] });
+  const quote = report.issues.find((issue) => issue.type === 'double-quote');
+  assert.equal(quote.start, 3);
+  assert.equal(quote.end, 4);
+  assert.equal(quote.originalText, '“');
+  assert.equal(quote.replacement, '"');
+  assert.equal(quote.status, 'open');
+});
+
+test('applying one issue updates cleaned preview via patch model', () => {
+  const model = { rawText: 'Hi “x”', analysisResults: sanitizer.analyzeDocumentText({ rawText: 'Hi “x”', paragraphs: ['Hi “x”'] }) };
+  const review = sanitizer.createReviewState(model);
+  const quote = review.issues.find((issue) => issue.type === 'double-quote');
+  quote.status = 'applied';
+  assert.equal(sanitizer.applyIssuePatches(model.rawText, review.issues), 'Hi "x”');
+  assert.equal(model.rawText, 'Hi “x”');
+});
+
+test('ignoring one issue leaves patch output unchanged and status ignored', () => {
+  const model = { rawText: 'A  B', analysisResults: sanitizer.analyzeDocumentText({ rawText: 'A  B', paragraphs: ['A  B'] }) };
+  const review = sanitizer.createReviewState(model);
+  const spaces = review.issues.find((issue) => issue.type === 'repeated-space');
+  spaces.status = 'ignored';
+  assert.equal(sanitizer.applyIssuePatches(model.rawText, review.issues), 'A  B');
+  assert.equal(spaces.status, 'ignored');
+});
+
+test('applying all issues of a type updates counts', () => {
+  const model = { rawText: '“A” “B”', analysisResults: sanitizer.analyzeDocumentText({ rawText: '“A” “B”', paragraphs: ['“A” “B”'] }) };
+  const review = sanitizer.createReviewState(model);
+  review.issues.filter((issue) => issue.group === 'punctuation').forEach((issue) => { issue.status = 'applied'; });
+  const applied = review.issues.filter((issue) => issue.status === 'applied').length;
+  assert.equal(applied, 4);
+  assert.equal(sanitizer.applyIssuePatches(model.rawText, review.issues), '"A" "B"');
+});

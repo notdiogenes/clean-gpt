@@ -135,16 +135,28 @@
         <p>Text-only MVP report. Word layout, comments, tables, headers, footers, and images are not preserved.</p>
       </div>
       <div id="documentSummaryCards" class="summary-cards"></div>
-      <section class="panel">
-        <h3>Issue groups</h3>
-        <div id="documentIssueGroups" class="issue-groups"></div>
-      </section>
-      <section class="document-preview-grid">
-        <div class="panel preview-pane"><h3>Extracted text</h3><pre id="documentExtractedPreview"></pre></div>
-        <div class="panel preview-pane"><h3>Cleaned text preview</h3><p class="compact-note">Preview only; Word formatting is not preserved.</p><pre id="documentCleanedPreview"></pre></div>
+      <section class="document-analyzer-grid" aria-label="Interactive issue analyzer">
+        <aside class="panel analyzer-sidebar" aria-label="Issue sidebar">
+          <h3>Issues</h3>
+          <div class="issue-filters" aria-label="Issue filters">
+            <label>Status<select id="documentIssueStatusFilter"><option value="all">Show all</option><option value="open">Open only</option><option value="applied">Applied</option><option value="ignored">Ignored</option></select></label>
+            <label>Type<select id="documentIssueTypeFilter"><option value="all">All issue types</option></select></label>
+            <label class="switch-row"><span>Hide low-severity issues</span><input id="documentHideLowSeverity" type="checkbox"></label>
+          </div>
+          <div id="documentIssueSidebar" class="issue-sidebar-list"></div>
+        </aside>
+        <section class="panel analyzer-main">
+          <h3>Original with issue highlights</h3>
+          <pre id="documentExtractedPreview" class="live-text-preview"></pre>
+          <h3>Cleaned preview</h3>
+          <p class="compact-note">This preview does not yet preserve Word formatting.</p>
+          <pre id="documentCleanedPreview" class="live-text-preview"></pre>
+        </section>
+        <aside id="documentIssueDetails" class="panel issue-detail-panel" aria-live="polite"><p class="compact-note">Select an issue to review details and actions.</p></aside>
       </section>
       <div class="panel document-actions">
         <button id="copyDocumentCleanedButton" type="button" class="button primary-button">Copy cleaned text</button>
+        <button id="downloadDocumentTextButton" type="button" class="button secondary-button">Download cleaned text as .txt</button>
         <button id="downloadDocumentReportButton" type="button" class="button secondary-button">Download report as JSON</button>
         <button id="clearDocumentButton" type="button" class="button ghost-button">Clear file</button>
       </div>
