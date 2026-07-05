@@ -3,8 +3,10 @@
 
   const docxCore = typeof require === "function" ? require("../document/docx-extract") : global.TextSanitizerDocument;
   const analysisCore = typeof require === "function" ? require("../document/document-analysis") : global.TextSanitizerDocument;
+  const formattedSerializer = typeof require === "function" ? require("../document/serialize-formatted-html") : global.TextSanitizerDocument;
   const { MAX_DOCX_BYTES, isDocxFile, extractDocxText } = docxCore;
   const { analyzeDocumentText, GROUPS, prioritizeIssueRanges } = analysisCore;
+  const { serializeFormattedHtml } = formattedSerializer;
 
   function formatBytes(bytes) {
     if (!Number.isFinite(bytes)) return "Unknown";
@@ -70,7 +72,7 @@
       summary: doc.getElementById("documentSummaryCards"), groups: doc.getElementById("documentIssueGroups"), formatted: doc.getElementById("documentFormattedPreview"), extracted: doc.getElementById("documentExtractedPreview"), cleaned: doc.getElementById("documentCleanedPreview"),
       sidebar: doc.getElementById("documentIssueSidebar"), details: doc.getElementById("documentIssueDetails"), filterStatus: doc.getElementById("documentIssueStatusFilter"), filterType: doc.getElementById("documentIssueTypeFilter"), hideLow: doc.getElementById("documentHideLowSeverity"),
       reviewPrevious: doc.getElementById("documentPreviousIssueButton"), reviewNext: doc.getElementById("documentNextIssueButton"), reviewApply: doc.getElementById("documentApplyIssueButton"), reviewIgnore: doc.getElementById("documentIgnoreIssueButton"), reviewApplySimilar: doc.getElementById("documentApplySimilarButton"), previewMode: doc.getElementById("documentPreviewModeSelect"), reviewProgress: doc.getElementById("documentReviewProgress"),
-      copy: doc.getElementById("copyDocumentCleanedButton"), downloadText: doc.getElementById("downloadDocumentTextButton"), download: doc.getElementById("downloadDocumentReportButton"), clear: doc.getElementById("clearDocumentButton")
+      copy: doc.getElementById("copyDocumentCleanedButton"), copyFormatted: doc.getElementById("copyDocumentFormattedButton"), downloadText: doc.getElementById("downloadDocumentTextButton"), download: doc.getElementById("downloadDocumentReportButton"), clear: doc.getElementById("clearDocumentButton")
     };
     let currentModel = null;
     let review = null;
@@ -355,7 +357,7 @@
       const hasVisible = visibleIssues().length > 0;
       [elements.reviewPrevious, elements.reviewNext].forEach((button) => { if (button) button.disabled = !hasVisible; });
     }
-    function renderCleaned() { review.cleanedText = applyIssuePatches(currentModel.rawText, review.issues); elements.cleaned.textContent = review.cleanedText; }
+    function renderCleaned() { review.cleanedText = applyIssuePatches(currentModel.rawText, review.issues); review.formattedHtml = serializeFormattedHtml(currentModel, review); elements.cleaned.textContent = review.cleanedText; }
     function renderAll() { renderSummary(); renderFormattedDocument(); renderHighlights(); renderSidebar(); renderDetails(); renderCleaned(); renderToolbar(); }
 
     function selectIssue(id) {
@@ -457,6 +459,20 @@
       if (event.key === "Escape") { review.selectedIssueId = null; renderAll(); }
     });
     elements.copy?.addEventListener("click", async () => { if (!currentModel) return; try { await navigator.clipboard.writeText(review.cleanedText); setStatus("Copied cleaned text."); } catch (error) { setStatus("Clipboard write failed; select the cleaned preview and copy manually."); } });
+    elements.copyFormatted?.addEventListener("click", async () => {
+      if (!currentModel) return;
+      try {
+        if (!navigator.clipboard || !global.ClipboardItem) throw new Error("HTML clipboard unavailable");
+        await navigator.clipboard.write([new ClipboardItem({
+          "text/html": new Blob([review.formattedHtml || serializeFormattedHtml(currentModel, review)], { type: "text/html" }),
+          "text/plain": new Blob([review.cleanedText], { type: "text/plain" })
+        })]);
+        setStatus("Copied cleaned formatted content.");
+      } catch (error) {
+        try { await navigator.clipboard.writeText(review.cleanedText); setStatus("Formatted clipboard unavailable; copied cleaned text instead."); }
+        catch (fallbackError) { setStatus("Clipboard write failed; select the cleaned preview and copy manually."); }
+      }
+    });
     elements.downloadText?.addEventListener("click", () => { if (!currentModel) return; const blob = new Blob([review.cleanedText], { type: "text/plain" }); const a = doc.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${currentModel.fileName.replace(/\.docx$/i, "")}-cleaned.txt`; a.click(); URL.revokeObjectURL(a.href); });
     elements.download?.addEventListener("click", () => { if (!currentModel) return; const report = { file: { name: currentModel.fileName, size: currentModel.fileSize }, issues: review.issues, appliedIssueIds: review.issues.filter((i) => i.status === "applied").map((i) => i.id), ignoredIssueIds: review.issues.filter((i) => i.status === "ignored").map((i) => i.id), finalCleanedTextLength: review.cleanedText.length, finalCleanedTextChecksum: checksumText(review.cleanedText) }; const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }); const a = doc.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${currentModel.fileName.replace(/\.docx$/i, "")}-analysis.json`; a.click(); URL.revokeObjectURL(a.href); });
     elements.clear?.addEventListener("click", clear);

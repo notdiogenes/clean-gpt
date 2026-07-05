@@ -229,6 +229,14 @@ test('document analysis treats DOCX text and file metadata as text instead of ma
 });
 
 test('document analysis uploads DOCX and returns to paste view', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__clipboardWrites = [];
+    window.ClipboardItem = class ClipboardItem { constructor(items) { this.items = items; } };
+    Object.defineProperty(navigator, 'clipboard', { value: {
+      writeText: async (text) => window.__clipboardWrites.push({ type: 'text', text }),
+      write: async (items) => window.__clipboardWrites.push({ type: 'rich', items })
+    }, configurable: true });
+  });
   await page.goto('/');
   await page.getByRole('button', { name: 'Analyze Word file' }).click();
   await expect(page.getByRole('heading', { name: 'Document analysis' })).toBeVisible();
@@ -256,7 +264,24 @@ test('document analysis uploads DOCX and returns to paste view', async ({ page }
   await expect(page.locator('#documentSummaryCards .summary-card', { hasText: 'Applied fixes' }).locator('strong')).toHaveText('1');
   await expect(page.locator('#documentSummaryCards .summary-card', { hasText: 'Open issues' }).locator('strong')).not.toHaveText(openBefore);
   await page.getByRole('button', { name: 'Copy cleaned text' }).click();
-  await expect(page.locator('#documentStatus')).toContainText(/Copied cleaned text|Clipboard write failed/);
+  await expect(page.locator('#documentStatus')).toContainText('Copied cleaned text.');
+  expect(await page.evaluate(() => window.__clipboardWrites.at(-1))).toMatchObject({ type: 'text' });
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download cleaned text as .txt' }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe('sample-cleaned.txt');
+
+  await page.getByRole('button', { name: 'Copy cleaned formatted content' }).click();
+  await expect(page.locator('#documentStatus')).toContainText('Copied cleaned formatted content.');
+  const richWrite = await page.evaluate(async () => {
+    const write = window.__clipboardWrites.at(-1);
+    const item = write.items[0];
+    return { type: write.type, types: Object.keys(item.items), html: await item.items['text/html'].text(), plain: await item.items['text/plain'].text() };
+  });
+  expect(richWrite.type).toBe('rich');
+  expect(richWrite.types).toEqual(expect.arrayContaining(['text/html', 'text/plain']));
+  expect(richWrite.html).toContain('<span');
+  expect(richWrite.plain).toContain('Hello');
 
   await page.getByRole('button', { name: 'Return to paste cleaner' }).click();
   await expect(page.getByRole('heading', { name: 'Original clipboard content' })).toBeVisible();
