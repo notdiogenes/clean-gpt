@@ -1919,12 +1919,20 @@
       return source === change.source || target === change.target || source.includes(change.source || "\u0000") || target.includes(change.target || "\u0000");
     }
 
-    function focusInputForMetric(label, matcher) {
+    function highlightInputForMetric(label, matcher) {
       if (!lastResult) return;
       const options = getOptions();
       renderInputDiffHighlights(inputDoc, lastResult.doc, options, matcher || ((part) => sourceChangeMatchesMetric(part, label)));
       inputEditor.classList.add("inspector-pulse");
-      window.setTimeout(() => inputEditor.classList.remove("inspector-pulse"), 1200);
+    }
+
+    function clearInputMetricHighlight() {
+      inputEditor.classList.remove("inspector-pulse");
+      const options = getOptions();
+      suppressInputEvent = true;
+      renderDocInto(inputEditor, inputDoc, "input", "source", options.showInvisibles ? options : {});
+      inputEditor.dataset.showingInvisibles = options.showInvisibles ? "true" : "false";
+      suppressInputEvent = false;
     }
 
     function renderStats(result) {
@@ -1957,9 +1965,11 @@
         if (canLink) {
           li.tabIndex = 0;
           li.role = "button";
-          li.title = "Highlight related input text.";
-          li.addEventListener("click", () => focusInputForMetric(label));
-          li.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") focusInputForMetric(label); });
+          li.title = "Hover to highlight related input text.";
+          li.addEventListener("mouseenter", () => highlightInputForMetric(label));
+          li.addEventListener("mouseleave", clearInputMetricHighlight);
+          li.addEventListener("focus", () => highlightInputForMetric(label));
+          li.addEventListener("blur", clearInputMetricHighlight);
         } else {
           li.title = "This metric summarizes the document and does not map to one exact text span.";
         }
@@ -1984,7 +1994,10 @@
         button.type = "button";
         button.className = "inspector-link";
         button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
-        button.addEventListener("click", () => focusInputForMetric(change.note || change.target || change.source, (part) => sourceChangeMatchesRecord(part, change)));
+        button.addEventListener("mouseenter", () => highlightInputForMetric(change.note || change.target || change.source, (part) => sourceChangeMatchesRecord(part, change)));
+        button.addEventListener("mouseleave", clearInputMetricHighlight);
+        button.addEventListener("focus", () => highlightInputForMetric(change.note || change.target || change.source, (part) => sourceChangeMatchesRecord(part, change)));
+        button.addEventListener("blur", clearInputMetricHighlight);
         li.appendChild(button);
         changesList.appendChild(li);
       });
@@ -2130,11 +2143,8 @@
       diffTextParts(beforeText, afterText).forEach((part) => {
         if (part.type === "equal") container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.text) : part.text));
         else if (part.type === "remove") {
-          const badge = document.createElement("span");
-          badge.className = "removed-hidden";
-          badge.title = replacementTitle(part.source, "");
-          badge.textContent = `${getCodeLabelForChangeValue(part.source).replace(/^U\+[0-9A-F]+\s*/, "")} removed`;
-          container.appendChild(badge);
+          // Pure removals are shown on the source/input side in diff mode so the
+          // output text keeps the same footprint as preview text.
         } else {
           const span = document.createElement("span");
           span.className = "char-change";
@@ -2169,7 +2179,7 @@
         if (part.type === "equal") {
           container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.text) : part.text));
         } else if (part.type === "remove" || part.type === "replace") {
-          const shouldHighlight = highlighter && !highlighter.done && highlighter.matches(part);
+          const shouldHighlight = highlighter && highlighter.matches(part);
           if (shouldHighlight) {
             const span = document.createElement("span");
             span.className = "source-change";
@@ -2177,7 +2187,6 @@
             span.setAttribute("aria-label", span.title);
             span.textContent = options && options.showInvisibles ? visualizeInvisibles(part.source) : part.source;
             container.appendChild(span);
-            highlighter.done = true;
           } else {
             container.appendChild(document.createTextNode(options && options.showInvisibles ? visualizeInvisibles(part.source) : part.source));
           }
@@ -2186,7 +2195,7 @@
     }
 
     function renderInputDiffHighlights(inputModel, outputModel, options, matcher) {
-      const highlighter = { done: false, matches: matcher || (() => true) };
+      const highlighter = { matches: matcher || (() => true) };
       suppressInputEvent = true;
       inputEditor.innerHTML = "";
       (inputModel.blocks || []).forEach((block, index) => {
@@ -2264,10 +2273,12 @@
       if (diffTab) diffTab.setAttribute("aria-selected", String(showDiff));
       if (showDiff) {
         outputEditor.classList.add("diff-output", "compact-diff-output");
+        renderInputDiffHighlights(inputDoc, lastResult.doc, options, () => true);
         renderCompactDiff(inputDoc, lastResult.doc, lastResult.changes, DESTINATIONS[destinationSelect.value], options);
       } else {
         outputEditor.classList.remove("diff-output", "compact-diff-output");
         renderDocInto(outputEditor, lastResult.doc, "output", destinationSelect.value, options);
+        renderInputEditorForOptions(options);
       }
       renderStats(lastResult);
       renderChanges(lastResult);
