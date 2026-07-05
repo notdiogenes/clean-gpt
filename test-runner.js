@@ -60,6 +60,32 @@
     { category: "Cleanup", name: "Cleanup toggles are registered", body: "Verifies expected toggle groups are present in OPTION_DEFAULTS.", run(api) {
       ["removeHidden", "normalizeQuotes", "normalizeDashes", "normalizeFullwidth", "expandLigatures", "smartQuotes", "numericRangesToEnDash", "strictAscii"].forEach((key) => ok(key in api.OPTION_DEFAULTS, key));
     }},
+
+    { category: "Changes", name: "Rich change records classify ranges", body: "Asserts hidden characters, punctuation, spaces, emoji, and non-ASCII review changes expose rich metadata and precise occurrence ranges.", run(api) {
+      const result = api.sanitize("a\u200Bb “x” — wait… a  b 😀 中", api.buildOptions("plain", null, { removeHidden: true, normalizeQuotes: true, normalizeDashes: true, normalizeEllipsis: true, collapseRepeatedSpaces: true, removeEmoji: true, strictAscii: true }));
+      const byNote = (note) => result.changes.filter((change) => change.note === note);
+      const hidden = byNote("Hidden or formatting character removed")[0];
+      equal(hidden.category, "hidden-character");
+      equal(hidden.sourceStart, 1);
+      equal(hidden.sourceEnd, 2);
+      const quote = byNote("Quote-like character normalized")[0];
+      equal(quote.category, "quote");
+      equal(quote.sourceStart, 3);
+      const dash = byNote("Em-dash-like character normalized")[0];
+      equal(dash.category, "dash");
+      equal(dash.sourceStart, 6);
+      const ellipsis = byNote("Ellipsis normalized")[0];
+      equal(ellipsis.category, "ellipsis");
+      const spaces = byNote("Repeated spaces collapsed")[0];
+      equal(spaces.category, "spacing");
+      equal(spaces.subcategory, "repeated-space");
+      const emoji = byNote("Emoji or pictographic symbol removed")[0];
+      equal(emoji.category, "emoji");
+      const nonAscii = byNote("Remaining non-ASCII removed")[0];
+      equal(nonAscii.category, "strict-ascii");
+      equal(nonAscii.severity, "review");
+      [hidden, quote, dash, ellipsis, spaces, emoji, nonAscii].forEach((change) => ["category", "subcategory", "severity", "sourceStart", "sourceEnd", "outputStart", "outputEnd", "before", "after", "action", "characterName", "codePoint", "message", "suggestion"].forEach((field) => ok(field in change, field)));
+    }},
     { category: "Changes", name: "Change records are occurrence-specific", body: "Repeated hidden-character removals produce separate records for inspector highlighting.", run(api) {
       const result = api.sanitize("a\u200Bb\u200Bc", api.buildOptions("plain", { removeHidden: true }));
       const hiddenChanges = result.changes.filter((change) => change.note === "Hidden or formatting character removed");

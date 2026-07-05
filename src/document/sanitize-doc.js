@@ -23,11 +23,17 @@
     });
   }
 
-  function sanitizeTextPart(text, options, aggregateChanges, aggregateStats) {
+  function sanitizeTextPart(text, options, aggregateChanges, aggregateStats, sourceOffset) {
     const source = sanitizeSource(text, options);
     let clean = applyDestinationTypography(source.text, options, source.changes, source.stats);
     clean = applyStrictAscii(clean, options, source.changes, source.stats);
-    aggregateChanges.push(...source.changes);
+    aggregateChanges.push(...source.changes.map((change) => {
+      if (!Number.isInteger(sourceOffset) || !Number.isInteger(change.sourceStart) || !Number.isInteger(change.sourceEnd)) return change;
+      return Object.assign({}, change, {
+        sourceStart: change.sourceStart + sourceOffset,
+        sourceEnd: change.sourceEnd + sourceOffset
+      });
+    }));
     mergeStats(aggregateStats, source.stats);
     return clean;
   }
@@ -35,20 +41,22 @@
   function sanitizeDoc(doc, options) {
     const stats = makeStats();
     const changes = [];
+    let sourceOffset = 0;
+    const nextOffset = (text) => { const offset = sourceOffset; sourceOffset += String(text || "").length + 1; return offset; };
     const outBlocks = (doc.blocks || []).map((block) => {
-      if (block.type === "paragraph") return { type: "paragraph", id: block.id, text: sanitizeTextPart(block.text || "", options, changes, stats) };
-      if (block.type === "blank") return { type: "blank", id: block.id };
+      if (block.type === "paragraph") return { type: "paragraph", id: block.id, text: sanitizeTextPart(block.text || "", options, changes, stats, nextOffset(block.text || "")) };
+      if (block.type === "blank") { sourceOffset += 1; return { type: "blank", id: block.id }; }
       if (block.type === "ul" || block.type === "ol") {
         function sanitizeItem(item) {
           const children = (item.children || []).map(sanitizeListBlock).filter((child) => child.items.length);
-          return Object.assign({ id: item.id, text: sanitizeTextPart(item.text || "", options, changes, stats) }, children.length ? { children } : {});
+          return Object.assign({ id: item.id, text: sanitizeTextPart(item.text || "", options, changes, stats, nextOffset(item.text || "")) }, children.length ? { children } : {});
         }
         function sanitizeListBlock(listBlock) {
           return { type: listBlock.type, id: listBlock.id, items: (listBlock.items || []).map(sanitizeItem) };
         }
         return sanitizeListBlock(block);
       }
-      return { type: "paragraph", id: block.id, text: sanitizeTextPart(blockText(block), options, changes, stats) };
+      return { type: "paragraph", id: block.id, text: sanitizeTextPart(blockText(block), options, changes, stats, nextOffset(blockText(block))) };
     }).filter((block) => block.type === "blank" || block.type === "paragraph" || block.items?.length);
     const outputDoc = makeDoc(outBlocks, Object.assign({}, doc.meta));
     const visibleText = docToPlainText(outputDoc, options.destination || "gmail");

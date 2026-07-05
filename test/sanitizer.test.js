@@ -122,3 +122,42 @@ test('change records stay occurrence-specific for inspector highlights', () => {
   assert.deepEqual(hiddenChanges.map((change) => change.count), [1, 1]);
   assert.deepEqual(hiddenChanges.map((change) => change.occurrenceIndex), [0, 1]);
 });
+
+test('rich change records include precise ranges and classifications', () => {
+  const options = sanitizer.buildOptions('plain', null, {
+    removeHidden: true,
+    normalizeQuotes: true,
+    normalizeDashes: true,
+    normalizeEllipsis: true,
+    collapseRepeatedSpaces: true,
+    removeEmoji: true,
+    strictAscii: true
+  });
+  const result = sanitizer.sanitize('a\u200Bb “x” — wait… a  b 😀 中', options);
+  const byNote = (note) => result.changes.filter((change) => change.note === note);
+  const hidden = byNote('Hidden or formatting character removed')[0];
+  assert.deepEqual([hidden.category, hidden.subcategory, hidden.severity, hidden.sourceStart, hidden.sourceEnd, hidden.before, hidden.after], ['hidden-character', 'hidden-character', 'info', 1, 2, '\u200B'.replace('\\u200B', '\u200B'), '']);
+  const quote = byNote('Quote-like character normalized')[0];
+  assert.deepEqual([quote.category, quote.sourceStart, quote.sourceEnd, quote.before, quote.after], ['quote', 3, 4, '“', '"']);
+  const dash = byNote('Em-dash-like character normalized')[0];
+  assert.deepEqual([dash.category, dash.sourceStart, dash.sourceEnd, dash.before, dash.after], ['dash', 6, 9, ' — ', ' -- ']);
+  const ellipsis = byNote('Ellipsis normalized')[0];
+  assert.deepEqual([ellipsis.category, ellipsis.sourceStart, ellipsis.sourceEnd, ellipsis.before, ellipsis.after], ['ellipsis', 14, 15, '…', '...']);
+  const spaces = byNote('Repeated spaces collapsed')[0];
+  assert.equal(spaces.category, 'spacing');
+  assert.equal(spaces.subcategory, 'repeated-space');
+  assert.equal(spaces.sourceEnd - spaces.sourceStart, 2);
+  const emoji = byNote('Emoji or pictographic symbol removed')[0];
+  assert.equal(emoji.category, 'emoji');
+  assert.equal(emoji.after, '');
+  const nonAscii = byNote('Remaining non-ASCII removed')[0];
+  assert.equal(nonAscii.category, 'strict-ascii');
+  assert.equal(nonAscii.subcategory, 'non-ascii-remove');
+  assert.equal(nonAscii.severity, 'review');
+  assert.ok(Number.isInteger(nonAscii.sourceStart));
+  for (const change of [hidden, quote, dash, ellipsis, spaces, emoji, nonAscii]) {
+    for (const field of ['category', 'subcategory', 'severity', 'sourceStart', 'sourceEnd', 'outputStart', 'outputEnd', 'before', 'after', 'action', 'characterName', 'codePoint', 'message', 'suggestion']) {
+      assert.ok(Object.hasOwn(change, field), `${field} missing from ${change.note}`);
+    }
+  }
+});

@@ -25,7 +25,7 @@
       if (char === '"') {
         const replacement = isOpeningContext(prev) ? "“" : "”";
         output += replacement;
-        addChange(changes, "Destination", '"', replacement, 1, "Smart double quote applied");
+        addChange(changes, "Destination", '"', replacement, 1, "Smart double quote applied", { category: "quote", subcategory: "smart-double-quote", severity: "info", sourceStart: i, sourceEnd: i + 1, outputStart: output.length, outputEnd: output.length + replacement.length });
         stats.quotesChanged += 1;
         stats.destinationChanges += 1;
       } else if (char === "'") {
@@ -38,7 +38,7 @@
           replacement = isOpeningContext(prev) ? "‘" : "’";
         }
         output += replacement;
-        addChange(changes, "Destination", "'", replacement, 1, replacement === "′" ? "Measurement prime applied" : "Smart single quote/apostrophe applied");
+        addChange(changes, "Destination", "'", replacement, 1, replacement === "′" ? "Measurement prime applied" : "Smart single quote/apostrophe applied", { category: "quote", subcategory: replacement === "′" ? "prime" : "smart-single-quote", severity: "info", sourceStart: i, sourceEnd: i + 1, outputStart: output.length, outputEnd: output.length + replacement.length });
         stats.quotesChanged += 1;
         stats.destinationChanges += 1;
       } else {
