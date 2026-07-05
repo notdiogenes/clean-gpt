@@ -108,10 +108,11 @@ test('extracts formatted DOCX runs into document blocks while preserving plain t
   assert.equal(blocks[0].text, 'Hello\tWorld\nAgain');
   assert.equal(blocks[0].styleId, 'Heading1');
   assert.equal(blocks[0].styleName, 'heading 1');
+  assert.deepEqual(blocks[0].range, { start: 0, end: 17 });
   assert.equal(blocks[1].start, 'Hello\tWorld\nAgain\n'.length);
 
   const [boldRun, tabRun, strikeRun, breakRun, finalRun] = blocks[0].runs;
-  assert.deepEqual({ text: boldRun.text, start: boldRun.start, end: boldRun.end }, { text: 'Hello', start: 0, end: 5 });
+  assert.deepEqual({ text: boldRun.text, start: boldRun.start, end: boldRun.end, range: boldRun.range, rangeInBlock: boldRun.rangeInBlock }, { text: 'Hello', start: 0, end: 5, range: { start: 0, end: 5 }, rangeInBlock: { start: 0, end: 5 } });
   assert.equal(boldRun.properties.bold, true);
   assert.equal(boldRun.properties.italic, true);
   assert.equal(boldRun.properties.underline, true);
@@ -124,4 +125,61 @@ test('extracts formatted DOCX runs into document blocks while preserving plain t
   assert.equal(strikeRun.properties.superscript, true);
   assert.deepEqual({ type: breakRun.type, text: breakRun.text }, { type: 'lineBreak', text: '\n' });
   assert.deepEqual({ text: finalRun.text, start: finalRun.start, end: finalRun.end }, { text: 'Again', start: 12, end: 17 });
+});
+
+test('maps analyzed issues to document block and run locations', () => {
+  const model = {
+    rawText: 'Clean paragraph\nSecond “quote”  has\u200B hidden'.replace('\\u200B', '\u200B'),
+    paragraphs: ['Clean paragraph', 'Second “quote”  has\u200B hidden'.replace('\\u200B', '\u200B')],
+    blocks: [
+      {
+        id: 'p-1',
+        type: 'paragraph',
+        text: 'Clean paragraph',
+        start: 0,
+        end: 15,
+        runs: [{ id: 'p-1-r-1', text: 'Clean paragraph', start: 0, end: 15 }]
+      },
+      {
+        id: 'p-2',
+        type: 'paragraph',
+        text: 'Second “quote”  has\u200B hidden'.replace('\\u200B', '\u200B'),
+        start: 16,
+        end: 44,
+        runs: [
+          { id: 'p-2-r-1', text: 'Second ', start: 16, end: 23 },
+          { id: 'p-2-r-2', text: '“quote”', start: 23, end: 30 },
+          { id: 'p-2-r-3', text: '  has\u200B hidden'.replace('\\u200B', '\u200B'), start: 30, end: 44 }
+        ]
+      }
+    ]
+  };
+
+  const report = sanitizer.analyzeDocumentText(model);
+  const quote = report.issues.find((issue) => issue.type === 'double-quote' && issue.text === '“');
+  const space = report.issues.find((issue) => issue.type === 'repeated-space');
+  const hidden = report.issues.find((issue) => issue.type === 'hidden');
+
+  assert.deepEqual(
+    { blockId: quote.blockId, blockIndex: quote.blockIndex, runId: quote.runId, runIndex: quote.runIndex, rangeInBlock: quote.rangeInBlock, paragraphIndex: quote.paragraphIndex },
+    { blockId: 'p-2', blockIndex: 1, runId: 'p-2-r-2', runIndex: 1, rangeInBlock: { start: 7, end: 8 }, paragraphIndex: 2 }
+  );
+  assert.deepEqual(
+    { blockId: space.blockId, blockIndex: space.blockIndex, runId: space.runId, runIndex: space.runIndex, rangeInBlock: space.rangeInBlock, paragraphIndex: space.paragraphIndex },
+    { blockId: 'p-2', blockIndex: 1, runId: 'p-2-r-3', runIndex: 2, rangeInBlock: { start: 14, end: 16 }, paragraphIndex: 2 }
+  );
+  assert.deepEqual(
+    { blockId: hidden.blockId, blockIndex: hidden.blockIndex, runId: hidden.runId, runIndex: hidden.runIndex, rangeInBlock: hidden.rangeInBlock, paragraphIndex: hidden.paragraphIndex },
+    { blockId: 'p-2', blockIndex: 1, runId: 'p-2-r-3', runIndex: 2, rangeInBlock: { start: 19, end: 20 }, paragraphIndex: 2 }
+  );
+});
+
+test('plain-text analysis falls back to offset-based paragraph locations', () => {
+  const report = sanitizer.analyzeDocumentText({ rawText: 'First\nSecond “quote”', paragraphs: ['First', 'Second “quote”'] });
+  const quote = report.issues.find((issue) => issue.type === 'double-quote' && issue.text === '“');
+  assert.equal(quote.paragraphIndex, 2);
+  assert.equal(quote.start, 13);
+  assert.equal(quote.end, 14);
+  assert.equal(quote.blockId, undefined);
+  assert.equal(quote.rangeInBlock, undefined);
 });

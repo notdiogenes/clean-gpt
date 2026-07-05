@@ -54,12 +54,44 @@
     return "low";
   }
 
-  function collectRegexIssues(text, paragraphs, regex, type, group, label) {
+  function structuredLocationForOffset(blocks, offset, length) {
+    if (!Array.isArray(blocks) || !blocks.length) return null;
+    const safeOffset = Math.max(0, Number(offset) || 0);
+    const safeLength = Math.max(0, Number(length) || 0);
+    const blockIndex = blocks.findIndex((block) => safeOffset >= block.start && safeOffset <= block.end);
+    if (blockIndex === -1) return null;
+    const block = blocks[blockIndex];
+    const rangeInBlock = {
+      start: Math.max(0, safeOffset - block.start),
+      end: Math.min(String(block.text || "").length, safeOffset + safeLength - block.start)
+    };
+    const location = {
+      blockId: block.id || "",
+      blockIndex,
+      rangeInBlock
+    };
+    const runs = Array.isArray(block.runs) ? block.runs : [];
+    const runIndex = runs.findIndex((run) => safeOffset >= run.start && safeOffset < run.end);
+    if (runIndex !== -1) {
+      location.runId = runs[runIndex].id || "";
+      location.runIndex = runIndex;
+    }
+    return location;
+  }
+
+  function enrichIssueLocation(issue, model, paragraphs) {
+    const structuredLocation = structuredLocationForOffset(model && model.blocks, issue.start, issue.end - issue.start);
+    if (structuredLocation) return Object.assign(issue, structuredLocation);
+    issue.paragraphIndex = paragraphIndexForOffset(paragraphs, issue.start);
+    return issue;
+  }
+
+  function collectRegexIssues(text, model, paragraphs, regex, type, group, label) {
     const issues = [];
     String(text || "").replace(regex, (match, ...args) => {
       const offset = args[args.length - 2];
       const replacement = replacementForIssue(type, match);
-      issues.push({
+      const issue = {
         id: `issue-${issues.length}-${type}-${offset}`,
         type,
         group,
@@ -76,7 +108,8 @@
         end: offset + match.length,
         location: offset,
         status: "open"
-      });
+      };
+      issues.push(enrichIssueLocation(issue, model, paragraphs));
       return match;
     });
     return issues;
@@ -95,25 +128,25 @@
     const paragraphs = model.paragraphs || rawText.split(/\n+/);
     const warnings = [{ id: "warning-formatting", group: "warnings", type: "formatting-warning", label: "Formatting not preserved", shortLabel: "Formatting not preserved", text: "This MVP analyzes extracted text only.", originalText: "", replacement: "", proposedReplacement: "", codePoint: "", severity: "warning", paragraphIndex: 1, start: 0, end: 0, location: 0, status: "open" }];
     const issues = [
-      ...collectRegexIssues(rawText, paragraphs, REGEX.hidden, "hidden", "hidden", "Hidden or directional character"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.unusualSpaces, "unusual-space", "whitespace", "Unusual space"),
-      ...collectRegexIssues(rawText, paragraphs, /\n{3,}/g, "blank-line-run", "whitespace", "Extra blank lines"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.repeatedSpaces, "repeated-space", "whitespace", "Repeated spaces"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.trailingSpaces, "trailing-space", "whitespace", "Trailing spaces"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.separators, "unicode-separator", "whitespace", "Unicode line/paragraph separator"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.curlySingle, "single-quote", "punctuation", "Quote-like character"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.curlyDouble, "double-quote", "punctuation", "Quote-like character"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.primeSingle, "single-prime", "punctuation", "Prime-like character"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.primeDouble, "double-prime", "punctuation", "Prime-like character"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.emDashLike, "em-dash", "punctuation", "Dash variant"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.enDashLike, "en-dash", "punctuation", "Dash variant"),
-      ...collectRegexIssues(rawText, paragraphs, /[\u2024\u2025\u2026]/gu, "ellipsis", "punctuation", "Ellipsis or dot leader"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.fullwidthAscii, "fullwidth", "compatibility", "Fullwidth ASCII form"),
-      ...collectRegexIssues(rawText, paragraphs, /[ﬀﬁﬂﬃﬄﬅﬆ]/gu, "ligature", "compatibility", "Ligature"),
-      ...collectRegexIssues(rawText, paragraphs, /[¼½¾⅐-⅞]/gu, "fraction", "compatibility", "Single-character fraction"),
-      ...collectRegexIssues(rawText, paragraphs, /[⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉⁺⁻⁼⁽⁾₊₋₌₍₎ᵃ-ᵗᵘ-ᶻ]/gu, "super-sub", "compatibility", "Superscript or subscript"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.emoji, "emoji", "compatibility", "Emoji or pictographic symbol"),
-      ...collectRegexIssues(rawText, paragraphs, REGEX.nonAscii, "non-ascii", "nonAscii", "Non-ASCII character"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.hidden, "hidden", "hidden", "Hidden or directional character"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.unusualSpaces, "unusual-space", "whitespace", "Unusual space"),
+      ...collectRegexIssues(rawText, model, paragraphs, /\n{3,}/g, "blank-line-run", "whitespace", "Extra blank lines"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.repeatedSpaces, "repeated-space", "whitespace", "Repeated spaces"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.trailingSpaces, "trailing-space", "whitespace", "Trailing spaces"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.separators, "unicode-separator", "whitespace", "Unicode line/paragraph separator"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.curlySingle, "single-quote", "punctuation", "Quote-like character"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.curlyDouble, "double-quote", "punctuation", "Quote-like character"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.primeSingle, "single-prime", "punctuation", "Prime-like character"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.primeDouble, "double-prime", "punctuation", "Prime-like character"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.emDashLike, "em-dash", "punctuation", "Dash variant"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.enDashLike, "en-dash", "punctuation", "Dash variant"),
+      ...collectRegexIssues(rawText, model, paragraphs, /[\u2024\u2025\u2026]/gu, "ellipsis", "punctuation", "Ellipsis or dot leader"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.fullwidthAscii, "fullwidth", "compatibility", "Fullwidth ASCII form"),
+      ...collectRegexIssues(rawText, model, paragraphs, /[ﬀﬁﬂﬃﬄﬅﬆ]/gu, "ligature", "compatibility", "Ligature"),
+      ...collectRegexIssues(rawText, model, paragraphs, /[¼½¾⅐-⅞]/gu, "fraction", "compatibility", "Single-character fraction"),
+      ...collectRegexIssues(rawText, model, paragraphs, /[⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉⁺⁻⁼⁽⁾₊₋₌₍₎ᵃ-ᵗᵘ-ᶻ]/gu, "super-sub", "compatibility", "Superscript or subscript"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.emoji, "emoji", "compatibility", "Emoji or pictographic symbol"),
+      ...collectRegexIssues(rawText, model, paragraphs, REGEX.nonAscii, "non-ascii", "nonAscii", "Non-ASCII character"),
       ...warnings
     ];
     const cleanResult = sanitize(rawText, buildOptions("plain"));
@@ -134,7 +167,7 @@
     };
   }
 
-  const API = { GROUPS, paragraphIndexForOffset, analyzeDocumentText, buildIssueGroups, replacementForIssue };
+  const API = { GROUPS, paragraphIndexForOffset, structuredLocationForOffset, analyzeDocumentText, buildIssueGroups, replacementForIssue };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else global.TextSanitizerDocument = Object.assign(global.TextSanitizerDocument || {}, API);
 })(typeof window !== "undefined" ? window : globalThis);

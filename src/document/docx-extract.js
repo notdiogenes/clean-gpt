@@ -181,7 +181,7 @@
     blockMatches.forEach((blockXml) => {
       if (/^<w:tbl\b/.test(blockXml)) {
         const text = "[Table]";
-        blocks.push({ id: `tbl-${blocks.length + 1}`, type: "table", text, start: offset, end: offset + text.length, placeholder: true });
+        blocks.push({ id: `tbl-${blocks.length + 1}`, type: "table", text, start: offset, end: offset + text.length, range: { start: offset, end: offset + text.length }, placeholder: true });
         offset += text.length + 1;
         return;
       }
@@ -200,7 +200,7 @@
           const type = name === "t" ? "text" : (name === "tab" ? "tab" : "lineBreak");
           const start = paragraphStart + localOffset;
           const end = start + text.length;
-          runs.push({ id: `p-${paragraphIndex}-r-${runIndex + 1}-${runs.length + 1}`, type, text, start, end, properties });
+          runs.push({ id: `p-${paragraphIndex}-r-${runIndex + 1}-${runs.length + 1}`, type, text, start, end, range: { start, end }, rangeInBlock: { start: localOffset, end: localOffset + text.length }, properties });
           parts.push(text);
           localOffset += text.length;
           return match;
@@ -208,7 +208,7 @@
       });
       const text = parts.join("");
       if (text.length || /<w:p\b/.test(blockXml)) {
-        blocks.push({ id: `p-${paragraphIndex}`, type: "paragraph", text, start: paragraphStart, end: paragraphStart + text.length, styleId: paragraphStyle.styleId, styleName: paragraphStyle.styleName, runs });
+        blocks.push({ id: `p-${paragraphIndex}`, type: "paragraph", text, start: paragraphStart, end: paragraphStart + text.length, range: { start: paragraphStart, end: paragraphStart + text.length }, styleId: paragraphStyle.styleId, styleName: paragraphStyle.styleName, runs });
         offset += text.length + 1;
       }
     });
