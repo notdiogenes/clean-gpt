@@ -530,43 +530,90 @@
       return options;
     }
 
-    function sourceChangeMatchesMetric(part, label) {
-      const source = part.source || "";
-      const target = part.text || "";
-      if (/Dashes/i.test(label)) return /[-‐‑‒–—―]/u.test(source) || /[-–—]/u.test(target);
-      if (/Quotes/i.test(label)) return /["'“”‘’′″]/u.test(source) || /["'“”‘’′″]/u.test(target);
-      if (/Ellipses/i.test(label)) return source.includes("…") || target.includes("...") || target.includes("…");
-      if (/Spaces/i.test(label)) return /\s/.test(source) || /\s/.test(target);
-      if (/Hidden/i.test(label)) return source.length > 0 && target.length === 0;
-      if (/ASCII|Compatibility|changes/i.test(label)) return true;
-      return true;
+    function changeRecordHasSourceSpan(change) {
+      return Number.isInteger(change?.sourceStart) && Number.isInteger(change?.sourceEnd) && change.sourceEnd >= change.sourceStart;
     }
 
-    function sourceChangeMatchesRecord(part, change) {
-      if (!change) return true;
-      const source = part.source || "";
-      const target = part.text || "";
-      return source === change.source || target === change.target || source.includes(change.source || "\u0000") || target.includes(change.target || "\u0000");
+    function changeRecordHasOutputSpan(change) {
+      return Number.isInteger(change?.outputStart) && Number.isInteger(change?.outputEnd) && change.outputEnd >= change.outputStart;
     }
 
-    function sourceChangeMatchesRecordOccurrence(part, change, state) {
-      if (!sourceChangeMatchesRecord(part, change)) return false;
-      const occurrenceIndex = change.occurrenceIndex || 0;
-      if (state.seen < occurrenceIndex) {
-        state.seen += 1;
-        return false;
-      }
-      if (state.seen === occurrenceIndex) {
-        state.seen += 1;
-        return true;
-      }
+    function rangesOverlap(startA, endA, startB, endB) {
+      return startA < endB && startB < endA;
+    }
+
+    function changeRecordMatchesPartSpan(change, part) {
+      if (!change || !part) return false;
+      if (changeRecordHasSourceSpan(change) && Number.isInteger(part.sourceStart) && Number.isInteger(part.sourceEnd) && rangesOverlap(change.sourceStart, change.sourceEnd, part.sourceStart, part.sourceEnd)) return true;
+      if (changeRecordHasOutputSpan(change) && Number.isInteger(part.outputStart) && Number.isInteger(part.outputEnd) && rangesOverlap(change.outputStart, change.outputEnd, part.outputStart, part.outputEnd)) return true;
       return false;
     }
 
-    function highlightInputForMetric(label, matcher, blockMatcher) {
+    function changeRecordMatchesPartText(change, part) {
+      if (!change || !part) return false;
+      const source = part.source || "";
+      const target = part.text || "";
+      const before = change.before ?? change.source ?? "";
+      const after = change.after ?? change.target ?? "";
+      return source === before || target === after || (before && source.includes(before)) || (after && target.includes(after));
+    }
+
+    function changeRecordsMatchPart(records, part) {
+      const changes = records || [];
+      return changes.some((change) => changeRecordMatchesPartSpan(change, part) || changeRecordMatchesPartText(change, part));
+    }
+
+    function filterChangeRecords(predicate) {
+      return (lastResult?.changes || []).filter(predicate);
+    }
+
+    function changeRecordsForCategory(category) {
+      return filterChangeRecords((change) => change.category === category);
+    }
+
+    function changeRecordsForCategories(categories) {
+      const allowed = new Set(categories || []);
+      return filterChangeRecords((change) => allowed.has(change.category));
+    }
+
+    function changeRecordsForSubcategory(subcategory) {
+      return filterChangeRecords((change) => change.subcategory === subcategory);
+    }
+
+    function changeRecordsForSubcategories(subcategories) {
+      const allowed = new Set(subcategories || []);
+      return filterChangeRecords((change) => allowed.has(change.subcategory));
+    }
+
+    function changeRecordsForNotes(notes) {
+      const allowed = new Set(notes || []);
+      return filterChangeRecords((change) => allowed.has(change.note));
+    }
+
+    function changeRecordsForExactTransform(before, after) {
+      return filterChangeRecords((change) => (change.before ?? change.source ?? "") === before && (change.after ?? change.target ?? "") === after);
+    }
+
+    function changeRecordsForPhase(phase) {
+      return filterChangeRecords((change) => change.phase === phase);
+    }
+
+    function highlightInputForChangeRecords(records, blockMatcher) {
       if (!lastResult) return;
       const options = getOptions();
-      renderInputDiffHighlights(inputDoc, lastResult.doc, options, matcher || ((part) => sourceChangeMatchesMetric(part, label)), blockMatcher);
+      const spanRecords = records || [];
+      renderInputDiffHighlights(inputDoc, lastResult.doc, options, (part) => changeRecordsMatchPart(spanRecords, part), blockMatcher);
+      inputEditor.classList.add("inspector-pulse");
+    }
+
+    function highlightInputForMetric(label, matcher, blockMatcher, records) {
+      if (!lastResult) return;
+      if (records) {
+        highlightInputForChangeRecords(typeof records === "function" ? records() : records, blockMatcher);
+        return;
+      }
+      const options = getOptions();
+      renderInputDiffHighlights(inputDoc, lastResult.doc, options, matcher || (() => false), blockMatcher);
       inputEditor.classList.add("inspector-pulse");
     }
 
@@ -580,8 +627,8 @@
       suppressInputEvent = false;
     }
 
-    function makeInspectorMetric(label, value, matcher, blockMatcher) {
-      return { type: "metric", label, value, matcher, blockMatcher };
+    function makeInspectorMetric(label, value, matcher, blockMatcher, records) {
+      return { type: "metric", label, value, matcher, blockMatcher, records };
     }
 
     function makeInspectorNote(text) {
@@ -595,15 +642,15 @@
       span.textContent = entry.label;
       strong.textContent = String(entry.value);
       li.append(span, strong);
-      const canLink = Boolean(entry.matcher || entry.blockMatcher || /changes|Hidden|Spaces|Quotes|Dashes|Ellipses|Lists|ASCII|Compatibility/i.test(entry.label)) && Number(entry.value) > 0;
+      const canLink = Boolean(entry.matcher || entry.blockMatcher || entry.records) && Number(entry.value) > 0;
       if (canLink) {
         li.tabIndex = 0;
         li.role = "button";
         li.title = "Hover to highlight related input text.";
-        li.addEventListener("mouseenter", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher));
-        li.addEventListener("click", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher));
+        li.addEventListener("mouseenter", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records));
+        li.addEventListener("click", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records));
         li.addEventListener("mouseleave", clearInputMetricHighlight);
-        li.addEventListener("focus", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher));
+        li.addEventListener("focus", () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records));
         li.addEventListener("blur", clearInputMetricHighlight);
       } else {
         li.title = "This metric summarizes the document and does not map to one exact text span.";
@@ -619,17 +666,10 @@
       button.type = "button";
       button.className = "inspector-link";
       button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
-      const makeSingleChangeMatcher = () => {
-        const state = { seen: 0, matched: false };
-        return (part) => {
-          if (state.matched || !sourceChangeMatchesRecordOccurrence(part, change, state)) return false;
-          state.matched = true;
-          return true;
-        };
-      };
-      button.addEventListener("mouseenter", () => highlightInputForMetric(change.note || change.target || change.source, makeSingleChangeMatcher()));
+      const exactTransformRecords = () => changeRecordsForExactTransform(change.before ?? change.source ?? "", change.after ?? change.target ?? "").filter((record) => record.key === change.key);
+      button.addEventListener("mouseenter", () => highlightInputForChangeRecords(exactTransformRecords()));
       button.addEventListener("mouseleave", clearInputMetricHighlight);
-      button.addEventListener("focus", () => highlightInputForMetric(change.note || change.target || change.source, makeSingleChangeMatcher()));
+      button.addEventListener("focus", () => highlightInputForChangeRecords(exactTransformRecords()));
       button.addEventListener("blur", clearInputMetricHighlight);
       li.appendChild(button);
       return li;
@@ -727,36 +767,35 @@
       appendInspectorSection("Inspector summary", buildInspectorSummary(result), { compact: true });
       const unicodeCategoryEntries = INSPECTOR_UNICODE_CATEGORIES.map((category) => makeInspectorMetric(
         category.label,
-        countMatches(inputText, category.regex),
-        (part) => regexMatchesText(category.regex, part.source || part.text || "")
+        countMatches(inputText, category.regex)
       )).filter((entry) => entry.value > 0);
-      const sourceChanges = makeInspectorMetric("Source changes", result.stats.sourceChanges, () => true);
-      const destinationChanges = makeInspectorMetric("Destination changes", result.stats.destinationChanges, () => false);
+      const sourceChanges = makeInspectorMetric("Source changes", result.stats.sourceChanges, null, null, () => changeRecordsForPhase("Source"));
+      const destinationChanges = makeInspectorMetric("Destination changes", result.stats.destinationChanges, null, null, () => changeRecordsForPhase("Destination"));
       const groups = [
         ["Cleanup summary", [sourceChanges, destinationChanges]],
         ["Hidden and suspicious characters", [
-          makeInspectorMetric("Hidden/invisible characters removed", result.stats.hiddenRemoved, (part) => regexMatchesText(REGEX.hidden, part.source || "")),
+          makeInspectorMetric("Hidden/invisible characters removed", result.stats.hiddenRemoved, null, null, () => changeRecordsForCategory("hidden-character")),
           ...unicodeCategoryEntries
         ]],
         ["Typography normalized", [
-          makeInspectorMetric("Quotes normalized", result.stats.quotesChanged, (part) => /["'“”‘’′″]/u.test((part.source || "") + (part.text || ""))),
-          makeInspectorMetric("Dashes normalized", result.stats.dashesChanged, (part) => /[-‐‑‒–—―]/u.test((part.source || "") + (part.text || ""))),
-          makeInspectorMetric("Ellipses normalized", result.stats.ellipsesChanged, (part) => /…|\.\.\./u.test((part.source || "") + (part.text || "")))
+          makeInspectorMetric("Quotes normalized", result.stats.quotesChanged, null, null, () => changeRecordsForCategory("quote")),
+          makeInspectorMetric("Dashes normalized", result.stats.dashesChanged, null, null, () => changeRecordsForCategory("dash")),
+          makeInspectorMetric("Ellipses normalized", result.stats.ellipsesChanged, null, null, () => changeRecordsForCategory("ellipsis"))
         ]],
         ["Whitespace and layout cleanup", [
-          makeInspectorMetric("Line endings normalized", result.stats.lineEndingsNormalized, (part) => /\r|\n/.test(part.source || "")),
-          makeInspectorMetric("Unicode line/paragraph separators normalized", result.stats.separatorsNormalized, (part) => regexMatchesText(REGEX.separators, part.source || "")),
-          makeInspectorMetric("Unusual spaces normalized", result.stats.spacesNormalized, (part) => regexMatchesText(REGEX.unusualSpaces, part.source || "")),
-          makeInspectorMetric("Trailing spaces removed", result.stats.trailingSpacesRemoved, (part) => /[ \t]+$/m.test(part.source || "")),
-          makeInspectorMetric("Repeated spaces collapsed", result.stats.repeatedSpacesCollapsed, (part) => / {2,}/.test(part.source || "")),
-          makeInspectorMetric("Extra blank-line runs reduced", result.stats.blankLineRunsReduced, (part) => /\n{3,}/.test(part.source || "")),
-          makeInspectorMetric("Tabs converted", result.stats.tabsConverted, (part) => /\t/.test(part.source || ""))
+          makeInspectorMetric("Line endings normalized", result.stats.lineEndingsNormalized, null, null, () => changeRecordsForSubcategories(["crlf", "cr"])),
+          makeInspectorMetric("Unicode line/paragraph separators normalized", result.stats.separatorsNormalized, null, null, () => changeRecordsForNotes(["Unicode separator normalized"])),
+          makeInspectorMetric("Unusual spaces normalized", result.stats.spacesNormalized, null, null, () => changeRecordsForNotes(["Unusual space normalized"])),
+          makeInspectorMetric("Trailing spaces removed", result.stats.trailingSpacesRemoved, null, null, () => changeRecordsForSubcategory("trailing-space")),
+          makeInspectorMetric("Repeated spaces collapsed", result.stats.repeatedSpacesCollapsed, null, null, () => changeRecordsForSubcategory("repeated-space")),
+          makeInspectorMetric("Extra blank-line runs reduced", result.stats.blankLineRunsReduced, null, null, () => changeRecordsForSubcategory("blank-line-run")),
+          makeInspectorMetric("Tabs converted", result.stats.tabsConverted, null, null, () => changeRecordsForNotes(["Tab converted to two spaces"]))
         ]],
         ["Compatibility cleanup", [
-          makeInspectorMetric("Bullets converted", result.stats.bulletsChanged, (part) => /^[\s]*[•‣◦⁃∙]/mu.test(part.source || "")),
-          makeInspectorMetric("Emoji removed", result.stats.emojiRemoved, (part) => regexMatchesText(REGEX.emoji, part.source || "")),
-          makeInspectorMetric("Compatibility changes", result.stats.fullwidthChanged + result.stats.ligaturesChanged + result.stats.fractionsChanged + result.stats.superSubChanged, (part) => /[^\x00-\x7F]/u.test(part.source || "")),
-          makeInspectorMetric("Strict ASCII changes", result.stats.strictAsciiChanged, (part) => /[^\x00-\x7F]/u.test(part.source || ""))
+          makeInspectorMetric("Bullets converted", result.stats.bulletsChanged, null, null, () => changeRecordsForNotes(["Line-start bullet converted"])),
+          makeInspectorMetric("Emoji removed", result.stats.emojiRemoved, null, null, () => changeRecordsForCategory("emoji")),
+          makeInspectorMetric("Compatibility changes", result.stats.fullwidthChanged + result.stats.ligaturesChanged + result.stats.fractionsChanged + result.stats.superSubChanged, null, null, () => changeRecordsForNotes(["Fullwidth ASCII normalized", "Ligature expanded", "Single-character fraction converted", "Superscript/subscript flattened"])),
+          makeInspectorMetric("Strict ASCII changes", result.stats.strictAsciiChanged, null, null, () => changeRecordsForCategory("strict-ascii"))
         ]],
         ["Structure detected", [
           makeInspectorMetric("Lists detected", result.doc.meta.lists || 0, null, (block) => block.type === "ul" || block.type === "ol"),
@@ -924,8 +963,20 @@
       parent.appendChild(list);
     }
 
-    function appendSourceAnnotatedText(container, beforeText, afterText, options, highlighter) {
-      diffTextParts(beforeText, afterText).forEach((part) => {
+    function appendSourceAnnotatedText(container, beforeText, afterText, options, highlighter, baseSourceOffset, baseOutputOffset) {
+      let sourceCursor = Number.isInteger(baseSourceOffset) ? baseSourceOffset : 0;
+      let outputCursor = Number.isInteger(baseOutputOffset) ? baseOutputOffset : 0;
+      diffTextParts(beforeText, afterText).forEach((rawPart) => {
+        const sourceLength = rawPart.type === "equal" ? String(rawPart.text || "").length : String(rawPart.source || "").length;
+        const outputLength = rawPart.type === "remove" ? 0 : String(rawPart.text || "").length;
+        const part = Object.assign({}, rawPart, {
+          sourceStart: sourceCursor,
+          sourceEnd: sourceCursor + sourceLength,
+          outputStart: outputCursor,
+          outputEnd: outputCursor + outputLength
+        });
+        sourceCursor += sourceLength;
+        outputCursor += outputLength;
         if (part.type === "equal") {
           if (options && options.showInvisibles) appendVisualizedText(container, part.text);
           else container.appendChild(document.createTextNode(part.text));
@@ -954,15 +1005,25 @@
 
     function renderInputDiffHighlights(inputModel, outputModel, options, matcher, blockMatcher) {
       const highlighter = { matches: matcher || (() => true) };
+      let sourceOffset = 0;
+      let outputOffset = 0;
+      const advanceOffsets = (sourceText, outputText) => {
+        const offsets = { source: sourceOffset, output: outputOffset };
+        sourceOffset += String(sourceText || "").length + 1;
+        outputOffset += String(outputText || "").length + 1;
+        return offsets;
+      };
       suppressInputEvent = true;
       inputEditor.innerHTML = "";
       (inputModel.blocks || []).forEach((block, index) => {
         const outputBlock = (outputModel.blocks || [])[index];
-        if (block.type === "blank") { inputEditor.appendChild(document.createElement("br")); return; }
+        if (block.type === "blank") { sourceOffset += 1; outputOffset += 1; inputEditor.appendChild(document.createElement("br")); return; }
         if (block.type === "paragraph") {
+          const outputText = outputBlock && outputBlock.type === "paragraph" ? outputBlock.text || "" : "";
+          const offsets = advanceOffsets(block.text || "", outputText);
           const div = document.createElement("div");
           div.className = `editor-paragraph${blockMatcher && blockMatcher(block) ? " source-change" : ""}`;
-          appendSourceAnnotatedText(div, block.text || "", outputBlock && outputBlock.type === "paragraph" ? outputBlock.text || "" : "", options, highlighter);
+          appendSourceAnnotatedText(div, block.text || "", outputText, options, highlighter, offsets.source, offsets.output);
           inputEditor.appendChild(div);
         } else if (block.type === "ul" || block.type === "ol") {
           const list = document.createElement(block.type);
@@ -970,7 +1031,9 @@
           (block.items || []).forEach((item, itemIndex) => {
             const li = document.createElement("li");
             const outputItem = outputBlock && outputBlock.items ? outputBlock.items[itemIndex] : null;
-            appendSourceAnnotatedText(li, item.text || "", outputItem ? outputItem.text || "" : "", options, highlighter);
+            const outputText = outputItem ? outputItem.text || "" : "";
+            const offsets = advanceOffsets(item.text || "", outputText);
+            appendSourceAnnotatedText(li, item.text || "", outputText, options, highlighter, offsets.source, offsets.output);
             list.appendChild(li);
           });
           inputEditor.appendChild(list);
