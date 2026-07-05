@@ -58,7 +58,7 @@ Copy Sanitizer can remove or normalize:
 - emoji and pictographic symbols
 - remaining non-ASCII characters in strict mode
 
-The Inspector reports character counts, source changes, destination typography changes, warnings, remaining non-ASCII characters, clipboard source details, detected lists, primary copy formats, and Clipboard API compatibility.
+The Inspector reports a grouped review, starting with a Cleanup summary and then sections for hidden and suspicious characters, typography normalization, whitespace/layout cleanup, compatibility cleanup, detected structure, items that still need review, and technical details such as character counts, clipboard source details, and Clipboard API compatibility.
 
 ## Repository layout
 

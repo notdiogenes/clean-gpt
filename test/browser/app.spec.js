@@ -71,7 +71,7 @@ test('inspector highlights changed source text without scrolling', async ({ page
   await page.locator('#inputEditor').fill('“Hello” — world');
 
   const beforeScroll = await page.evaluate(() => window.scrollY);
-  await page.locator('#statsList li', { hasText: 'Dashes changed' }).evaluate((item) => item.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+  await page.locator('#inspectorSections li', { hasText: 'Dashes normalized' }).evaluate((item) => item.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 
   await expect(page.locator('#inputEditor .source-change')).toHaveCount(1);
   await expect(page.locator('#inputEditor .source-change')).toHaveText('—');
@@ -84,7 +84,7 @@ test('links to tests and debugging page with runnable checks', async ({ page }) 
   await page.getByRole('link', { name: 'Tests & debugging' }).click();
   await expect(page).toHaveURL(/\/tests\.html$/);
   await expect(page.getByRole('heading', { name: 'Tests and Debugging' })).toBeVisible();
-  await expect(page.locator('#testSummary')).toHaveText(/11\/11 tests passing/);
+  await expect(page.locator('#testSummary')).toHaveText(/12\/12 tests passing/);
   await expect(page.locator('#debugDiagnostics')).toContainText('Clipboard API:');
 
   await page.getByRole('button', { name: 'Run tests' }).click();
@@ -135,9 +135,9 @@ test('editor tops align and input remains visible while reviewing inspector', as
   }));
   expect(Math.abs(tops.input - tops.output)).toBeLessThan(1);
 
-  await page.locator('#statsLabel').scrollIntoViewIfNeeded();
+  await page.locator('#inspectorLabel').scrollIntoViewIfNeeded();
   await expect(page.locator('#inputEditor')).toBeInViewport();
-  await expect(page.locator('#statsLabel')).toBeInViewport();
+  await expect(page.locator('#inspectorLabel')).toBeInViewport();
 });
 
 test('advanced setting items include descriptions', async ({ page }) => {
