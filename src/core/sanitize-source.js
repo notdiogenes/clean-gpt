@@ -54,8 +54,8 @@
         text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
         stats.lineEndingsNormalized += crlf + cr;
         stats.sourceChanges += crlf + cr;
-        if (crlf) addChange(changes, "Source", "\r\n", "\n", crlf, "Line endings normalized");
-        if (cr) addChange(changes, "Source", "\r", "\n", cr, "Line endings normalized");
+        if (crlf) addChange(changes, "Source", "\r\n", "\n", crlf, "Line endings normalized", { category: "line-break", subcategory: "crlf", severity: "info" });
+        if (cr) addChange(changes, "Source", "\r", "\n", cr, "Line endings normalized", { category: "line-break", subcategory: "cr", severity: "info" });
       }
     }
 
@@ -130,42 +130,15 @@
     }
 
     if (options.trimTrailingSpaces) {
-      let removed = 0;
-      text = text.replace(REGEX.trailingSpaces, (match) => {
-        removed += match.length;
-        return "";
-      });
-      if (removed) {
-        stats.trailingSpacesRemoved += removed;
-        stats.sourceChanges += removed;
-        addChange(changes, "Source", "trailing spaces", "removed", removed, "Trailing spaces removed");
-      }
+      text = replaceRegex(text, REGEX.trailingSpaces, "", "Source", changes, stats, "trailingSpacesRemoved", "Trailing spaces removed", null, { category: "spacing", subcategory: "trailing-space", severity: "info", suggestion: "Remove trailing spaces at line ends." });
     }
 
     if (options.collapseRepeatedSpaces) {
-      let runs = 0;
-      text = text.replace(REGEX.repeatedSpaces, (match) => {
-        runs += 1;
-        addChange(changes, "Source", `${match.length} spaces`, "1 space", 1, "Repeated spaces collapsed");
-        return " ";
-      });
-      if (runs) {
-        stats.repeatedSpacesCollapsed += runs;
-        stats.sourceChanges += runs;
-      }
+      text = replaceRegex(text, REGEX.repeatedSpaces, " ", "Source", changes, stats, "repeatedSpacesCollapsed", "Repeated spaces collapsed", null, { category: "spacing", subcategory: "repeated-space", severity: "info", suggestion: "Use a single regular space." });
     }
 
     if (options.limitBlankLines) {
-      let runs = 0;
-      text = text.replace(REGEX.blankLineRuns, (match) => {
-        runs += 1;
-        addChange(changes, "Source", `${match.length} line feeds`, "2 line feeds", 1, "Extra blank lines reduced");
-        return "\n\n";
-      });
-      if (runs) {
-        stats.blankLineRunsReduced += runs;
-        stats.sourceChanges += runs;
-      }
+      text = replaceRegex(text, REGEX.blankLineRuns, "\n\n", "Source", changes, stats, "blankLineRunsReduced", "Extra blank lines reduced", null, { category: "spacing", subcategory: "blank-line-run", severity: "info", suggestion: "Limit blank-line runs to one blank line." });
     }
 
     const trimmed = text.replace(/^\n+|\n+$/g, "");
