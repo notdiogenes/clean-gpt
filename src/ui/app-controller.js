@@ -656,12 +656,75 @@
       inspectorSections.appendChild(section);
     }
 
+
+    function pluralize(count, singular, plural) {
+      return `${count} ${count === 1 ? singular : plural}`;
+    }
+
+    function countMeaningfulCleanupChanges(stats) {
+      const cleanupStatNames = [
+        "hiddenRemoved",
+        "spacesNormalized",
+        "lineEndingsNormalized",
+        "separatorsNormalized",
+        "trailingSpacesRemoved",
+        "blankLineRunsReduced",
+        "repeatedSpacesCollapsed",
+        "tabsConverted",
+        "quotesChanged",
+        "dashesChanged",
+        "ellipsesChanged",
+        "bulletsChanged",
+        "fullwidthChanged",
+        "ligaturesChanged",
+        "fractionsChanged",
+        "superSubChanged",
+        "emojiRemoved",
+        "strictAsciiChanged"
+      ];
+      return cleanupStatNames.reduce((total, statName) => total + Number(stats?.[statName] || 0), 0);
+    }
+
+    function countReviewItems(result) {
+      return (result.warnings || []).length + (result.remainingNonAscii || []).length;
+    }
+
+    function getDestinationSafetyStatus(result) {
+      const options = result.options || getOptions();
+      const destination = options.destination || destinationSelect.value;
+      const profile = DESTINATIONS[destination] || DESTINATIONS.gmail;
+      const hasReviewItems = countReviewItems(result) > 0;
+      const remainingNonAsciiCount = (result.remainingNonAscii || []).length;
+      if (options.strictAscii || destination === "strictAscii") {
+        if (remainingNonAsciiCount > 0) return "Destination safety: Strict ASCII needs review";
+        return "Destination safety: Strict ASCII ready";
+      }
+      if (hasReviewItems) return `Destination safety: Review before copying to ${profile.label}`;
+      return `Destination safety: Ready for ${profile.label}`;
+    }
+
+    function buildInspectorSummary(result) {
+      const cleanupChanges = countMeaningfulCleanupChanges(result.stats || {});
+      const reviewItems = countReviewItems(result);
+      let statusText = "No changes needed";
+      if (cleanupChanges > 0 && reviewItems === 0) statusText = "Cleaned";
+      else if (cleanupChanges > 0 && reviewItems > 0) statusText = "Cleaned with warnings";
+      else if (cleanupChanges === 0 && reviewItems > 0) statusText = "Needs review";
+      return [
+        makeInspectorNote(`Status: ${statusText}`),
+        makeInspectorNote(`${pluralize(cleanupChanges, "change", "changes")} applied`),
+        makeInspectorNote(`${pluralize(reviewItems, "item", "items")} still ${reviewItems === 1 ? "needs" : "need"} review`),
+        makeInspectorNote(getDestinationSafetyStatus(result))
+      ];
+    }
+
     function renderInspector(result) {
       const container = inspectorSections || statsList;
       if (!container) return;
       container.innerHTML = "";
       const inputText = docToPlainText(inputDoc, "plain");
       const inputChars = inputText.length;
+      appendInspectorSection("Inspector summary", buildInspectorSummary(result), { compact: true });
       const unicodeCategoryEntries = INSPECTOR_UNICODE_CATEGORIES.map((category) => makeInspectorMetric(
         category.label,
         countMatches(inputText, category.regex),
