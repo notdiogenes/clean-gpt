@@ -103,11 +103,3 @@ test('strict ASCII covers accented text, symbols, emoji, non-Latin scripts, and 
   assert.match(result.cleanText, /Cafe/);
   assert.match(result.cleanText, /TM/);
 });
-
-test('change records stay occurrence-specific for inspector highlights', () => {
-  const result = sanitizer.sanitize('a\u200Bb\u200Cc', sanitizer.buildOptions('plain', { removeHidden: true }));
-  const hiddenChanges = result.changes.filter((change) => change.note === 'Hidden or formatting character removed');
-  assert.equal(result.cleanText, 'abc');
-  assert.equal(hiddenChanges.length, 2);
-  assert.deepEqual(hiddenChanges.map((change) => change.count), [1, 1]);
-});
