@@ -11,19 +11,19 @@
     <div>
       <p class="eyebrow">Developer diagnostics</p>
       <h1>Tests and Debugging</h1>
-      <p class="lede">Run the browser-safe sanitizer test suite, inspect environment capabilities, and use the results to debug static deployments.</p>
+      <p class="lede">Validate sanitizer behavior, inspect browser capabilities, and run example cleanup cases in the same visual system as the main app.</p>
     </div>
     <nav class="site-nav" aria-label="Primary">
-      <a href="index.html">Main app</a>
+      <a href="index.html">← Back to main app</a>
     </nav>
   </header>
 
-  <main class="debug-shell">
+  <main class="debug-shell app-shell">
     <section class="panel debug-panel" aria-labelledby="testRunnerLabel">
       <div class="debug-heading">
         <div>
-          <h2 id="testRunnerLabel">In-browser test runner</h2>
-          <p class="panel-subtitle">These checks mirror core Node tests and add deployment-focused smoke tests that can run directly in the browser.</p>
+          <h2 id="testRunnerLabel">Automated checks</h2>
+          <p class="panel-subtitle">Core sanitizer, destination, clipboard-format, and inspector-data checks that run directly in this browser.</p>
         </div>
         <button id="runTestsButton" type="button" class="primary-button">Run tests</button>
       </div>
@@ -34,8 +34,8 @@
     <section class="panel debug-panel user-facing-tests-panel" aria-labelledby="userTestsLabel">
       <div class="debug-heading">
         <div>
-          <h2 id="userTestsLabel">Try common sanitizer tests</h2>
-          <p class="panel-subtitle">Run visible examples for ordinary cleanup questions. Each case shows input, expected output, actual output, and pass/fail status.</p>
+          <h2 id="userTestsLabel">Example cleanup cases</h2>
+          <p class="panel-subtitle">Visible sample inputs for common cleanup scenarios, including hidden characters and destination-specific output.</p>
         </div>
         <button id="runUserTestsButton" type="button" class="primary-button">Run examples</button>
       </div>
@@ -44,8 +44,8 @@
     </section>
 
     <section class="panel debug-panel" aria-labelledby="diagnosticsLabel">
-      <h2 id="diagnosticsLabel">Debug diagnostics</h2>
-      <p class="panel-subtitle">Environment details that commonly explain clipboard or rich-copy behavior differences.</p>
+      <h2 id="diagnosticsLabel">Environment diagnostics</h2>
+      <p class="panel-subtitle">Browser and deployment details that commonly explain clipboard or rich-copy behavior differences.</p>
       <ul id="debugDiagnostics" class="plain-list diagnostics-list"></ul>
     </section>
   </main>
