@@ -49,7 +49,7 @@
     const elements = {
       pasteView: doc.getElementById("pasteView"), documentView: doc.getElementById("documentView"), analyzeWordButton: doc.getElementById("analyzeWordButton"), backToPasteButton: doc.getElementById("backToPasteButton"),
       dropZone: doc.getElementById("documentDropZone"), fileInput: doc.getElementById("documentFileInput"), status: doc.getElementById("documentStatus"), metadata: doc.getElementById("documentMetadata"), report: doc.getElementById("documentReport"),
-      summary: doc.getElementById("documentSummaryCards"), groups: doc.getElementById("documentIssueGroups"), extracted: doc.getElementById("documentExtractedPreview"), cleaned: doc.getElementById("documentCleanedPreview"),
+      summary: doc.getElementById("documentSummaryCards"), groups: doc.getElementById("documentIssueGroups"), formatted: doc.getElementById("documentFormattedPreview"), extracted: doc.getElementById("documentExtractedPreview"), cleaned: doc.getElementById("documentCleanedPreview"),
       sidebar: doc.getElementById("documentIssueSidebar"), details: doc.getElementById("documentIssueDetails"), filterStatus: doc.getElementById("documentIssueStatusFilter"), filterType: doc.getElementById("documentIssueTypeFilter"), hideLow: doc.getElementById("documentHideLowSeverity"),
       copy: doc.getElementById("copyDocumentCleanedButton"), downloadText: doc.getElementById("downloadDocumentTextButton"), download: doc.getElementById("downloadDocumentReportButton"), clear: doc.getElementById("clearDocumentButton")
     };
@@ -109,6 +109,73 @@
       elements.extracted.append(doc.createTextNode(raw.slice(cursor)));
     }
 
+
+    function issuesForRange(start, end) {
+      if (!review || start >= end) return [];
+      return review.issues.filter((issue) => issue.start < end && issue.end > start).sort((a, b) => a.start - b.start || b.end - a.end);
+    }
+
+    function appendFormattedText(parent, text, start, end, properties) {
+      const related = issuesForRange(start, end);
+      const boundaries = new Set([start, end]);
+      related.forEach((issue) => {
+        boundaries.add(Math.max(start, issue.start));
+        boundaries.add(Math.min(end, issue.end));
+      });
+      const points = Array.from(boundaries).sort((a, b) => a - b);
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const partStart = points[i];
+        const partEnd = points[i + 1];
+        if (partStart >= partEnd) continue;
+        const span = doc.createElement("span");
+        const classes = ["formatted-run"];
+        if (properties && properties.bold) classes.push("is-bold");
+        if (properties && properties.italic) classes.push("is-italic");
+        if (properties && properties.underline) classes.push("is-underline");
+        if (properties && properties.strike) classes.push("is-strike");
+        if (properties && properties.highlight) classes.push("has-highlight");
+        const issue = related.find((item) => item.start < partEnd && item.end > partStart);
+        if (issue) {
+          classes.push("issue-highlight", `issue-${issue.group}`, `status-${issue.status}`);
+          if (issue.id === review.selectedIssueId) classes.push("is-selected");
+          span.dataset.issueId = issue.id;
+          span.tabIndex = 0;
+          span.title = `${issue.type}: ${issue.label}`;
+        }
+        span.className = classes.join(" ");
+        span.textContent = text.slice(partStart - start, partEnd - start);
+        parent.appendChild(span);
+      }
+    }
+
+    function appendFormattedRun(parent, run) {
+      if (run.type === "lineBreak") { parent.appendChild(doc.createElement("br")); return; }
+      appendFormattedText(parent, run.text || "", run.start || 0, run.end || run.start || 0, run.properties || {});
+    }
+
+    function renderFormattedDocument() {
+      if (!elements.formatted) return;
+      elements.formatted.innerHTML = "";
+      const page = doc.createElement("div");
+      page.className = "formatted-document-page";
+      const blocks = currentModel && Array.isArray(currentModel.blocks) ? currentModel.blocks : [];
+      if (!blocks.length) {
+        const empty = doc.createElement("p");
+        empty.className = "compact-note";
+        empty.textContent = "No formatted document blocks were extracted.";
+        page.appendChild(empty);
+      }
+      blocks.forEach((block) => {
+        const node = doc.createElement(block.type === "table" ? "div" : "p");
+        node.className = block.type === "table" ? "formatted-table-placeholder" : "formatted-paragraph";
+        if (block.styleName) node.dataset.styleName = block.styleName;
+        if (Array.isArray(block.runs) && block.runs.length) block.runs.forEach((run) => appendFormattedRun(node, run));
+        else appendFormattedText(node, block.text || "", block.start || 0, block.end || block.start || 0, {});
+        page.appendChild(node);
+      });
+      elements.formatted.appendChild(page);
+    }
+
     function renderSidebar() {
       elements.sidebar.innerHTML = "";
       const visible = filteredIssues();
@@ -140,12 +207,12 @@
     }
 
     function renderCleaned() { review.cleanedText = applyIssuePatches(currentModel.rawText, review.issues); elements.cleaned.textContent = review.cleanedText; }
-    function renderAll() { renderSummary(); renderHighlights(); renderSidebar(); renderDetails(); renderCleaned(); }
+    function renderAll() { renderSummary(); renderFormattedDocument(); renderHighlights(); renderSidebar(); renderDetails(); renderCleaned(); }
 
     function selectIssue(id) {
       review.selectedIssueId = id;
       renderAll();
-      const node = elements.extracted.querySelector(`[data-issue-id="${id}"]`);
+      const node = (elements.formatted && elements.formatted.querySelector(`[data-issue-id="${id}"]`)) || elements.extracted.querySelector(`[data-issue-id="${id}"]`);
       if (node) node.scrollIntoView({ block: "center", behavior: "smooth" });
     }
     function setIssueStatus(issue, status) { if (issue) issue.status = status; }
@@ -190,6 +257,7 @@
     elements.dropZone?.addEventListener("dragover", (event) => { event.preventDefault(); elements.dropZone.classList.add("is-dragover"); });
     elements.dropZone?.addEventListener("dragleave", () => elements.dropZone.classList.remove("is-dragover"));
     elements.dropZone?.addEventListener("drop", (event) => { event.preventDefault(); elements.dropZone.classList.remove("is-dragover"); handleFile(event.dataTransfer?.files?.[0]); });
+    elements.formatted?.addEventListener("click", (event) => { const node = event.target.closest("[data-issue-id]"); if (node) selectIssue(node.dataset.issueId); });
     elements.extracted?.addEventListener("click", (event) => { const node = event.target.closest("[data-issue-id]"); if (node) selectIssue(node.dataset.issueId); });
     elements.sidebar?.addEventListener("click", (event) => { const row = event.target.closest("[data-issue-id]"); if (row) selectIssue(row.dataset.issueId); const apply = event.target.closest("[data-apply-type]"); if (apply) updateType(apply.dataset.applyType, "applied"); const ignore = event.target.closest("[data-ignore-type]"); if (ignore) updateType(ignore.dataset.ignoreType, "ignored"); });
     elements.details?.addEventListener("click", (event) => { const action = event.target.dataset.action; if (action === "apply-selected") updateSelected("applied"); if (action === "ignore-selected") updateSelected("ignored"); });

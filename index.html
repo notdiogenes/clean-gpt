@@ -146,10 +146,16 @@
           <div id="documentIssueSidebar" class="issue-sidebar-list"></div>
         </aside>
         <section class="panel analyzer-main">
-          <h3>Original with issue highlights</h3>
+          <details class="formatted-document-section" open>
+            <summary>Show formatted document</summary>
+            <p id="documentFormattedPreviewDescription" class="compact-note">Local preview of extracted DOCX content. Formatting is approximated from the document XML and the file is not uploaded.</p>
+            <div id="documentFormattedPreview" class="formatted-document-preview" role="region" aria-label="Formatted document preview" aria-describedby="documentFormattedPreviewDescription"></div>
+          </details>
+          <h3>Extracted plain text with issue highlights</h3>
+          <p class="compact-note">Fallback/debug view showing the exact text extracted for sanitizer analysis.</p>
           <pre id="documentExtractedPreview" class="live-text-preview"></pre>
-          <h3>Cleaned preview</h3>
-          <p class="compact-note">This preview does not yet preserve Word formatting.</p>
+          <h3>Cleaned plain-text preview</h3>
+          <p class="compact-note">This preview is plain text and does not preserve Word formatting.</p>
           <pre id="documentCleanedPreview" class="live-text-preview"></pre>
         </section>
         <aside id="documentIssueDetails" class="panel issue-detail-panel" aria-live="polite"><p class="compact-note">Select an issue to review details and actions.</p></aside>
