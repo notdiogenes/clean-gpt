@@ -52,6 +52,21 @@ The internal document model and text/HTML conversion boundary:
 
 Document modules may call pure sanitizer APIs but should not touch the DOM outside parser inputs provided by callers.
 
+#### DOCX canonical text model
+
+`document/docx-extract.js` emits a normalized document model that uses one canonical text coordinate space for extraction, analysis, rendering, and review. `rawText` is `blocks.map((block) => block.text).join("\n")`; every block, table cell, paragraph, and run `start`/`end` range points into that same string. Tables contribute their cell text to the canonical text instead of placeholder-only ranges, with cells separated by tabs and rows/blocks separated by newlines.
+
+Normalized DOCX shapes:
+
+- document: `{ schemaVersion, coordinateSpace, rawText, paragraphs, blocks, characterCount, wordCount, analysisResults }`
+- paragraph block: `{ id, type: "paragraph", text, start, end, range, styleId, styleName, runs }`
+- run/text/tab/line break: `{ id, type: "text" | "tab" | "lineBreak", text, start, end, range, rangeInBlock, properties }`
+- table block: `{ id, type: "table", text, start, end, range, rows }`
+- row: `{ id, type: "row", text, cells }`
+- cell: `{ id, type: "cell", text, start, end, range, paragraphs }`
+
+`document/document-analysis.js` maps issue anchors back into block/run locations and, for tables, row/cell/paragraph locations. Overlapping issue ranges are grouped deterministically; specific cleanup issues such as emoji and curly quotes take priority over the broad non-ASCII issue for the same range.
+
 ### `html/`
 
 Pure HTML string generation:

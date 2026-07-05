@@ -33,5 +33,5 @@ const htmlApi = globalScope.TextSanitizerHtml || {};
 
 export const { PRESETS, DESTINATIONS, OPTION_DEFAULTS } = config;
 export const { sanitize, buildOptions } = core;
-export const { parsePlainTextToDoc, parseHtmlToDoc, sanitizeDoc, docToPlainText, isDocxFile, extractDocxText, analyzeDocumentText, buildIssueGroups } = documentApi;
+export const { parsePlainTextToDoc, parseHtmlToDoc, sanitizeDoc, docToPlainText, isDocxFile, extractDocxText, analyzeDocumentText, buildIssueGroups, groupOverlappingIssues, prioritizeIssueRanges } = documentApi;
 export const { buildGmailHtml, buildGmailHtmlFromDoc, buildDocumentHtmlFromDoc } = htmlApi;

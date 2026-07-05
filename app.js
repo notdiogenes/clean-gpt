@@ -54,6 +54,8 @@
     extractStyleMapFromStylesXml: docxExtractor.extractStyleMapFromStylesXml,
     analyzeDocumentText: documentAnalysis.analyzeDocumentText,
     buildIssueGroups: documentAnalysis.buildIssueGroups,
+    groupOverlappingIssues: documentAnalysis.groupOverlappingIssues,
+    prioritizeIssueRanges: documentAnalysis.prioritizeIssueRanges,
     createReviewState: documentAnalysisView.createReviewState,
     applyIssuePatches: documentAnalysisView.applyIssuePatches
   }, uiController ? { startApp: uiController.startApp } : {});

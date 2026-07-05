@@ -183,3 +183,55 @@ test('plain-text analysis falls back to offset-based paragraph locations', () =>
   assert.equal(quote.blockId, undefined);
   assert.equal(quote.rangeInBlock, undefined);
 });
+
+test('DOCX model uses canonical offsets when a table appears before a paragraph', () => {
+  const xml = '<w:document><w:body><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Cell “one”</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>After — table</w:t></w:r></w:p></w:body></w:document>';
+  const blocks = sanitizer.extractDocumentBlocksFromDocumentXml(xml, null);
+  const rawText = blocks.map((block) => block.text).join('\n');
+  assert.equal(rawText, 'Cell “one”\nAfter — table');
+  assert.deepEqual({ type: blocks[0].type, start: blocks[0].start, end: blocks[0].end }, { type: 'table', start: 0, end: 10 });
+  assert.deepEqual({ type: blocks[1].type, start: blocks[1].start, end: blocks[1].end }, { type: 'paragraph', start: 11, end: 24 });
+  const report = sanitizer.analyzeDocumentText({ rawText, paragraphs: ['After — table'], blocks });
+  const dash = report.issues.find((issue) => issue.type === 'em-dash');
+  assert.equal(dash.start, rawText.indexOf(' — '));
+  assert.equal(dash.blockId, 'p-1');
+  assert.equal(dash.rangeInBlock.start, 'After'.length);
+});
+
+test('DOCX model uses canonical offsets when a table appears between paragraphs', () => {
+  const xml = '<w:document><w:body><w:p><w:r><w:t>Before</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Cell café</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>After</w:t></w:r></w:p></w:body></w:document>';
+  const blocks = sanitizer.extractDocumentBlocksFromDocumentXml(xml, null);
+  const rawText = blocks.map((block) => block.text).join('\n');
+  assert.equal(rawText, 'Before\nCell café\nAfter');
+  assert.deepEqual(blocks.map((block) => [block.type, block.start, block.end]), [['paragraph', 0, 6], ['table', 7, 16], ['paragraph', 17, 22]]);
+  const report = sanitizer.analyzeDocumentText({ rawText, paragraphs: ['Before', 'After'], blocks });
+  const accent = report.issues.find((issue) => issue.type === 'non-ascii' && issue.text === 'é');
+  assert.equal(accent.blockId, 'tbl-1');
+  assert.equal(accent.cellId, 'tbl-1-r-1-c-1');
+  assert.deepEqual(accent.rangeInCell, { start: 8, end: 9 });
+});
+
+test('analysis maps issue inside a table cell to table row cell paragraph and run', () => {
+  const xml = '<w:document><w:body><w:tbl><w:tr><w:tc><w:p><w:r><w:t>A</w:t></w:r><w:r><w:t> “cell”</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>';
+  const blocks = sanitizer.extractDocumentBlocksFromDocumentXml(xml, null);
+  const rawText = blocks.map((block) => block.text).join('\n');
+  const report = sanitizer.analyzeDocumentText({ rawText, paragraphs: [], blocks });
+  const quote = report.issues.find((issue) => issue.type === 'double-quote' && issue.text === '“');
+  assert.equal(quote.blockId, 'tbl-1');
+  assert.equal(quote.rowId, 'tbl-1-r-1');
+  assert.equal(quote.cellId, 'tbl-1-r-1-c-1');
+  assert.equal(quote.paragraphId, 'tbl-1-r-1-c-1-p-1');
+  assert.equal(quote.runIndex, 1);
+  assert.deepEqual(quote.rangeInCell, { start: 2, end: 3 });
+});
+
+test('overlapping issue ranges are grouped and prioritized deterministically', () => {
+  const report = sanitizer.analyzeDocumentText({ rawText: '“😀”', paragraphs: ['“😀”'] });
+  const groups = sanitizer.groupOverlappingIssues(report.issues);
+  const emojiGroup = groups.find((group) => group.issues.some((issue) => issue.type === 'emoji'));
+  assert.ok(emojiGroup.issues.some((issue) => issue.type === 'non-ascii'));
+  assert.equal(emojiGroup.primary.type, 'emoji');
+  const quoteGroup = groups.find((group) => group.issues.some((issue) => issue.type === 'double-quote' && issue.text === '“'));
+  assert.equal(quoteGroup.primary.type, 'double-quote');
+});
+

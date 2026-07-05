@@ -89,25 +89,6 @@
     });
   }
 
-  function extractParagraphsFromDocumentXml(xml) {
-    const paragraphs = [];
-    const paragraphMatches = String(xml || "").match(/<w:p[\s\S]*?<\/w:p>/g) || [];
-    paragraphMatches.forEach((paragraphXml) => {
-      const parts = [];
-      paragraphXml.replace(/<w:(t|tab|br|cr)\b([^>]*)>([\s\S]*?)<\/w:\1>|<w:(tab|br|cr)\b[^>]*\/>/g, (match, tag, attrs, body, emptyTag) => {
-        const name = tag || emptyTag;
-        if (name === "t") parts.push(decodeXmlEntities(body.replace(/<[^>]+>/g, "")));
-        else if (name === "tab") parts.push("\t");
-        else parts.push("\n");
-        return match;
-      });
-      const text = parts.join("");
-      if (text.length || /<w:p\b/.test(paragraphXml)) paragraphs.push(text);
-    });
-    return paragraphs;
-  }
-
-
   function getXmlAttribute(xml, name) {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const match = String(xml || "").match(new RegExp("\\b" + escaped + "=[\"']([^\"']*)[\"']"));
@@ -173,44 +154,133 @@
     return { styleId, styleName: resolveStyleName(styleMap, "paragraph", styleId) };
   }
 
+  function extractParagraphRunsFromParagraphXml(paragraphXml, paragraphIndex, paragraphStart, styleMap, idPrefix) {
+    const runs = [];
+    const parts = [];
+    let localOffset = 0;
+    const runMatches = String(paragraphXml || "").match(/<w:r\b[\s\S]*?<\/w:r>/g) || [];
+    runMatches.forEach((runXml, runIndex) => {
+      const properties = extractRunProperties(runXml, styleMap);
+      runXml.replace(/<w:(t|tab|br|cr)\b([^>]*)>([\s\S]*?)<\/w:\1>|<w:(tab|br|cr)\b[^>]*\/>/g, (match, tag, attrs, body, emptyTag) => {
+        const name = tag || emptyTag;
+        const text = name === "t" ? decodeXmlEntities(String(body || "").replace(/<[^>]+>/g, "")) : (name === "tab" ? "\t" : "\n");
+        const type = name === "t" ? "text" : (name === "tab" ? "tab" : "lineBreak");
+        const start = paragraphStart + localOffset;
+        const end = start + text.length;
+        runs.push({
+          id: `${idPrefix || `p-${paragraphIndex}`}-r-${runIndex + 1}-${runs.length + 1}`,
+          type,
+          text,
+          start,
+          end,
+          range: { start, end },
+          rangeInBlock: { start: localOffset, end: localOffset + text.length },
+          properties
+        });
+        parts.push(text);
+        localOffset += text.length;
+        return match;
+      });
+    });
+    return { text: parts.join(""), runs };
+  }
+
+  function extractParagraphsFromDocumentXml(xml) {
+    return extractDocumentBlocksFromDocumentXml(xml, null)
+      .filter((block) => block.type === "paragraph")
+      .map((block) => block.text);
+  }
+
+  function appendCanonicalSeparator(state) {
+    if (state.hasText) state.offset += 1;
+  }
+
+  function makeParagraphBlock(paragraphXml, state, styleMap, paragraphIndex, idPrefix, extra) {
+    appendCanonicalSeparator(state);
+    const paragraphStart = state.offset;
+    const paragraphStyle = extractParagraphStyle(paragraphXml, styleMap);
+    const parsed = extractParagraphRunsFromParagraphXml(paragraphXml, paragraphIndex, paragraphStart, styleMap, idPrefix);
+    const block = Object.assign({
+      id: idPrefix || `p-${paragraphIndex}`,
+      type: "paragraph",
+      text: parsed.text,
+      start: paragraphStart,
+      end: paragraphStart + parsed.text.length,
+      range: { start: paragraphStart, end: paragraphStart + parsed.text.length },
+      styleId: paragraphStyle.styleId,
+      styleName: paragraphStyle.styleName,
+      runs: parsed.runs
+    }, extra || {});
+    state.offset = block.end;
+    state.hasText = true;
+    return block;
+  }
+
+  function extractTableBlockFromXml(tableXml, state, styleMap, tableIndex) {
+    appendCanonicalSeparator(state);
+    const tableStart = state.offset;
+    const rows = [];
+    const textParts = [];
+    const rowMatches = String(tableXml || "").match(/<w:tr\b[\s\S]*?<\/w:tr>/g) || [];
+    rowMatches.forEach((rowXml, rowIndex) => {
+      const cells = [];
+      const cellTexts = [];
+      const cellMatches = rowXml.match(/<w:tc\b[\s\S]*?<\/w:tc>/g) || [];
+      cellMatches.forEach((cellXml, cellIndex) => {
+        const cellStart = state.offset;
+        const paragraphs = [];
+        const paragraphTexts = [];
+        const paragraphMatches = cellXml.match(/<w:p\b[\s\S]*?<\/w:p>/g) || [];
+        paragraphMatches.forEach((paragraphXml, paragraphCellIndex) => {
+          const pIndex = paragraphs.length + 1;
+          const parsed = extractParagraphRunsFromParagraphXml(paragraphXml, pIndex, state.offset, styleMap, `tbl-${tableIndex}-r-${rowIndex + 1}-c-${cellIndex + 1}-p-${paragraphs.length + 1}`);
+          const paragraph = {
+            id: `tbl-${tableIndex}-r-${rowIndex + 1}-c-${cellIndex + 1}-p-${paragraphs.length + 1}`,
+            type: "paragraph",
+            text: parsed.text,
+            start: state.offset,
+            end: state.offset + parsed.text.length,
+            range: { start: state.offset, end: state.offset + parsed.text.length },
+            runs: parsed.runs
+          };
+          paragraphs.push(paragraph);
+          paragraphTexts.push(parsed.text);
+          state.offset = paragraph.end;
+          if (paragraphCellIndex < paragraphMatches.length - 1) state.offset += 1;
+        });
+        const cellText = paragraphTexts.join("\n");
+        const cellEnd = cellStart + cellText.length;
+        cells.push({ id: `tbl-${tableIndex}-r-${rowIndex + 1}-c-${cellIndex + 1}`, type: "cell", text: cellText, start: cellStart, end: cellEnd, range: { start: cellStart, end: cellEnd }, paragraphs });
+        cellTexts.push(cellText);
+        state.offset = cellEnd;
+        if (cellIndex < cellMatches.length - 1) state.offset += 1;
+      });
+      const rowText = cellTexts.join("\t");
+      rows.push({ id: `tbl-${tableIndex}-r-${rowIndex + 1}`, type: "row", text: rowText, cells });
+      textParts.push(rowText);
+      if (rowIndex < rowMatches.length - 1) state.offset += 1;
+    });
+    const text = textParts.join("\n");
+    const table = { id: `tbl-${tableIndex}`, type: "table", text, start: tableStart, end: tableStart + text.length, range: { start: tableStart, end: tableStart + text.length }, rows };
+    state.offset = table.end;
+    state.hasText = true;
+    return table;
+  }
+
   function extractDocumentBlocksFromDocumentXml(xml, styleMap) {
     const blocks = [];
-    let offset = 0;
+    const state = { offset: 0, hasText: false };
     let paragraphIndex = 0;
+    let tableIndex = 0;
     const blockMatches = String(xml || "").match(/<w:p\b[\s\S]*?<\/w:p>|<w:tbl\b[\s\S]*?<\/w:tbl>/g) || [];
     blockMatches.forEach((blockXml) => {
       if (/^<w:tbl\b/.test(blockXml)) {
-        const text = "[Table]";
-        blocks.push({ id: `tbl-${blocks.length + 1}`, type: "table", text, start: offset, end: offset + text.length, range: { start: offset, end: offset + text.length }, placeholder: true });
-        offset += text.length + 1;
+        tableIndex += 1;
+        blocks.push(extractTableBlockFromXml(blockXml, state, styleMap, tableIndex));
         return;
       }
       paragraphIndex += 1;
-      const paragraphStart = offset;
-      const runs = [];
-      const parts = [];
-      let localOffset = 0;
-      const paragraphStyle = extractParagraphStyle(blockXml, styleMap);
-      const runMatches = blockXml.match(/<w:r\b[\s\S]*?<\/w:r>/g) || [];
-      runMatches.forEach((runXml, runIndex) => {
-        const properties = extractRunProperties(runXml, styleMap);
-        runXml.replace(/<w:(t|tab|br|cr)\b([^>]*)>([\s\S]*?)<\/w:\1>|<w:(tab|br|cr)\b[^>]*\/>/g, (match, tag, attrs, body, emptyTag) => {
-          const name = tag || emptyTag;
-          const text = name === "t" ? decodeXmlEntities(String(body || "").replace(/<[^>]+>/g, "")) : (name === "tab" ? "\t" : "\n");
-          const type = name === "t" ? "text" : (name === "tab" ? "tab" : "lineBreak");
-          const start = paragraphStart + localOffset;
-          const end = start + text.length;
-          runs.push({ id: `p-${paragraphIndex}-r-${runIndex + 1}-${runs.length + 1}`, type, text, start, end, range: { start, end }, rangeInBlock: { start: localOffset, end: localOffset + text.length }, properties });
-          parts.push(text);
-          localOffset += text.length;
-          return match;
-        });
-      });
-      const text = parts.join("");
-      if (text.length || /<w:p\b/.test(blockXml)) {
-        blocks.push({ id: `p-${paragraphIndex}`, type: "paragraph", text, start: paragraphStart, end: paragraphStart + text.length, range: { start: paragraphStart, end: paragraphStart + text.length }, styleId: paragraphStyle.styleId, styleName: paragraphStyle.styleName, runs });
-        offset += text.length + 1;
-      }
+      blocks.push(makeParagraphBlock(blockXml, state, styleMap, paragraphIndex));
     });
     return blocks;
   }
@@ -233,7 +303,7 @@
     const styleMap = stylesEntry ? extractStyleMapFromStylesXml(new TextDecoder("utf-8").decode(stylesEntry.content)) : null;
     const blocks = extractDocumentBlocksFromDocumentXml(xml, styleMap);
     const paragraphs = blocks.filter((block) => block.type === "paragraph").map((block) => block.text);
-    const rawText = paragraphs.join("\n");
+    const rawText = blocks.map((block) => block.text).join("\n");
     if (!rawText.trim()) throw Object.assign(new Error("Empty document"), { code: "empty-document" });
     return {
       fileName: file.name || "document.docx",
@@ -242,6 +312,8 @@
       blocks,
       characterCount: rawText.length,
       wordCount: wordCountForText(rawText),
+      schemaVersion: 1,
+      coordinateSpace: "canonical-text-v1",
       analysisResults: null
     };
   }
