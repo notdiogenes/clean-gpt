@@ -80,3 +80,48 @@ test('applying all issues of a type updates counts', () => {
   assert.equal(applied, 4);
   assert.equal(sanitizer.applyIssuePatches(model.rawText, review.issues), '"A" "B"');
 });
+
+test('extracts formatted DOCX runs into document blocks while preserving plain text', () => {
+  const styles = sanitizer.extractStyleMapFromStylesXml(`
+    <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+      <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/></w:style>
+      <w:style w:type="character" w:styleId="Emphasis"><w:name w:val="Emphasis"/></w:style>
+    </w:styles>
+  `);
+  const xml = `
+    <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
+      <w:p>
+        <w:pPr><w:pStyle w:val="Heading1"/></w:pPr>
+        <w:r><w:rPr><w:b/><w:i/><w:u w:val="single"/><w:color w:val="FF0000"/><w:highlight w:val="yellow"/><w:rStyle w:val="Emphasis"/></w:rPr><w:t>Hello</w:t></w:r>
+        <w:r><w:tab/></w:r>
+        <w:r><w:rPr><w:strike/><w:vertAlign w:val="superscript"/></w:rPr><w:t>World</w:t><w:br/><w:t>Again</w:t></w:r>
+      </w:p>
+      <w:p><w:r><w:t>Plain</w:t></w:r></w:p>
+    </w:body></w:document>
+  `;
+
+  assert.deepEqual(sanitizer.extractParagraphsFromDocumentXml(xml), ['Hello\tWorld\nAgain', 'Plain']);
+  const blocks = sanitizer.extractDocumentBlocksFromDocumentXml(xml, styles);
+
+  assert.equal(blocks.length, 2);
+  assert.equal(blocks[0].id, 'p-1');
+  assert.equal(blocks[0].text, 'Hello\tWorld\nAgain');
+  assert.equal(blocks[0].styleId, 'Heading1');
+  assert.equal(blocks[0].styleName, 'heading 1');
+  assert.equal(blocks[1].start, 'Hello\tWorld\nAgain\n'.length);
+
+  const [boldRun, tabRun, strikeRun, breakRun, finalRun] = blocks[0].runs;
+  assert.deepEqual({ text: boldRun.text, start: boldRun.start, end: boldRun.end }, { text: 'Hello', start: 0, end: 5 });
+  assert.equal(boldRun.properties.bold, true);
+  assert.equal(boldRun.properties.italic, true);
+  assert.equal(boldRun.properties.underline, true);
+  assert.equal(boldRun.properties.color, 'FF0000');
+  assert.equal(boldRun.properties.highlight, 'yellow');
+  assert.equal(boldRun.properties.styleId, 'Emphasis');
+  assert.equal(boldRun.properties.styleName, 'Emphasis');
+  assert.deepEqual({ type: tabRun.type, text: tabRun.text, start: tabRun.start, end: tabRun.end }, { type: 'tab', text: '\t', start: 5, end: 6 });
+  assert.equal(strikeRun.properties.strike, true);
+  assert.equal(strikeRun.properties.superscript, true);
+  assert.deepEqual({ type: breakRun.type, text: breakRun.text }, { type: 'lineBreak', text: '\n' });
+  assert.deepEqual({ text: finalRun.text, start: finalRun.start, end: finalRun.end }, { text: 'Again', start: 12, end: 17 });
+});
