@@ -68,7 +68,7 @@
   function createDocumentAnalysisView(doc) {
     const elements = {
       pasteView: doc.getElementById("pasteView"), documentView: doc.getElementById("documentView"), analyzeWordButton: doc.getElementById("analyzeWordButton"), backToPasteButton: doc.getElementById("backToPasteButton"),
-      dropZone: doc.getElementById("documentDropZone"), fileInput: doc.getElementById("documentFileInput"), status: doc.getElementById("documentStatus"), metadata: doc.getElementById("documentMetadata"), report: doc.getElementById("documentReport"),
+      dropZone: doc.getElementById("documentDropZone"), fileInput: doc.getElementById("documentFileInput"), startPanel: doc.getElementById("documentStartPanel"), status: doc.getElementById("documentStatus"), metadata: doc.getElementById("documentMetadata"), report: doc.getElementById("documentReport"),
       summary: doc.getElementById("documentSummaryCards"), groups: doc.getElementById("documentIssueGroups"), formatted: doc.getElementById("documentFormattedPreview"), extracted: doc.getElementById("documentExtractedPreview"), cleaned: doc.getElementById("documentCleanedPreview"),
       sidebar: doc.getElementById("documentIssueSidebar"), details: doc.getElementById("documentIssueDetails"), filterStatus: doc.getElementById("documentIssueStatusFilter"), filterType: doc.getElementById("documentIssueTypeFilter"), hideLow: doc.getElementById("documentHideLowSeverity"),
       reviewPrevious: doc.getElementById("documentPreviousIssueButton"), reviewNext: doc.getElementById("documentNextIssueButton"), reviewApply: doc.getElementById("documentApplyIssueButton"), reviewIgnore: doc.getElementById("documentIgnoreIssueButton"), reviewApplySimilar: doc.getElementById("documentApplySimilarButton"), previewMode: doc.getElementById("documentPreviewModeSelect"), reviewProgress: doc.getElementById("documentReviewProgress"),
@@ -385,6 +385,7 @@
     function updateType(group, status) { review.issues.filter((issue) => issue.group === group && issue.status === "open").forEach((issue) => setIssueStatus(issue, status)); renderAll(); }
 
     function renderReport(model) {
+      if (elements.startPanel) elements.startPanel.hidden = true;
       elements.report.hidden = false;
       if (elements.filterType) {
         elements.filterType.textContent = "";
@@ -405,6 +406,7 @@
     async function handleFile(file) {
       if (!file) return;
       currentModel = null; review = null;
+      if (elements.startPanel) elements.startPanel.hidden = false;
       if (!isDocxFile(file)) { setStatus("Unsupported file type. Please choose a .docx file."); renderMetadata(file, "Unsupported file type"); return; }
       if (file.size > MAX_DOCX_BYTES) { setStatus("File too large. Please choose a .docx file under 20 MB."); renderMetadata(file, "File too large"); return; }
       try {
@@ -415,7 +417,7 @@
         renderMetadata(file, "Extracted and analyzed"); renderReport(model); setStatus("Document analysis ready.");
       } catch (error) {
         const message = error && error.code === "empty-document" ? "Empty document." : (error && error.message) || "Could not parse document.";
-        setStatus(message); renderMetadata(file, message); if (elements.report) elements.report.hidden = true;
+        setStatus(message); renderMetadata(file, message); if (elements.report) elements.report.hidden = true; if (elements.startPanel) elements.startPanel.hidden = false;
       }
     }
 
@@ -424,6 +426,7 @@
       if (elements.fileInput) elements.fileInput.value = "";
       if (elements.metadata) { elements.metadata.hidden = true; elements.metadata.innerHTML = ""; }
       if (elements.report) elements.report.hidden = true;
+      if (elements.startPanel) elements.startPanel.hidden = false;
       setStatus("No file selected.");
     }
 
