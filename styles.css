@@ -739,6 +739,20 @@ details { border-top:1px solid var(--border); padding:.65rem 0; } details:first-
 .issue-punctuation { background: rgba(245, 158, 11, 0.15); box-shadow: inset 0 -0.25em rgba(245, 158, 11, 0.32); }
 .issue-compatibility, .issue-nonAscii { background: rgba(168, 85, 247, 0.14); box-shadow: inset 0 -0.25em rgba(168, 85, 247, 0.32); }
 .issue-highlight.is-selected { outline: 3px solid var(--accent-color, #2563eb); background: rgba(37, 99, 235, 0.18); }
+.inline-issue-review { display: inline; position: relative; border: 1px solid transparent; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.inline-issue-review.status-open { background: rgba(250, 204, 21, 0.3); border-color: rgba(245, 158, 11, 0.45); }
+.inline-issue-review.status-applied { background: rgba(22, 163, 74, 0.12); border-color: rgba(22, 163, 74, 0.35); opacity: 1; }
+.inline-issue-review.status-ignored { background: rgba(100, 116, 139, 0.12); border-color: rgba(100, 116, 139, 0.28); color: var(--muted-text, #64748b); opacity: 0.72; }
+.issue-original { background: rgba(254, 226, 226, 0.78); border-radius: 0.2rem; padding: 0 0.08rem; text-decoration-thickness: 0.12em; text-decoration-color: rgba(220, 38, 38, 0.85); }
+.status-open .issue-original { text-decoration-line: underline; text-decoration-style: wavy; }
+.status-applied .issue-original { color: #991b1b; }
+.status-ignored .issue-original { background: transparent; text-decoration-line: line-through; text-decoration-style: solid; }
+.issue-replacement { margin-left: 0.12rem; background: rgba(187, 247, 208, 0.9); border-radius: 0.2rem; color: #166534; padding: 0 0.1rem; text-decoration: none; }
+.status-open .issue-replacement::before, .status-applied .issue-replacement::before { content: "+"; font-weight: 700; margin-right: 0.08rem; }
+.status-ignored .issue-replacement { display: none; }
+.issue-invisible-marker { display: inline-block; border: 1px solid currentColor; border-radius: 999px; font-family: var(--font-family, system-ui, sans-serif); font-size: 0.68em; font-weight: 700; letter-spacing: 0.03em; line-height: 1; padding: 0.12rem 0.32rem; text-transform: uppercase; vertical-align: 0.08em; }
+.issue-empty-marker { color: #991b1b; }
+.inline-issue-review.is-selected { outline: 3px solid var(--accent-color, #2563eb); outline-offset: 0.12rem; }
 .issue-detail-panel dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 0.75rem; }
 .issue-detail-panel dt { font-weight: 700; }
 .issue-detail-panel dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }

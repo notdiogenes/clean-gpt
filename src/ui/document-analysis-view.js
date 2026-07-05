@@ -110,42 +110,87 @@
     }
 
 
+    function formattedRunClasses(properties) {
+      const classes = ["formatted-run"];
+      if (properties && properties.bold) classes.push("is-bold");
+      if (properties && properties.italic) classes.push("is-italic");
+      if (properties && properties.underline) classes.push("is-underline");
+      if (properties && properties.strike) classes.push("is-strike");
+      if (properties && properties.highlight) classes.push("has-highlight");
+      return classes;
+    }
+
     function issuesForRange(start, end) {
-      if (!review || start >= end) return [];
-      return review.issues.filter((issue) => issue.start < end && issue.end > start).sort((a, b) => a.start - b.start || b.end - a.end);
+      if (!review) return [];
+      return review.issues.filter((issue) => (issue.start < end && issue.end > start) || (issue.start === issue.end && issue.start >= start && issue.start <= end)).sort((a, b) => a.start - b.start || b.end - a.end);
+    }
+
+    function isInvisibleIssueText(value) {
+      return !String(value || "").replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\s]/g, "").length;
+    }
+
+    function appendIssueMarker(parent, issue, originalText, properties) {
+      const wrapper = doc.createElement("span");
+      const classes = formattedRunClasses(properties);
+      classes.push("inline-issue-review", "issue-highlight", `issue-${issue.group}`, `status-${issue.status}`);
+      if (issue.id === review.selectedIssueId) classes.push("is-selected");
+      wrapper.className = classes.join(" ");
+      wrapper.dataset.issueId = issue.id;
+      wrapper.tabIndex = 0;
+      wrapper.title = `${issue.type}: ${issue.label}`;
+
+      const problem = doc.createElement(issue.status === "applied" ? "del" : "span");
+      problem.className = "issue-original";
+      if (originalText && !isInvisibleIssueText(originalText)) {
+        problem.textContent = originalText;
+      } else {
+        const marker = doc.createElement("span");
+        marker.className = "issue-invisible-marker";
+        marker.textContent = issue.group === "warnings" ? "warning" : "hidden";
+        problem.appendChild(marker);
+      }
+      wrapper.appendChild(problem);
+
+      const replacement = issue.replacement == null ? "" : String(issue.replacement);
+      if (replacement !== String(originalText || "")) {
+        const insertion = doc.createElement("ins");
+        insertion.className = "issue-replacement";
+        if (replacement && !isInvisibleIssueText(replacement)) insertion.textContent = replacement;
+        else {
+          const marker = doc.createElement("span");
+          marker.className = "issue-invisible-marker issue-empty-marker";
+          marker.textContent = "remove";
+          insertion.appendChild(marker);
+        }
+        wrapper.appendChild(insertion);
+      }
+      parent.appendChild(wrapper);
     }
 
     function appendFormattedText(parent, text, start, end, properties) {
       const related = issuesForRange(start, end);
       const boundaries = new Set([start, end]);
       related.forEach((issue) => {
-        boundaries.add(Math.max(start, issue.start));
-        boundaries.add(Math.min(end, issue.end));
+        boundaries.add(Math.max(start, Math.min(end, issue.start)));
+        boundaries.add(Math.max(start, Math.min(end, issue.end)));
       });
       const points = Array.from(boundaries).sort((a, b) => a - b);
       for (let i = 0; i < points.length - 1; i += 1) {
         const partStart = points[i];
         const partEnd = points[i + 1];
+        related.filter((issue) => issue.start === issue.end && issue.start === partStart).forEach((issue) => appendIssueMarker(parent, issue, "", properties));
         if (partStart >= partEnd) continue;
-        const span = doc.createElement("span");
-        const classes = ["formatted-run"];
-        if (properties && properties.bold) classes.push("is-bold");
-        if (properties && properties.italic) classes.push("is-italic");
-        if (properties && properties.underline) classes.push("is-underline");
-        if (properties && properties.strike) classes.push("is-strike");
-        if (properties && properties.highlight) classes.push("has-highlight");
         const issue = related.find((item) => item.start < partEnd && item.end > partStart);
         if (issue) {
-          classes.push("issue-highlight", `issue-${issue.group}`, `status-${issue.status}`);
-          if (issue.id === review.selectedIssueId) classes.push("is-selected");
-          span.dataset.issueId = issue.id;
-          span.tabIndex = 0;
-          span.title = `${issue.type}: ${issue.label}`;
+          appendIssueMarker(parent, issue, text.slice(partStart - start, partEnd - start), properties);
+        } else {
+          const span = doc.createElement("span");
+          span.className = formattedRunClasses(properties).join(" ");
+          span.textContent = text.slice(partStart - start, partEnd - start);
+          parent.appendChild(span);
         }
-        span.className = classes.join(" ");
-        span.textContent = text.slice(partStart - start, partEnd - start);
-        parent.appendChild(span);
       }
+      related.filter((issue) => issue.start === issue.end && issue.start === end).forEach((issue) => appendIssueMarker(parent, issue, "", properties));
     }
 
     function appendFormattedRun(parent, run) {
@@ -258,7 +303,9 @@
     elements.dropZone?.addEventListener("dragleave", () => elements.dropZone.classList.remove("is-dragover"));
     elements.dropZone?.addEventListener("drop", (event) => { event.preventDefault(); elements.dropZone.classList.remove("is-dragover"); handleFile(event.dataTransfer?.files?.[0]); });
     elements.formatted?.addEventListener("click", (event) => { const node = event.target.closest("[data-issue-id]"); if (node) selectIssue(node.dataset.issueId); });
+    elements.formatted?.addEventListener("focusin", (event) => { const node = event.target.closest("[data-issue-id]"); if (node) selectIssue(node.dataset.issueId); });
     elements.extracted?.addEventListener("click", (event) => { const node = event.target.closest("[data-issue-id]"); if (node) selectIssue(node.dataset.issueId); });
+    elements.extracted?.addEventListener("focusin", (event) => { const node = event.target.closest("[data-issue-id]"); if (node) selectIssue(node.dataset.issueId); });
     elements.sidebar?.addEventListener("click", (event) => { const row = event.target.closest("[data-issue-id]"); if (row) selectIssue(row.dataset.issueId); const apply = event.target.closest("[data-apply-type]"); if (apply) updateType(apply.dataset.applyType, "applied"); const ignore = event.target.closest("[data-ignore-type]"); if (ignore) updateType(ignore.dataset.ignoreType, "ignored"); });
     elements.details?.addEventListener("click", (event) => { const action = event.target.dataset.action; if (action === "apply-selected") updateSelected("applied"); if (action === "ignore-selected") updateSelected("ignored"); });
     elements.filterStatus?.addEventListener("change", () => { if (!review) return; review.filters.status = elements.filterStatus.value; renderAll(); });
