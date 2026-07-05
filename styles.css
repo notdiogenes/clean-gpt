@@ -743,3 +743,19 @@ details { border-top:1px solid var(--border); padding:.65rem 0; } details:first-
 .issue-detail-panel dt { font-weight: 700; }
 .issue-detail-panel dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 980px) { .document-analyzer-grid { grid-template-columns: 1fr; } }
+.formatted-document-section { display: grid; gap: 0.75rem; margin-bottom: 1rem; }
+.formatted-document-section summary { cursor: pointer; font-weight: 700; color: var(--heading-color, #0f172a); }
+.formatted-document-preview { overflow: auto; max-height: 34rem; border-radius: 0.9rem; padding: 1.25rem; background: linear-gradient(180deg, #e5e7eb, #f8fafc); border: 1px solid var(--border-color, #e2e8f0); }
+.formatted-document-page { width: min(100%, 46rem); min-height: 28rem; margin: 0 auto; padding: 3rem 3.25rem; background: #fff; color: #111827; border: 1px solid rgba(15, 23, 42, 0.12); border-radius: 0.25rem; box-shadow: 0 1.25rem 2.5rem rgba(15, 23, 42, 0.16); font-family: Georgia, "Times New Roman", serif; font-size: 1rem; line-height: 1.65; }
+.formatted-paragraph { margin: 0 0 0.85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.formatted-paragraph[data-style-name*="heading" i] { margin-top: 1.1rem; margin-bottom: 0.7rem; font-family: var(--font-family, system-ui, sans-serif); font-weight: 700; line-height: 1.3; }
+.formatted-run.is-bold { font-weight: 700; }
+.formatted-run.is-italic { font-style: italic; }
+.formatted-run.is-underline { text-decoration-line: underline; }
+.formatted-run.is-strike { text-decoration-line: line-through; }
+.formatted-run.is-underline.is-strike { text-decoration-line: underline line-through; }
+.formatted-run.has-highlight { background: rgba(250, 204, 21, 0.45); }
+.formatted-table-placeholder { margin: 1rem 0; padding: 0.85rem; border: 1px dashed #94a3b8; border-radius: 0.5rem; background: #f8fafc; color: #475569; font-family: var(--font-family, system-ui, sans-serif); }
+.formatted-document-page .issue-highlight { box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.formatted-document-page .issue-highlight.is-selected { outline-offset: 0.08rem; }
+@media (max-width: 720px) { .formatted-document-preview { padding: 0.75rem; } .formatted-document-page { padding: 1.5rem; } }

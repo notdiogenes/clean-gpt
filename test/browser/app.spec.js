@@ -5,7 +5,7 @@ async function createSampleDocxBuffer() {
   const encoder = new TextEncoder();
   const entries = [
     { name: '[Content_Types].xml', content: '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>' },
-    { name: 'word/document.xml', content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Hello “Word” — café</w:t></w:r></w:p><w:p><w:r><w:t>Hidden</w:t></w:r><w:r><w:t>​</w:t></w:r><w:r><w:t>marker</w:t></w:r></w:p></w:body></w:document>' }
+    { name: 'word/document.xml', content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:rPr><w:b/><w:i/><w:u w:val="single"/><w:highlight w:val="yellow"/></w:rPr><w:t>Hello “Word” — café</w:t></w:r></w:p><w:p><w:r><w:t>Hidden</w:t></w:r><w:r><w:t>​</w:t></w:r><w:r><w:t>marker</w:t></w:r></w:p></w:body></w:document>' }
   ].map((entry) => ({ name: entry.name, raw: encoder.encode(entry.content) }));
   const chunks = [];
   const centralDirectory = [];
@@ -218,6 +218,9 @@ test('document analysis uploads DOCX and returns to paste view', async ({ page }
   });
   await expect(page.locator('#documentStatus')).toContainText('Document analysis ready');
   await expect(page.locator('#documentSummaryCards')).toContainText('Total issues');
+  await expect(page.locator('#documentFormattedPreview')).toContainText('Hello “Word”');
+  await expect(page.locator('#documentFormattedPreview .formatted-run.is-bold.is-italic.is-underline.has-highlight').first()).toBeVisible();
+  await expect(page.locator('#documentFormattedPreview .issue-highlight').first()).toBeVisible();
   await expect(page.locator('#documentExtractedPreview')).toContainText('Hello “Word”');
   await expect(page.locator('#documentExtractedPreview .issue-highlight').first()).toBeVisible();
   await expect(page.locator('#documentIssueSidebar .issue-row').first()).toBeVisible();
