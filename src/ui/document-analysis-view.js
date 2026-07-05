@@ -69,7 +69,7 @@
     const elements = {
       pasteView: doc.getElementById("pasteView"), documentView: doc.getElementById("documentView"), analyzeWordButton: doc.getElementById("analyzeWordButton"), backToPasteButton: doc.getElementById("backToPasteButton"),
       dropZone: doc.getElementById("documentDropZone"), fileInput: doc.getElementById("documentFileInput"), startPanel: doc.getElementById("documentStartPanel"), status: doc.getElementById("documentStatus"), metadata: doc.getElementById("documentMetadata"), report: doc.getElementById("documentReport"),
-      summary: doc.getElementById("documentSummaryCards"), groups: doc.getElementById("documentIssueGroups"), formatted: doc.getElementById("documentFormattedPreview"), extracted: doc.getElementById("documentExtractedPreview"), cleaned: doc.getElementById("documentCleanedPreview"),
+      summary: doc.getElementById("documentSummaryCards"), groups: doc.getElementById("documentIssueGroups"), formatted: doc.getElementById("documentFormattedPreview"), page: doc.getElementById("documentPage"), extracted: doc.getElementById("documentExtractedPreview"), cleaned: doc.getElementById("documentCleanedPreview"),
       sidebar: doc.getElementById("documentIssueSidebar"), details: doc.getElementById("documentIssueDetails"), filterStatus: doc.getElementById("documentIssueStatusFilter"), filterType: doc.getElementById("documentIssueTypeFilter"), hideLow: doc.getElementById("documentHideLowSeverity"),
       reviewPrevious: doc.getElementById("documentPreviousIssueButton"), reviewNext: doc.getElementById("documentNextIssueButton"), reviewApply: doc.getElementById("documentApplyIssueButton"), reviewIgnore: doc.getElementById("documentIgnoreIssueButton"), reviewApplySimilar: doc.getElementById("documentApplySimilarButton"), previewMode: doc.getElementById("documentPreviewModeSelect"), reviewProgress: doc.getElementById("documentReviewProgress"),
       copy: doc.getElementById("copyDocumentCleanedButton"), copyFormatted: doc.getElementById("copyDocumentFormattedButton"), downloadText: doc.getElementById("downloadDocumentTextButton"), download: doc.getElementById("downloadDocumentReportButton"), clear: doc.getElementById("clearDocumentButton")
@@ -262,9 +262,15 @@
 
     function renderFormattedDocument() {
       if (!elements.formatted) return;
-      elements.formatted.innerHTML = "";
-      const page = doc.createElement("div");
-      page.className = "formatted-document-page";
+      let page = elements.page;
+      if (!page) {
+        page = doc.createElement("div");
+        page.id = "documentPage";
+        page.className = "formatted-document-page document-page";
+        elements.formatted.appendChild(page);
+        elements.page = page;
+      }
+      page.innerHTML = "";
       const blocks = currentModel && Array.isArray(currentModel.blocks) ? currentModel.blocks : [];
       if (!blocks.length) {
         const empty = doc.createElement("p");
@@ -280,7 +286,6 @@
         else appendFormattedText(node, block.text || "", block.start || 0, block.end || block.start || 0, {});
         page.appendChild(node);
       });
-      elements.formatted.appendChild(page);
     }
 
     function renderSidebar() {

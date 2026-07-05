@@ -157,9 +157,13 @@
           <div id="documentIssueSidebar" class="issue-sidebar-list"></div>
         </aside>
         <section class="panel analyzer-main">
-          <details class="formatted-document-section" open>
-            <summary>Show formatted document</summary>
-            <p id="documentFormattedPreviewDescription" class="compact-note">Local preview of extracted DOCX content. The formatted preview is approximate, and the file is not uploaded.</p>
+          <section class="formatted-document-section" aria-labelledby="documentFormattedPreviewHeading">
+            <div class="formatted-document-header">
+              <div>
+                <h3 id="documentFormattedPreviewHeading">Formatted document</h3>
+                <p id="documentFormattedPreviewDescription" class="compact-note">Local preview of extracted DOCX content. The formatted preview is approximate, and the file is not uploaded.</p>
+              </div>
+            </div>
             <div class="review-toolbar" aria-label="Formatted preview review controls">
               <div class="review-toolbar-actions">
                 <button id="documentPreviousIssueButton" type="button" class="button ghost-button">Previous issue</button>
@@ -177,8 +181,14 @@
               </label>
               <span id="documentReviewProgress" class="review-progress" aria-live="polite">Issue 0 of 0</span>
             </div>
-            <div id="documentFormattedPreview" class="formatted-document-preview" role="region" aria-label="Formatted document preview" aria-describedby="documentFormattedPreviewDescription"></div>
-          </details>
+            <div id="documentCanvas" class="document-canvas">
+              <div id="documentViewport" class="document-viewport">
+                <div id="documentFormattedPreview" class="formatted-document-preview" role="region" aria-label="Formatted document preview" aria-describedby="documentFormattedPreviewDescription">
+                  <div id="documentPage" class="formatted-document-page document-page"></div>
+                </div>
+              </div>
+            </div>
+          </section>
           <h3>Extracted plain text with issue highlights</h3>
           <p class="compact-note">Fallback/debug view showing the exact text extracted for sanitizer analysis.</p>
           <pre id="documentExtractedPreview" class="live-text-preview"></pre>
