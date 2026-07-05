@@ -108,25 +108,36 @@
     </aside>
   </main>
 
-  <main class="app-shell document-shell" id="documentView" data-view="document" hidden>
-    <section class="panel document-hero" aria-labelledby="documentViewLabel">
-      <div class="section-heading">
+  <main class="document-workspace" id="documentView" data-view="document" hidden>
+    <header class="document-header-bar" aria-labelledby="documentViewLabel">
+      <div class="document-title-group">
         <p class="eyebrow">Local Word analysis</p>
-        <h2 id="documentViewLabel">Document analysis</h2>
+        <h2 id="documentViewLabel">Copy Sanitizer document analysis</h2>
+      </div>
+      <div class="document-file-summary" aria-live="polite">
+        <p id="documentStatus" class="status">No file selected.</p>
+        <dl id="documentMetadata" class="document-metadata" hidden></dl>
+      </div>
+      <div class="document-header-actions" aria-label="Document actions">
+        <button id="backToPasteButton" type="button" class="button ghost-button">Return to paste cleaner</button>
+        <button id="copyDocumentCleanedButton" type="button" class="button primary-button">Copy cleaned text</button>
+        <button id="copyDocumentFormattedButton" type="button" class="button secondary-button" aria-label="Copy cleaned formatted content">Copy formatted</button>
+        <button id="downloadDocumentTextButton" type="button" class="button secondary-button" aria-label="Download cleaned text as .txt">Download .txt</button>
+        <button id="downloadDocumentReportButton" type="button" class="button secondary-button" aria-label="Download report as JSON">Download report</button>
+      </div>
+    </header>
+
+    <section id="documentStartPanel" class="panel document-start-panel" aria-labelledby="wordUploadLabel">
+      <div class="section-heading">
+        <p class="eyebrow">Start a local review</p>
+        <h2 id="wordUploadLabel">Upload a Word file</h2>
         <p>Upload a .docx file to extract readable text, run sanitizer inspection, and preview cleaned plain text. The original file is not changed or uploaded.</p>
       </div>
-      <button id="backToPasteButton" type="button" class="button secondary-button">Return to paste cleaner</button>
-    </section>
-
-    <section class="panel document-upload-panel" aria-labelledby="wordUploadLabel">
-      <h2 id="wordUploadLabel">Upload Word file</h2>
       <div id="documentDropZone" class="document-drop-zone" tabindex="0" role="button" aria-label="Drop or choose a DOCX file">
         <strong>Drag and drop a .docx file here</strong>
         <span>or choose one from your computer</span>
         <input id="documentFileInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       </div>
-      <p id="documentStatus" class="status" aria-live="polite">No file selected.</p>
-      <dl id="documentMetadata" class="document-metadata" hidden></dl>
     </section>
 
     <section id="documentReport" class="document-report" hidden aria-labelledby="documentReportLabel">
@@ -178,11 +189,7 @@
         <aside id="documentIssueDetails" class="panel issue-detail-panel" aria-live="polite"><p class="compact-note">Select an issue to review details and actions.</p></aside>
       </section>
       <div class="panel document-actions">
-        <button id="copyDocumentCleanedButton" type="button" class="button primary-button">Copy cleaned text</button>
-        <button id="copyDocumentFormattedButton" type="button" class="button secondary-button">Copy cleaned formatted content</button>
-        <button id="downloadDocumentTextButton" type="button" class="button secondary-button">Download cleaned text as .txt</button>
-        <button id="downloadDocumentReportButton" type="button" class="button secondary-button">Download report as JSON</button>
-        <button id="clearDocumentButton" type="button" class="button ghost-button">Clear file</button>
+        <button id="clearDocumentButton" type="button" class="button ghost-button">Clear file and upload another</button>
       </div>
     </section>
   </main>
