@@ -687,13 +687,18 @@
 
   function addChange(changes, phase, source, target, count, note) {
     if (!count) return;
-    const key = `${phase}|${source}|${target}|${note || ""}`;
-    const existing = changes.find((change) => change.key === key);
-    if (existing) {
-      existing.count += count;
-      return;
-    }
-    changes.push({ key, phase, source, target, count, note: note || "" });
+    const matchKey = `${phase}|${source}|${target}|${note || ""}`;
+    const occurrenceIndex = changes.filter((change) => change.matchKey === matchKey).length;
+    changes.push({
+      key: `${matchKey}|${occurrenceIndex}`,
+      matchKey,
+      occurrenceIndex,
+      phase,
+      source,
+      target,
+      count,
+      note: note || ""
+    });
   }
 
   function replaceMappedChars(text, map, phase, changes, stats, statName, note) {
@@ -1419,13 +1424,11 @@
   }
 
   function invisibleLabel(char) {
-    const labels = new Map([
-      ["\t", "TAB"], ["\u00a0", "NBSP"], ["\u00ad", "SHY"], ["\u034f", "CGJ"], ["\u061c", "ALM"],
-      ["\u180e", "MVS"], ["\u200b", "ZWSP"], ["\u200c", "ZWNJ"], ["\u200d", "ZWJ"],
-      ["\u200e", "LRM"], ["\u200f", "RLM"], ["\u2028", "LS"], ["\u2029", "PS"],
-      ["\u2060", "WJ"], ["\ufeff", "BOM"]
-    ]);
-    return labels.get(char) || labelChar(char).split(" ")[0];
+    return Array.from(char).map((c) => {
+      const cp = c.codePointAt(0);
+      const hex = cp.toString(16).toUpperCase().padStart(4, "0");
+      return `${CHAR_NAMES[cp] || "CHARACTER"} U+${hex}`;
+    }).join(" + ");
   }
 
   function visualizeInvisibles(text) {
@@ -1945,6 +1948,20 @@
       return source === change.source || target === change.target || source.includes(change.source || "\u0000") || target.includes(change.target || "\u0000");
     }
 
+    function sourceChangeMatchesRecordOccurrence(part, change, state) {
+      if (!sourceChangeMatchesRecord(part, change)) return false;
+      const occurrenceIndex = change.occurrenceIndex || 0;
+      if (state.seen < occurrenceIndex) {
+        state.seen += 1;
+        return false;
+      }
+      if (state.seen === occurrenceIndex) {
+        state.seen += 1;
+        return true;
+      }
+      return false;
+    }
+
     function highlightInputForMetric(label, matcher, blockMatcher) {
       if (!lastResult) return;
       const options = getOptions();
@@ -2038,9 +2055,17 @@
         button.type = "button";
         button.className = "inspector-link";
         button.textContent = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
-        button.addEventListener("mouseenter", () => highlightInputForMetric(change.note || change.target || change.source, (part) => sourceChangeMatchesRecord(part, change)));
+        const makeSingleChangeMatcher = () => {
+          const state = { seen: 0, matched: false };
+          return (part) => {
+            if (state.matched || !sourceChangeMatchesRecordOccurrence(part, change, state)) return false;
+            state.matched = true;
+            return true;
+          };
+        };
+        button.addEventListener("mouseenter", () => highlightInputForMetric(change.note || change.target || change.source, makeSingleChangeMatcher()));
         button.addEventListener("mouseleave", clearInputMetricHighlight);
-        button.addEventListener("focus", () => highlightInputForMetric(change.note || change.target || change.source, (part) => sourceChangeMatchesRecord(part, change)));
+        button.addEventListener("focus", () => highlightInputForMetric(change.note || change.target || change.source, makeSingleChangeMatcher()));
         button.addEventListener("blur", clearInputMetricHighlight);
         li.appendChild(button);
         changesList.appendChild(li);
@@ -2226,13 +2251,18 @@
         } else if (part.type === "remove" || part.type === "replace") {
           const shouldHighlight = highlighter && highlighter.matches(part);
           if (shouldHighlight) {
-            const span = document.createElement("span");
-            span.className = "source-change";
-            span.title = replacementTitle(part.source, part.text || "");
-            span.setAttribute("aria-label", span.title);
-            if (options && (options.showInvisibles || part.type === "remove" || !part.text)) appendVisualizedText(span, part.source);
-            else span.textContent = part.source;
-            container.appendChild(span);
+            const hiddenOnlyRemoval = part.type === "remove" && Array.from(part.source || "").every((char) => regexMatchesText(REGEX.hidden, char)) && !part.text;
+            if (hiddenOnlyRemoval) {
+              appendVisualizedText(container, part.source);
+            } else {
+              const span = document.createElement("span");
+              span.className = "source-change";
+              span.title = replacementTitle(part.source, part.text || "");
+              span.setAttribute("aria-label", span.title);
+              if (options && (options.showInvisibles || part.type === "remove" || !part.text)) appendVisualizedText(span, part.source);
+              else span.textContent = part.source;
+              container.appendChild(span);
+            }
           } else {
             if (options && options.showInvisibles) appendVisualizedText(container, part.source);
             else container.appendChild(document.createTextNode(part.source));
