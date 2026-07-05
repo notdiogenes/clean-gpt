@@ -107,6 +107,12 @@ details { border-top:1px solid var(--border); padding:.65rem 0; } details:first-
 .inspector-row-button:focus-visible { outline:2px solid color-mix(in srgb, var(--primary), transparent 35%); outline-offset:2px; }
 .inspector-row-button.is-pinned::after { content:"Pinned"; flex:0 0 auto; padding:.1rem .35rem; border-radius:999px; color:var(--primary); background:color-mix(in srgb, var(--primary), transparent 88%); font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
 .inspector-metadata-row { cursor:default; }
+.inspector-warning-row { color:#92400e; }
+.inspector-warning-row .inspector-row-button { background:color-mix(in srgb, #f59e0b, transparent 92%); border-color:color-mix(in srgb, #f59e0b, transparent 58%); }
+.inspector-warning-row .inspector-row-button:hover, .inspector-warning-row .inspector-row-button:focus-visible, .inspector-warning-row .inspector-row-button.is-pinned { background:color-mix(in srgb, #f59e0b, transparent 86%); border-color:color-mix(in srgb, #f59e0b, transparent 35%); box-shadow:0 0 0 2px color-mix(in srgb, #f59e0b, transparent 78%); }
+.inspector-warning-copy { flex:1 1 auto; color:#92400e; font-size:.74rem; font-weight:700; text-align:right; }
+:root[data-theme="dark"] .inspector-warning-row, :root[data-theme="dark"] .inspector-warning-copy { color:#fbbf24; }
+
 .site-footer { padding:0 1rem 2rem; color:var(--muted-foreground); font-size:.9rem; }
 @media (max-width: 1100px){ .workflow-list,.settings-grid,.workspace-grid,.side-rail{ grid-template-columns:1fr; } .editor-panel{ height:560px; } }
 @media (max-width: 720px){ .site-header{ grid-template-columns:1fr; } .site-nav{ justify-content:flex-start; } h1{ font-size:2.6rem; } .control-grid.two-up{ grid-template-columns:1fr; } .output-actions{ justify-content:flex-start; } .button,.site-nav a{ width:auto; } }

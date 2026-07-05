@@ -153,13 +153,30 @@ test('rich change records include precise ranges and classifications', () => {
   const nonAscii = byNote('Remaining non-ASCII removed')[0];
   assert.equal(nonAscii.category, 'strict-ascii');
   assert.equal(nonAscii.subcategory, 'non-ascii-remove');
-  assert.equal(nonAscii.severity, 'review');
+  assert.equal(nonAscii.severity, 'warning');
   assert.ok(Number.isInteger(nonAscii.sourceStart));
   for (const change of [hidden, quote, dash, ellipsis, spaces, emoji, nonAscii]) {
     for (const field of ['category', 'subcategory', 'severity', 'sourceStart', 'sourceEnd', 'outputStart', 'outputEnd', 'before', 'after', 'action', 'characterName', 'codePoint', 'message', 'suggestion']) {
       assert.ok(Object.hasOwn(change, field), `${field} missing from ${change.note}`);
     }
   }
+});
+
+
+
+test('meaning-changing compatibility cleanup records use warning severity', () => {
+  const options = sanitizer.buildOptions('plain', {}, Object.fromEntries(Object.keys(sanitizer.OPTION_DEFAULTS).map((key) => [key, false])));
+  options.removeEmoji = true;
+  options.normalizeSuperscriptsSubscripts = true;
+  const result = sanitizer.sanitize('Score 😀 x²', options);
+  assert.equal(result.cleanText, 'Score  x2');
+  const emoji = result.changes.find((change) => change.note === 'Emoji or pictographic symbol removed');
+  assert.equal(emoji.severity, 'warning');
+  assert.equal(emoji.suggestion, 'May change meaning. Review output.');
+  const superSub = result.changes.find((change) => change.note === 'Superscript/subscript flattened');
+  assert.equal(superSub.severity, 'warning');
+  assert.equal(superSub.subcategory, 'super-sub-flatten');
+  assert.equal(superSub.suggestion, 'May change meaning. Review output.');
 });
 
 test('diagnostics return structured review records with output and source locations', () => {

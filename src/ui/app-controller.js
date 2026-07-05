@@ -784,7 +784,7 @@
 
     function createInspectorInteractiveRow(options) {
       const li = document.createElement("li");
-      li.className = "inspector-interactive-row";
+      li.className = `inspector-interactive-row${options.severity === "warning" ? " inspector-warning-row" : ""}`;
       const button = document.createElement("button");
       button.type = "button";
       button.className = "inspector-row-button";
@@ -802,9 +802,9 @@
       return li;
     }
 
-    function createInspectorMetadataRow(children, title) {
+    function createInspectorMetadataRow(children, title, options) {
       const li = document.createElement("li");
-      li.className = "inspector-metadata-row";
+      li.className = `inspector-metadata-row${options?.severity === "warning" ? " inspector-warning-row" : ""}`;
       if (title) li.title = title;
       li.append(...children);
       return li;
@@ -812,8 +812,8 @@
 
     let activeInspectorElement = null;
 
-    function makeInspectorMetric(label, value, matcher, blockMatcher, records) {
-      return { type: "metric", label, value, matcher, blockMatcher, records };
+    function makeInspectorMetric(label, value, matcher, blockMatcher, records, options) {
+      return { type: "metric", label, value, matcher, blockMatcher, records, severity: options?.severity || "info", warningText: options?.warningText || "" };
     }
 
     function makeInspectorNote(text) {
@@ -825,14 +825,22 @@
       const strong = document.createElement("strong");
       span.textContent = entry.label;
       strong.textContent = String(entry.value);
+      const children = [span, strong];
+      if (entry.severity === "warning" && entry.warningText) {
+        const warning = document.createElement("small");
+        warning.className = "inspector-warning-copy";
+        warning.textContent = entry.warningText;
+        children.splice(1, 0, warning);
+      }
       const canHighlight = Boolean(entry.matcher || entry.blockMatcher || entry.records) && Number(entry.value) > 0;
       if (!canHighlight) {
-        return createInspectorMetadataRow([span, strong], "This metric summarizes the document and does not map to one exact text span.");
+        return createInspectorMetadataRow(children, "This metric summarizes the document and does not map to one exact text span.", { severity: entry.severity });
       }
       return createInspectorInteractiveRow({
         ariaLabel: `Highlight ${entry.label.toLowerCase()} in input`,
         title: "Hover, focus, or click to highlight related input text.",
-        children: [span, strong],
+        children,
+        severity: entry.severity,
         renderHighlight: () => highlightInputForMetric(entry.label, entry.matcher, entry.blockMatcher, entry.records)
       });
     }
@@ -840,22 +848,24 @@
     function createInspectorChangeRow(change) {
       const source = getCodeLabelForChangeValue(change.source);
       const target = getCodeLabelForChangeValue(change.target);
-      const text = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}`;
+      const text = `${change.phase}: ${source} -> ${target} ×${change.count}${change.note ? ` (${change.note})` : ""}${change.severity === "warning" ? " — May change meaning. Review output." : ""}`;
       const exactTransformRecords = () => changeRecordsForExactTransform(change.before ?? change.source ?? "", change.after ?? change.target ?? "").filter((record) => record.key === change.key);
       return createInspectorInteractiveRow({
         ariaLabel: `Highlight ${change.phase} change from ${source} to ${target} in input`,
-        title: "Hover, focus, or click to highlight this input change.",
+        title: change.severity === "warning" ? "May change meaning. Review output." : "Hover, focus, or click to highlight this input change.",
         text,
+        severity: change.severity,
         renderHighlight: () => highlightInputForChangeRecords(exactTransformRecords())
       });
     }
 
     function createInspectorReviewRow(record) {
-      const text = `${visibleChar(record.character)} ${record.codePoint} ${record.characterName} ×${record.count} — ${record.suggestion}`;
+      const text = `${visibleChar(record.character)} ${record.codePoint} ${record.characterName} ×${record.count} — ${record.severity === "warning" ? "May change meaning. Review output." : record.suggestion}`;
       return createInspectorInteractiveRow({
         ariaLabel: `Highlight remaining ${record.codePoint} in output${(record.sourceLocations || []).length ? " and input" : ""}`,
-        title: (record.sourceLocations || []).length ? "Hover, focus, or click to highlight the output first and the mapped input source." : "Hover, focus, or click to highlight the output.",
+        title: record.severity === "warning" ? "May change meaning. Review output." : ((record.sourceLocations || []).length ? "Hover, focus, or click to highlight the output first and the mapped input source." : "Hover, focus, or click to highlight the output."),
         text,
+        severity: record.severity,
         renderHighlight: () => {
           highlightOutputForReviewRecord(record);
           if ((record.sourceLocations || []).length) highlightInputForReviewRecord(record);
@@ -877,7 +887,7 @@
         else if (entry.type === "review") list.appendChild(createInspectorReviewRow(entry.record));
         else {
           const li = document.createElement("li");
-          li.className = "inspector-metadata-row";
+          li.className = `inspector-metadata-row${entry.severity === "warning" ? " inspector-warning-row" : ""}`;
           li.textContent = entry.text;
           list.appendChild(li);
         }
@@ -983,9 +993,10 @@
         ]],
         ["Compatibility cleanup", [
           makeInspectorMetric("Bullets converted", result.stats.bulletsChanged, null, null, () => changeRecordsForNotes(["Line-start bullet converted"])),
-          makeInspectorMetric("Emoji removed", result.stats.emojiRemoved, null, null, () => changeRecordsForCategory("emoji")),
-          makeInspectorMetric("Compatibility changes", result.stats.fullwidthChanged + result.stats.ligaturesChanged + result.stats.fractionsChanged + result.stats.superSubChanged, null, null, () => changeRecordsForNotes(["Fullwidth ASCII normalized", "Ligature expanded", "Single-character fraction converted", "Superscript/subscript flattened"])),
-          makeInspectorMetric("Strict ASCII changes", result.stats.strictAsciiChanged, null, null, () => changeRecordsForCategory("strict-ascii"))
+          makeInspectorMetric("Emoji removed", result.stats.emojiRemoved, null, null, () => changeRecordsForCategory("emoji"), { severity: "warning", warningText: "May change meaning. Review output." }),
+          makeInspectorMetric("Compatibility changes", result.stats.fullwidthChanged + result.stats.ligaturesChanged + result.stats.fractionsChanged, null, null, () => changeRecordsForNotes(["Fullwidth ASCII normalized", "Ligature expanded", "Single-character fraction converted"])),
+          makeInspectorMetric("Superscripts/subscripts flattened", result.stats.superSubChanged, null, null, () => changeRecordsForNotes(["Superscript/subscript flattened"]), { severity: "warning", warningText: "May change meaning. Review output." }),
+          makeInspectorMetric("Strict ASCII changes", result.stats.strictAsciiChanged, null, null, () => changeRecordsForCategory("strict-ascii"), { severity: "warning", warningText: "May change meaning. Review output." })
         ]],
         ["Structure detected", [
           makeInspectorMetric("Lists detected", result.doc.meta.lists || 0, null, (block) => block.type === "ul" || block.type === "ol"),
