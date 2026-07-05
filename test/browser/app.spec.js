@@ -1,5 +1,63 @@
 const { test, expect } = require('@playwright/test');
 
+async function createSampleDocxBuffer() {
+  const zlib = require('node:zlib');
+  const encoder = new TextEncoder();
+  const entries = [
+    { name: '[Content_Types].xml', content: '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>' },
+    { name: 'word/document.xml', content: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Hello “Word” — café</w:t></w:r></w:p><w:p><w:r><w:t>Hidden</w:t></w:r><w:r><w:t>​</w:t></w:r><w:r><w:t>marker</w:t></w:r></w:p></w:body></w:document>' }
+  ].map((entry) => ({ name: entry.name, raw: encoder.encode(entry.content) }));
+  const chunks = [];
+  const centralDirectory = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const compressed = zlib.deflateRawSync(entry.raw);
+    const nameBytes = encoder.encode(entry.name);
+    const crc = crc32(entry.raw);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(8, 8);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(compressed.length, 18);
+    local.writeUInt32LE(entry.raw.length, 22);
+    local.writeUInt16LE(nameBytes.length, 26);
+    chunks.push(local, Buffer.from(nameBytes), compressed);
+
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(8, 10);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(compressed.length, 20);
+    central.writeUInt32LE(entry.raw.length, 24);
+    central.writeUInt16LE(nameBytes.length, 28);
+    central.writeUInt32LE(offset, 42);
+    centralDirectory.push(central, Buffer.from(nameBytes));
+    offset += local.length + nameBytes.length + compressed.length;
+  }
+  const centralStart = offset;
+  const centralSize = centralDirectory.reduce((size, chunk) => size + chunk.length, 0);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(centralSize, 12);
+  end.writeUInt32LE(centralStart, 16);
+  return Buffer.concat([...chunks, ...centralDirectory, end]);
+}
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+
 test('loads and switches destination profiles', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Copy Sanitizer' })).toBeVisible();
@@ -145,4 +203,24 @@ test('advanced setting items include descriptions', async ({ page }) => {
   await page.locator('#advancedSettingsButton').click();
   await page.locator('#advancedSettings details', { hasText: 'Source cleanup' }).locator('summary').click();
   await expect(page.locator('.setting-item', { hasText: 'Collapse repeated spaces' }).locator('.setting-item-description')).toContainText('Multiple spaces');
+});
+
+test('document analysis uploads DOCX and returns to paste view', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Analyze Word file' }).click();
+  await expect(page.getByRole('heading', { name: 'Document analysis' })).toBeVisible();
+
+  const docxBuffer = await createSampleDocxBuffer();
+  await page.locator('#documentFileInput').setInputFiles({
+    name: 'sample.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: docxBuffer
+  });
+  await expect(page.locator('#documentStatus')).toContainText('Document analysis ready');
+  await expect(page.locator('#documentSummaryCards')).toContainText('Total issues found');
+  await expect(page.locator('#documentExtractedPreview')).toContainText('Hello “Word”');
+  await expect(page.locator('#documentCleanedPreview')).toContainText('Hello "Word"');
+
+  await page.getByRole('button', { name: 'Return to paste cleaner' }).click();
+  await expect(page.getByRole('heading', { name: 'Original clipboard content' })).toBeVisible();
 });

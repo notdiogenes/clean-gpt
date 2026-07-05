@@ -20,6 +20,8 @@
   const htmlDocumentParser = typeof require === "function" ? require("./src/document/parse-html") : global.TextSanitizerDocument;
   const plainTextDocumentSerializer = typeof require === "function" ? require("./src/document/serialize-plain-text") : global.TextSanitizerDocument;
   const documentSanitizer = typeof require === "function" ? require("./src/document/sanitize-doc") : global.TextSanitizerDocument;
+  const docxExtractor = typeof require === "function" ? require("./src/document/docx-extract") : global.TextSanitizerDocument;
+  const documentAnalysis = typeof require === "function" ? require("./src/document/document-analysis") : global.TextSanitizerDocument;
   const uiController = typeof require === "function" ? require("./src/ui/app-controller") : global.TextSanitizerUi;
 
   const API = Object.assign({}, {
@@ -42,7 +44,12 @@
     buildOptions: optionsCore.buildOptions,
     PRESETS: config.PRESETS,
     DESTINATIONS: config.DESTINATIONS,
-    OPTION_DEFAULTS: config.OPTION_DEFAULTS
+    OPTION_DEFAULTS: config.OPTION_DEFAULTS,
+    isDocxFile: docxExtractor.isDocxFile,
+    extractDocxText: docxExtractor.extractDocxText,
+    extractParagraphsFromDocumentXml: docxExtractor.extractParagraphsFromDocumentXml,
+    analyzeDocumentText: documentAnalysis.analyzeDocumentText,
+    buildIssueGroups: documentAnalysis.buildIssueGroups
   }, uiController ? { startApp: uiController.startApp } : {});
 
   if (typeof module !== "undefined" && module.exports) module.exports = API;

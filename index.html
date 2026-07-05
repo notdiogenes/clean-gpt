@@ -15,11 +15,12 @@
     </div>
     <nav class="site-nav" aria-label="Primary">
       <label class="switch-row theme-toggle" for="themeToggle"><span>Dark mode</span><input id="themeToggle" type="checkbox" role="switch" aria-label="Dark mode"></label>
+      <button id="analyzeWordButton" type="button" class="button primary-button">Analyze Word file</button>
       <a class="button secondary-button" href="tests.html">Tests & debugging</a>
     </nav>
   </header>
 
-  <main class="app-shell">
+  <main class="app-shell" id="pasteView" data-view="paste">
     <section class="panel how-panel" aria-labelledby="howLabel">
       <div class="section-heading">
         <h2 id="howLabel">How this works</h2>
@@ -106,6 +107,49 @@
 
     </aside>
   </main>
+
+  <main class="app-shell document-shell" id="documentView" data-view="document" hidden>
+    <section class="panel document-hero" aria-labelledby="documentViewLabel">
+      <div class="section-heading">
+        <p class="eyebrow">Local Word analysis</p>
+        <h2 id="documentViewLabel">Document analysis</h2>
+        <p>Upload a .docx file to extract readable text, run sanitizer inspection, and preview cleaned plain text. The original file is not changed or uploaded.</p>
+      </div>
+      <button id="backToPasteButton" type="button" class="button secondary-button">Return to paste cleaner</button>
+    </section>
+
+    <section class="panel document-upload-panel" aria-labelledby="wordUploadLabel">
+      <h2 id="wordUploadLabel">Upload Word file</h2>
+      <div id="documentDropZone" class="document-drop-zone" tabindex="0" role="button" aria-label="Drop or choose a DOCX file">
+        <strong>Drag and drop a .docx file here</strong>
+        <span>or choose one from your computer</span>
+        <input id="documentFileInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+      </div>
+      <p id="documentStatus" class="status" aria-live="polite">No file selected.</p>
+      <dl id="documentMetadata" class="document-metadata" hidden></dl>
+    </section>
+
+    <section id="documentReport" class="document-report" hidden aria-labelledby="documentReportLabel">
+      <div class="panel section-heading">
+        <h2 id="documentReportLabel">Analysis report</h2>
+        <p>Text-only MVP report. Word layout, comments, tables, headers, footers, and images are not preserved.</p>
+      </div>
+      <div id="documentSummaryCards" class="summary-cards"></div>
+      <section class="panel">
+        <h3>Issue groups</h3>
+        <div id="documentIssueGroups" class="issue-groups"></div>
+      </section>
+      <section class="document-preview-grid">
+        <div class="panel preview-pane"><h3>Extracted text</h3><pre id="documentExtractedPreview"></pre></div>
+        <div class="panel preview-pane"><h3>Cleaned text preview</h3><p class="compact-note">Preview only; Word formatting is not preserved.</p><pre id="documentCleanedPreview"></pre></div>
+      </section>
+      <div class="panel document-actions">
+        <button id="copyDocumentCleanedButton" type="button" class="button primary-button">Copy cleaned text</button>
+        <button id="downloadDocumentReportButton" type="button" class="button secondary-button">Download report as JSON</button>
+        <button id="clearDocumentButton" type="button" class="button ghost-button">Clear file</button>
+      </div>
+    </section>
+  </main>
   <footer class="site-footer"><p>Static GitHub Pages app. Text is processed locally in the browser.</p></footer>
   <script src="src/config/destinations.js"></script>
   <script src="src/config/presets.js"></script>
@@ -127,6 +171,8 @@
   <script src="src/document/parse-plain-text.js"></script>
   <script src="src/document/serialize-plain-text.js"></script>
   <script src="src/document/sanitize-doc.js"></script>
+  <script src="src/document/docx-extract.js"></script>
+  <script src="src/document/document-analysis.js"></script>
   <script src="src/html/escape.js"></script>
   <script src="src/html/style-attributes.js"></script>
   <script src="src/html/gmail-html.js"></script>
@@ -143,6 +189,7 @@
   <script src="src/ui/inspector.js"></script>
   <script src="src/ui/clipboard.js"></script>
   <script src="src/ui/samples.js"></script>
+  <script src="src/ui/document-analysis-view.js"></script>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

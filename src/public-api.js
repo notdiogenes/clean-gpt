@@ -17,6 +17,8 @@ import "./document/serialize-plain-text.js";
 import "./document/parse-plain-text.js";
 import "./document/parse-html.js";
 import "./document/sanitize-doc.js";
+import "./document/docx-extract.js";
+import "./document/document-analysis.js";
 
 import "./html/escape.js";
 import "./html/style-attributes.js";
@@ -31,5 +33,5 @@ const htmlApi = globalScope.TextSanitizerHtml || {};
 
 export const { PRESETS, DESTINATIONS, OPTION_DEFAULTS } = config;
 export const { sanitize, buildOptions } = core;
-export const { parsePlainTextToDoc, parseHtmlToDoc, sanitizeDoc, docToPlainText } = documentApi;
+export const { parsePlainTextToDoc, parseHtmlToDoc, sanitizeDoc, docToPlainText, isDocxFile, extractDocxText, analyzeDocumentText, buildIssueGroups } = documentApi;
 export const { buildGmailHtml, buildGmailHtmlFromDoc, buildDocumentHtmlFromDoc } = htmlApi;
