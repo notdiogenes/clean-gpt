@@ -22,6 +22,7 @@ import "./document/docx-extract.js";
 import "./document/document-analysis.js";
 
 import "./html/escape.js";
+import "./document/serialize-formatted-html.js";
 import "./html/style-attributes.js";
 import "./html/gmail-html.js";
 import "./html/document-html.js";
@@ -34,5 +35,5 @@ const htmlApi = globalScope.TextSanitizerHtml || {};
 
 export const { PRESETS, DESTINATIONS, OPTION_DEFAULTS } = config;
 export const { sanitize, buildOptions } = core;
-export const { parsePlainTextToDoc, parseHtmlToDoc, sanitizeDoc, docToPlainText, isDocxFile, extractDocxText, parseDocxRelationships, buildDocxWarnings, analyzeDocumentText, buildIssueGroups, groupOverlappingIssues, prioritizeIssueRanges } = documentApi;
+export const { parsePlainTextToDoc, parseHtmlToDoc, sanitizeDoc, docToPlainText, isDocxFile, extractDocxText, parseDocxRelationships, buildDocxWarnings, analyzeDocumentText, buildIssueGroups, groupOverlappingIssues, prioritizeIssueRanges, serializeFormattedHtml, applyAcceptedIssuesToText } = documentApi;
 export const { buildGmailHtml, buildGmailHtmlFromDoc, buildDocumentHtmlFromDoc } = htmlApi;

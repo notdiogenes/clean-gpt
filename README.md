@@ -60,6 +60,12 @@ Copy Sanitizer can remove or normalize:
 
 The Inspector reports a grouped review, starting with a Cleanup summary and then sections for hidden and suspicious characters, typography normalization, whitespace/layout cleanup, compatibility cleanup, detected structure, items that still need review, and technical details such as character counts, clipboard source details, and Clipboard API compatibility.
 
+## Document analysis exports
+
+The DOCX analysis workflow keeps existing cleaned plain-text copy and `.txt` download behavior. After reviewing issues, users can also copy cleaned formatted content to the clipboard as `text/html` with a `text/plain` fallback. The formatted HTML is generated locally from the extracted normalized document model plus applied issue state, preserving safe inline formatting such as bold, italic, underline, strike-through, highlight, color, superscript/subscript, tables, and safe hyperlinks.
+
+Sanitized DOCX download is deferred to a later milestone. The current export scope is cleaned plain text, JSON review reports, and clipboard-only formatted HTML; generating a replacement `.docx` requires a separate package writer that preserves document relationships and removes unsafe or stale WordprocessingML safely.
+
 ## Repository layout
 
 ```text

@@ -22,6 +22,7 @@
   const documentSanitizer = typeof require === "function" ? require("./src/document/sanitize-doc") : global.TextSanitizerDocument;
   const docxExtractor = typeof require === "function" ? require("./src/document/docx-extract") : global.TextSanitizerDocument;
   const documentAnalysis = typeof require === "function" ? require("./src/document/document-analysis") : global.TextSanitizerDocument;
+  const formattedSerializer = typeof require === "function" ? require("./src/document/serialize-formatted-html") : global.TextSanitizerDocument;
   const uiController = typeof require === "function" ? require("./src/ui/app-controller") : global.TextSanitizerUi;
   const documentAnalysisView = typeof require === "function" ? require("./src/ui/document-analysis-view") : global.TextSanitizerUi;
 
@@ -58,6 +59,8 @@
     buildIssueGroups: documentAnalysis.buildIssueGroups,
     groupOverlappingIssues: documentAnalysis.groupOverlappingIssues,
     prioritizeIssueRanges: documentAnalysis.prioritizeIssueRanges,
+    serializeFormattedHtml: formattedSerializer.serializeFormattedHtml,
+    applyAcceptedIssuesToText: formattedSerializer.applyAcceptedIssuesToText,
     createReviewState: documentAnalysisView.createReviewState,
     applyIssuePatches: documentAnalysisView.applyIssuePatches
   }, uiController ? { startApp: uiController.startApp } : {});
