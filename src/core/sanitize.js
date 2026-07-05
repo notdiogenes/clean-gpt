@@ -15,8 +15,8 @@
     const source = sanitizeSource(input, mergedOptions);
     let text = applyDestinationTypography(source.text, mergedOptions, source.changes, source.stats);
     text = applyStrictAscii(text, mergedOptions, source.changes, source.stats);
-    const diagnostics = getDiagnostics(text);
-    return { cleanText: text, changes: source.changes, stats: source.stats, warnings: diagnostics.warnings, remainingNonAscii: diagnostics.remainingNonAscii, options: mergedOptions };
+    const diagnostics = getDiagnostics(text, input);
+    return { cleanText: text, changes: source.changes, stats: source.stats, warnings: diagnostics.warnings, reviewRecords: diagnostics.reviewRecords, remainingNonAscii: diagnostics.remainingNonAscii, options: mergedOptions };
   }
   const API = { sanitize };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
