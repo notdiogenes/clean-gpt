@@ -1,6 +1,6 @@
 # Source module map
 
-`app.js` remains the browser entry point for GitHub Pages. New code should keep pure parsing,
+`src/main.js` is the browser startup entry point for GitHub Pages; `app.js` remains the CommonJS/API entry point for tests and compatibility. New code should keep pure parsing,
 sanitizing, rendering, clipboard, and UI responsibilities separated according to this map before
 they are extracted into standalone modules:
 
