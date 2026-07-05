@@ -248,21 +248,23 @@ test('document analysis uploads DOCX and returns to paste view', async ({ page }
     buffer: docxBuffer
   });
   await expect(page.locator('#documentStatus')).toContainText('Document analysis ready');
-  await expect(page.locator('#documentSummaryCards')).toContainText('Total issues');
+  await expect(page.locator('#documentSummaryCards')).toContainText('Total');
   await expect(page.locator('#documentFormattedPreview')).toContainText('Hello');
   await expect(page.locator('#documentFormattedPreview')).toContainText('Word');
   await expect(page.locator('#documentFormattedPreview .formatted-run.is-bold.is-italic.is-underline.has-highlight').first()).toBeVisible();
   await expect(page.locator('#documentFormattedPreview .issue-highlight').first()).toBeVisible();
+  await page.locator('#documentDisplayModeSelect').selectOption('extracted');
   await expect(page.locator('#documentExtractedPreview')).toContainText('Hello “Word”');
   await expect(page.locator('#documentExtractedPreview .issue-highlight').first()).toBeVisible();
+  await page.locator('#documentDisplayModeSelect').selectOption('formatted');
   await expect(page.locator('#documentIssueSidebar .issue-row').first()).toBeVisible();
 
-  const openBefore = await page.locator('#documentSummaryCards .summary-card', { hasText: 'Open issues' }).locator('strong').innerText();
+  const openBefore = await page.locator('#documentSummaryCards .summary-card', { hasText: 'Open' }).locator('strong').innerText();
   await page.locator('#documentIssueSidebar .issue-row').first().click();
   await expect(page.locator('#documentIssueDetails')).toContainText('Selected issue');
   await page.locator('#documentIssueDetails').getByRole('button', { name: 'Apply' }).click();
-  await expect(page.locator('#documentSummaryCards .summary-card', { hasText: 'Applied fixes' }).locator('strong')).toHaveText('1');
-  await expect(page.locator('#documentSummaryCards .summary-card', { hasText: 'Open issues' }).locator('strong')).not.toHaveText(openBefore);
+  await expect(page.locator('#documentSummaryCards .summary-card', { hasText: 'Applied' }).locator('strong')).toHaveText('1');
+  await expect(page.locator('#documentSummaryCards .summary-card', { hasText: 'Open' }).locator('strong')).not.toHaveText(openBefore);
   await page.getByRole('button', { name: 'Copy cleaned text' }).click();
   await expect(page.locator('#documentStatus')).toContainText('Copied cleaned text.');
   expect(await page.evaluate(() => window.__clipboardWrites.at(-1))).toMatchObject({ type: 'text' });
@@ -298,8 +300,10 @@ test('document formatted review supports inline selection navigation actions mod
   });
   await expect(page.locator('#documentStatus')).toContainText('Document analysis ready');
 
+  await page.locator('#documentLeftPanelToggle').click();
   const firstIssue = page.locator('#documentFormattedPreview [data-issue-id]').first();
   await firstIssue.click();
+  await page.locator('#documentLeftPanelToggle').click();
   await expect(firstIssue).toHaveClass(/is-selected/);
   await expect(page.locator('#documentIssueSidebar .issue-row.is-selected')).toHaveCount(1);
   const initialProgress = await page.locator('#documentReviewProgress').innerText();
@@ -336,4 +340,50 @@ test('document formatted review supports inline selection navigation actions mod
 
   await page.locator('#documentIssueTypeFilter').selectOption('punctuation');
   await expect(page.locator('#documentIssueSidebar .issue-group h4').first()).toContainText('Punctuation');
+});
+
+
+test('document analysis uses document-first workspace with collapsible panels and display modes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Analyze Word file' }).click();
+  const docxBuffer = await createSampleDocxBuffer();
+  await page.locator('#documentFileInput').setInputFiles({
+    name: 'layout.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: docxBuffer
+  });
+  await expect(page.locator('#documentStatus')).toContainText('Document analysis ready');
+
+  await expect(page.locator('.document-analyzer-grid')).toHaveCount(0);
+  expect(await page.locator('#documentCanvas').evaluate((node) => Boolean(node.closest('.document-analyzer-grid, .analyzer-main')))).toBe(false);
+  await expect(page.locator('#documentCanvas')).toBeVisible();
+
+  const canvasWidthOpen = await page.locator('#documentCanvas').evaluate((node) => node.getBoundingClientRect().width);
+  await page.locator('#documentLeftPanelToggle').click();
+  await page.locator('#documentRightPanelToggle').click();
+  await expect(page.locator('#documentIssuePanel')).toHaveClass(/is-collapsed/);
+  await expect(page.locator('#documentIssueDetails')).toHaveClass(/is-collapsed/);
+  const canvasWidthClosed = await page.locator('#documentCanvas').evaluate((node) => node.getBoundingClientRect().width);
+  expect(canvasWidthClosed).toBeGreaterThanOrEqual(canvasWidthOpen);
+
+  await page.locator('#documentLeftPanelToggle').click();
+  await page.locator('#documentRightPanelToggle').click();
+  await expect(page.locator('#documentIssuePanel')).toHaveClass(/is-open/);
+  await expect(page.locator('#documentIssueDetails')).toHaveClass(/is-open/);
+
+  await page.locator('#documentIssueSidebar .issue-row').first().click();
+  const selectedIssueId = await page.locator('#documentIssueSidebar .issue-row.is-selected').first().getAttribute('data-issue-id');
+  await page.locator('#documentLeftPanelToggle').click();
+  await page.locator('#documentLeftPanelToggle').click();
+  await expect(page.locator(`#documentIssueSidebar .issue-row[data-issue-id="${selectedIssueId}"]`)).toHaveClass(/is-selected/);
+
+  await expect(page.locator('#documentFormattedPreview')).toBeVisible();
+  await page.locator('#documentDisplayModeSelect').selectOption('extracted');
+  await expect(page.locator('#documentExtractedPreview')).toBeVisible();
+  await expect(page.locator('#documentExtractedPreview')).toContainText('Hello “Word”');
+  await page.locator('#documentDisplayModeSelect').selectOption('cleaned');
+  await expect(page.locator('#documentCleanedPreview')).toBeVisible();
+  await expect(page.locator('#documentCleanedPreview')).toContainText('Hello');
+  await page.locator('#documentDisplayModeSelect').selectOption('formatted');
+  await expect(page.locator('#documentFormattedPreview')).toBeVisible();
 });

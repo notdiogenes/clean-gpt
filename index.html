@@ -141,63 +141,75 @@
     </section>
 
     <section id="documentReport" class="document-report" hidden aria-labelledby="documentReportLabel">
-      <div class="panel section-heading">
-        <h2 id="documentReportLabel">Analysis report</h2>
-        <p>Formatted preview is approximate. Comments, tracked changes, footnotes/endnotes, headers, footers, images, text boxes, complex tables, and exact Word layout are not fully represented.</p>
-      </div>
-      <div id="documentSummaryCards" class="summary-cards"></div>
-      <section class="document-analyzer-grid" aria-label="Interactive issue analyzer">
-        <aside class="panel analyzer-sidebar" aria-label="Issue sidebar">
-          <h3>Issues</h3>
-          <div class="issue-filters" aria-label="Issue filters">
-            <label>Status<select id="documentIssueStatusFilter"><option value="all">Show all</option><option value="open">Open only</option><option value="applied">Applied</option><option value="ignored">Ignored</option></select></label>
-            <label>Type<select id="documentIssueTypeFilter"><option value="all">All issue types</option></select></label>
-            <label class="switch-row"><span>Hide low-severity issues</span><input id="documentHideLowSeverity" type="checkbox"></label>
+      <div class="document-review-shell" aria-label="Interactive issue analyzer">
+        <div class="document-workspace-chrome" aria-label="Document review toolbar">
+          <div class="document-summary-strip" id="documentSummaryCards" aria-label="Document issue summary"></div>
+          <div class="document-panel-toggles" aria-label="Workspace panels">
+            <button id="documentLeftPanelToggle" type="button" class="button ghost-button" aria-controls="documentIssuePanel" aria-expanded="true" aria-label="Toggle issue list panel">Issues</button>
+            <button id="documentRightPanelToggle" type="button" class="button ghost-button" aria-controls="documentIssueDetails" aria-expanded="true" aria-label="Toggle issue details panel">Details</button>
           </div>
-          <div id="documentIssueSidebar" class="issue-sidebar-list"></div>
-        </aside>
-        <section class="panel analyzer-main">
-          <section class="formatted-document-section" aria-labelledby="documentFormattedPreviewHeading">
+          <div class="review-toolbar" aria-label="Formatted preview review controls">
+            <div class="review-toolbar-actions">
+              <button id="documentPreviousIssueButton" type="button" class="button ghost-button">Previous issue</button>
+              <button id="documentNextIssueButton" type="button" class="button ghost-button">Next issue</button>
+              <button id="documentApplyIssueButton" type="button" class="button primary-button">Apply</button>
+              <button id="documentIgnoreIssueButton" type="button" class="button ghost-button">Ignore</button>
+              <button id="documentApplySimilarButton" type="button" class="button secondary-button">Apply all similar</button>
+            </div>
+            <label class="review-mode-label">Preview mode
+              <select id="documentPreviewModeSelect">
+                <option value="original">Original</option>
+                <option value="markup" selected>Markup</option>
+                <option value="accepted">Accepted</option>
+              </select>
+            </label>
+            <label class="review-mode-label">Display
+              <select id="documentDisplayModeSelect" aria-label="Document display mode">
+                <option value="formatted" selected>Formatted document</option>
+                <option value="extracted">Extracted text</option>
+                <option value="cleaned">Cleaned text</option>
+              </select>
+            </label>
+            <label class="review-mode-label">Zoom
+              <select id="documentZoomSelect" aria-label="Document zoom">
+                <option value="fit" selected>Fit</option>
+                <option value="100">100%</option>
+                <option value="125">125%</option>
+              </select>
+            </label>
+            <span id="documentReviewProgress" class="review-progress" aria-live="polite">Issue 0 of 0</span>
+          </div>
+        </div>
+        <div class="document-main-stage">
+          <aside id="documentIssuePanel" class="document-side-panel document-side-panel-left is-open" aria-label="Issue filters and list">
+            <div class="document-side-panel-header"><h3>Issues</h3><button id="documentCloseLeftPanelButton" type="button" class="button ghost-button" aria-label="Close issue list panel">×</button></div>
+            <div class="issue-filters" aria-label="Issue filters">
+              <label>Status<select id="documentIssueStatusFilter"><option value="all">Show all</option><option value="open">Open only</option><option value="applied">Applied</option><option value="ignored">Ignored</option></select></label>
+              <label>Type<select id="documentIssueTypeFilter"><option value="all">All issue types</option></select></label>
+              <label class="switch-row"><span>Hide low-severity issues</span><input id="documentHideLowSeverity" type="checkbox"></label>
+            </div>
+            <div id="documentIssueSidebar" class="issue-sidebar-list"></div>
+          </aside>
+          <section class="document-canvas-stage" aria-labelledby="documentFormattedPreviewHeading">
             <div class="formatted-document-header">
               <div>
                 <h3 id="documentFormattedPreviewHeading">Formatted document</h3>
                 <p id="documentFormattedPreviewDescription" class="compact-note">Local preview of extracted DOCX content. The formatted preview is approximate, and the file is not uploaded.</p>
               </div>
             </div>
-            <div class="review-toolbar" aria-label="Formatted preview review controls">
-              <div class="review-toolbar-actions">
-                <button id="documentPreviousIssueButton" type="button" class="button ghost-button">Previous issue</button>
-                <button id="documentNextIssueButton" type="button" class="button ghost-button">Next issue</button>
-                <button id="documentApplyIssueButton" type="button" class="button primary-button">Apply</button>
-                <button id="documentIgnoreIssueButton" type="button" class="button ghost-button">Ignore</button>
-                <button id="documentApplySimilarButton" type="button" class="button secondary-button">Apply all similar</button>
-              </div>
-              <label class="review-mode-label">Preview mode
-                <select id="documentPreviewModeSelect">
-                  <option value="original">Original</option>
-                  <option value="markup" selected>Markup</option>
-                  <option value="accepted">Accepted</option>
-                </select>
-              </label>
-              <span id="documentReviewProgress" class="review-progress" aria-live="polite">Issue 0 of 0</span>
-            </div>
             <div id="documentCanvas" class="document-canvas">
-              <div id="documentViewport" class="document-viewport">
-                <div id="documentFormattedPreview" class="formatted-document-preview" role="region" aria-label="Formatted document preview" aria-describedby="documentFormattedPreviewDescription">
+              <div id="documentViewport" class="document-viewport" tabindex="0" aria-label="Document canvas">
+                <div id="documentFormattedPreview" class="formatted-document-preview document-display-pane is-active" role="region" aria-label="Formatted document preview" aria-describedby="documentFormattedPreviewDescription">
                   <div id="documentPage" class="formatted-document-page document-page"></div>
                 </div>
+                <pre id="documentExtractedPreview" class="live-text-preview document-display-pane" aria-label="Extracted plain text with issue highlights"></pre>
+                <pre id="documentCleanedPreview" class="live-text-preview document-display-pane" aria-label="Cleaned plain-text preview"></pre>
               </div>
             </div>
           </section>
-          <h3>Extracted plain text with issue highlights</h3>
-          <p class="compact-note">Fallback/debug view showing the exact text extracted for sanitizer analysis.</p>
-          <pre id="documentExtractedPreview" class="live-text-preview"></pre>
-          <h3>Cleaned plain-text preview</h3>
-          <p class="compact-note">This preview is plain text and does not preserve Word formatting.</p>
-          <pre id="documentCleanedPreview" class="live-text-preview"></pre>
-        </section>
-        <aside id="documentIssueDetails" class="panel issue-detail-panel" aria-live="polite"><p class="compact-note">Select an issue to review details and actions.</p></aside>
-      </section>
+          <aside id="documentIssueDetails" class="document-side-panel document-side-panel-right is-open" aria-live="polite" aria-label="Selected issue details"><p class="compact-note">Select an issue to review details and actions.</p></aside>
+        </div>
+      </div>
       <div class="panel document-actions">
         <button id="clearDocumentButton" type="button" class="button ghost-button">Clear file and upload another</button>
       </div>

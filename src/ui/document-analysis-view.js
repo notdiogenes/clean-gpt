@@ -38,7 +38,7 @@
 
   function createReviewState(model) {
     const issues = (model.analysisResults.issues || []).map((issue) => Object.assign({ status: "open" }, issue));
-    return { issues, selectedIssueId: null, previewMode: "markup", filters: { status: "all", type: "all", hideLow: false }, cleanedText: model.rawText };
+    return { issues, selectedIssueId: null, previewMode: "markup", filters: { status: "all", type: "all", hideLow: false }, cleanedText: model.rawText, leftPanelOpen: true, rightPanelOpen: true, displayMode: "formatted", zoom: "fit" };
   }
 
   function issueExplanation(issue) {
@@ -69,7 +69,7 @@
     const elements = {
       pasteView: doc.getElementById("pasteView"), documentView: doc.getElementById("documentView"), analyzeWordButton: doc.getElementById("analyzeWordButton"), backToPasteButton: doc.getElementById("backToPasteButton"),
       dropZone: doc.getElementById("documentDropZone"), fileInput: doc.getElementById("documentFileInput"), startPanel: doc.getElementById("documentStartPanel"), status: doc.getElementById("documentStatus"), metadata: doc.getElementById("documentMetadata"), report: doc.getElementById("documentReport"),
-      summary: doc.getElementById("documentSummaryCards"), groups: doc.getElementById("documentIssueGroups"), formatted: doc.getElementById("documentFormattedPreview"), page: doc.getElementById("documentPage"), extracted: doc.getElementById("documentExtractedPreview"), cleaned: doc.getElementById("documentCleanedPreview"),
+      summary: doc.getElementById("documentSummaryCards"), shell: doc.querySelector(".document-review-shell"), viewport: doc.getElementById("documentViewport"), leftPanel: doc.getElementById("documentIssuePanel"), leftToggle: doc.getElementById("documentLeftPanelToggle"), leftClose: doc.getElementById("documentCloseLeftPanelButton"), rightToggle: doc.getElementById("documentRightPanelToggle"), displayMode: doc.getElementById("documentDisplayModeSelect"), zoom: doc.getElementById("documentZoomSelect"), groups: doc.getElementById("documentIssueGroups"), formatted: doc.getElementById("documentFormattedPreview"), page: doc.getElementById("documentPage"), extracted: doc.getElementById("documentExtractedPreview"), cleaned: doc.getElementById("documentCleanedPreview"),
       sidebar: doc.getElementById("documentIssueSidebar"), details: doc.getElementById("documentIssueDetails"), filterStatus: doc.getElementById("documentIssueStatusFilter"), filterType: doc.getElementById("documentIssueTypeFilter"), hideLow: doc.getElementById("documentHideLowSeverity"),
       reviewPrevious: doc.getElementById("documentPreviousIssueButton"), reviewNext: doc.getElementById("documentNextIssueButton"), reviewApply: doc.getElementById("documentApplyIssueButton"), reviewIgnore: doc.getElementById("documentIgnoreIssueButton"), reviewApplySimilar: doc.getElementById("documentApplySimilarButton"), previewMode: doc.getElementById("documentPreviewModeSelect"), reviewProgress: doc.getElementById("documentReviewProgress"),
       copy: doc.getElementById("copyDocumentCleanedButton"), copyFormatted: doc.getElementById("copyDocumentFormattedButton"), downloadText: doc.getElementById("downloadDocumentTextButton"), download: doc.getElementById("downloadDocumentReportButton"), clear: doc.getElementById("clearDocumentButton")
@@ -123,12 +123,41 @@
 
     function renderSummary() {
       const c = counts();
+      if (!elements.summary) return;
       elements.summary.innerHTML = "";
-      [["Total issues", c.total], ["Open issues", c.open], ["Applied fixes", c.applied], ["Ignored issues", c.ignored], ["Issue types found", c.types]].forEach(([label, value]) => {
+      [["Total", c.total], ["Open", c.open], ["Applied", c.applied], ["Ignored", c.ignored], ["Types", c.types]].forEach(([label, value]) => {
         const card = doc.createElement("div"); card.className = "summary-card";
         appendTextElement(card, "span", label);
         appendTextElement(card, "strong", value);
         elements.summary.appendChild(card);
+      });
+    }
+
+    function renderLayoutState() {
+      if (!review) return;
+      const leftOpen = Boolean(review.leftPanelOpen);
+      const rightOpen = Boolean(review.rightPanelOpen);
+      if (elements.shell) {
+        elements.shell.classList.toggle("has-left-panel", leftOpen);
+        elements.shell.classList.toggle("has-right-panel", rightOpen);
+      }
+      if (elements.leftPanel) {
+        elements.leftPanel.classList.toggle("is-open", leftOpen);
+        elements.leftPanel.classList.toggle("is-collapsed", !leftOpen);
+      }
+      if (elements.details) {
+        elements.details.classList.toggle("is-open", rightOpen);
+        elements.details.classList.toggle("is-collapsed", !rightOpen);
+      }
+      if (elements.leftToggle) elements.leftToggle.setAttribute("aria-expanded", String(leftOpen));
+      if (elements.rightToggle) elements.rightToggle.setAttribute("aria-expanded", String(rightOpen));
+      if (elements.displayMode) elements.displayMode.value = review.displayMode || "formatted";
+      if (elements.zoom) elements.zoom.value = review.zoom || "fit";
+      if (elements.documentView) elements.documentView.dataset.zoom = review.zoom || "fit";
+      [elements.formatted, elements.extracted, elements.cleaned].forEach((pane) => {
+        if (!pane) return;
+        const mode = pane === elements.formatted ? "formatted" : pane === elements.extracted ? "extracted" : "cleaned";
+        pane.classList.toggle("is-active", (review.displayMode || "formatted") === mode);
       });
     }
 
@@ -363,7 +392,7 @@
       [elements.reviewPrevious, elements.reviewNext].forEach((button) => { if (button) button.disabled = !hasVisible; });
     }
     function renderCleaned() { review.cleanedText = applyIssuePatches(currentModel.rawText, review.issues); review.formattedHtml = serializeFormattedHtml(currentModel, review); elements.cleaned.textContent = review.cleanedText; }
-    function renderAll() { renderSummary(); renderFormattedDocument(); renderHighlights(); renderSidebar(); renderDetails(); renderCleaned(); renderToolbar(); }
+    function renderAll() { renderSummary(); renderFormattedDocument(); renderHighlights(); renderSidebar(); renderDetails(); renderCleaned(); renderToolbar(); renderLayoutState(); }
 
     function selectIssue(id) {
       if (!id) return;
@@ -454,6 +483,11 @@
     elements.reviewIgnore?.addEventListener("click", () => updateSelected("ignored"));
     elements.reviewApplySimilar?.addEventListener("click", () => updateSimilarSelected("applied"));
     elements.previewMode?.addEventListener("change", () => { if (!review) return; review.previewMode = elements.previewMode.value; renderAll(); });
+    elements.leftToggle?.addEventListener("click", () => { if (!review) return; review.leftPanelOpen = !review.leftPanelOpen; renderAll(); });
+    elements.leftClose?.addEventListener("click", () => { if (!review) return; review.leftPanelOpen = false; renderAll(); });
+    elements.rightToggle?.addEventListener("click", () => { if (!review) return; review.rightPanelOpen = !review.rightPanelOpen; renderAll(); });
+    elements.displayMode?.addEventListener("change", () => { if (!review) return; review.displayMode = elements.displayMode.value; renderAll(); });
+    elements.zoom?.addEventListener("change", () => { if (!review) return; review.zoom = elements.zoom.value; renderAll(); });
     function renderAfterFilterChange() { if (review && review.selectedIssueId && selectedIssueIndex() < 0) review.selectedIssueId = visibleIssues()[0]?.id || null; renderAll(); }
     elements.filterStatus?.addEventListener("change", () => { if (!review) return; review.filters.status = elements.filterStatus.value; renderAfterFilterChange(); });
     elements.filterType?.addEventListener("change", () => { if (!review) return; review.filters.type = elements.filterType.value; renderAfterFilterChange(); });
@@ -464,7 +498,7 @@
       if (event.key === "ArrowUp") { event.preventDefault(); selectPreviousIssue(); }
       if (event.key === "Enter") { event.preventDefault(); updateSelected("applied"); }
       if (event.key.toLowerCase() === "i") { event.preventDefault(); updateSelected("ignored"); }
-      if (event.key === "Escape") { review.selectedIssueId = null; renderAll(); }
+      if (event.key === "Escape") { if (review.rightPanelOpen) review.rightPanelOpen = false; else if (review.leftPanelOpen) review.leftPanelOpen = false; else review.selectedIssueId = null; renderAll(); }
     });
     elements.copy?.addEventListener("click", async () => { if (!currentModel) return; try { await navigator.clipboard.writeText(review.cleanedText); setStatus("Copied cleaned text."); } catch (error) { setStatus("Clipboard write failed; select the cleaned preview and copy manually."); } });
     elements.copyFormatted?.addEventListener("click", async () => {
